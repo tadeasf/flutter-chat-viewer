@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../api_db/api_service.dart';
 
 class PhotoViewScreen extends StatelessWidget {
@@ -18,19 +20,36 @@ class PhotoViewScreen extends StatelessWidget {
     try {
       final response =
           await http.get(Uri.parse(imageUrl), headers: ApiService.headers);
-      final result = await ImageGallerySaverPlus.saveImage(
-        response.bodyBytes,
-        quality: 100,
-        name: "downloaded_image_${DateTime.now().millisecondsSinceEpoch}",
-      );
 
-      if (context.mounted) {
-        if (result['isSuccess']) {
+      if (Platform.isMacOS) {
+        final directory = await getDownloadsDirectory();
+        final fileName =
+            "downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg";
+        final filePath = '${directory?.path}/$fileName';
+
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image saved to gallery')),
+            SnackBar(content: Text('Image saved to $filePath')),
           );
-        } else {
-          throw Exception('Failed to save image');
+        }
+      } else {
+        final result = await ImageGallerySaverPlus.saveImage(
+          response.bodyBytes,
+          quality: 100,
+          name: "downloaded_image_${DateTime.now().millisecondsSinceEpoch}",
+        );
+
+        if (context.mounted) {
+          if (result['isSuccess']) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Image saved to gallery')),
+            );
+          } else {
+            throw Exception('Failed to save image');
+          }
         }
       }
     } catch (e) {
