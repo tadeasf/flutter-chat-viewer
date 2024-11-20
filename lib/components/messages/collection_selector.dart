@@ -114,6 +114,13 @@ class CollectionSelectorState extends State<CollectionSelector> {
     return count.toString();
   }
 
+  Future<void> switchToCollection(String collectionName) async {
+    widget.onCollectionChanged(collectionName);
+    setState(() {
+      isOpen = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     int maxMessageCount = filteredCollections.isNotEmpty
@@ -265,12 +272,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                   minHeight: 8,
                                 ),
                               ),
-                              onTap: () {
-                                widget.onCollectionChanged(item['name']);
-                                setState(() {
-                                  isOpen = false;
-                                });
-                              },
+                              onTap: () => switchToCollection(item['name']),
                             );
                           },
                         ),

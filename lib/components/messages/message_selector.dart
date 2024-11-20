@@ -9,7 +9,6 @@ import '../gallery/photo_handler.dart';
 import 'message_list.dart';
 import '../../utils/api_db/api_service.dart';
 import '../profile_photo/profile_photo_manager.dart';
-import '../../utils/api_db/database_manager.dart';
 import '../search/navigate_search.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
@@ -17,6 +16,7 @@ import '../navbar.dart';
 import '../search/scroll_to_highlighted_message.dart';
 import '../search/search_messages.dart';
 import 'message_index_manager.dart';
+import '../search/search_type.dart';
 
 class MessageSelector extends StatefulWidget {
   final Function(ThemeMode) setThemeMode;
@@ -61,6 +61,9 @@ class MessageSelectorState extends State<MessageSelector> {
   bool isCollectionSelectorVisible = false;
   List<Map<dynamic, dynamic>> crossCollectionMessages = [];
   bool isCrossCollectionSearch = false;
+  bool isSearchBarVisible = false;
+  bool isGlobalLoading = false;
+  int currentFoundMatches = 0;
 
   @override
   void initState() {
@@ -107,9 +110,22 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void updateCurrentSearchIndex(int index) {
-    setState(() {
-      currentSearchIndex = index;
-    });
+    if (index >= 0 && index < searchResults.length) {
+      setState(() {
+        currentSearchIndex = index;
+        isSearchActive = true;
+        isSearchVisible = true;
+      });
+
+      if (itemScrollController.isAttached) {
+        scrollToHighlightedMessage(
+          searchResults[index],
+          searchResults,
+          itemScrollController,
+          SearchType.searchWidget,
+        );
+      }
+    }
   }
 
   void _navigateSearch(int direction) {
@@ -117,13 +133,13 @@ class MessageSelectorState extends State<MessageSelector> {
       direction,
       searchResults,
       currentSearchIndex,
-      (int index) {
+      (index) {
         setState(() {
           currentSearchIndex = index;
         });
-        scrollToHighlightedMessage(index, searchResults, itemScrollController);
       },
-      () {},
+      scrollToHighlightedMessage,
+      itemScrollController,
     );
   }
 
@@ -145,19 +161,66 @@ class MessageSelectorState extends State<MessageSelector> {
     }
   }
 
-  // Add this method
-  void _performSearch(String query) {
+  void toggleSearchBar() {
+    if (selectedCollection == null) return;
+
+    setState(() {
+      isSearchBarVisible = !isSearchBarVisible;
+      if (isSearchBarVisible) {
+        isCollectionSelectorVisible = false;
+      }
+      // Clear search when closing
+      if (!isSearchBarVisible) {
+        searchController.clear();
+        searchResults.clear();
+        currentSearchIndex = -1;
+        isSearchActive = false;
+      }
+    });
+  }
+
+  void _handleSearch(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        isGlobalLoading = true;
+      });
+
       searchMessages(
         query,
         _debounce,
         setState,
         messages,
-        scrollToHighlightedMessage,
+        (index) {
+          if (searchResults.isNotEmpty &&
+              index >= 0 &&
+              index < searchResults.length) {
+            Future.microtask(() => scrollToHighlightedMessage(
+                  index,
+                  searchResults,
+                  itemScrollController,
+                  SearchType.searchWidget,
+                ));
+          }
+        },
         (results) {
           setState(() {
             searchResults = results;
+            currentFoundMatches = results.length;
+            isSearchActive = results.isNotEmpty;
+            isGlobalLoading = false;
+            if (results.isNotEmpty) {
+              currentSearchIndex = 0;
+              Future.microtask(() => scrollToHighlightedMessage(
+                    0,
+                    results,
+                    itemScrollController,
+                    SearchType.searchWidget,
+                  ));
+            } else {
+              currentSearchIndex = -1;
+            }
           });
         },
         updateCurrentSearchIndex,
@@ -167,7 +230,6 @@ class MessageSelectorState extends State<MessageSelector> {
           });
         },
         selectedCollection,
-        itemScrollController,
       );
     });
   }
@@ -189,19 +251,21 @@ class MessageSelectorState extends State<MessageSelector> {
 
   void _handleCrossCollectionSearch(List<dynamic> searchResults) {
     setState(() {
-      crossCollectionMessages = searchResults.map((result) {
-        if (result is! Map) return <String, dynamic>{};
-
-        return <dynamic, dynamic>{
+      crossCollectionMessages = searchResults.where((result) {
+        if (result is! Map) return false;
+        return result['collectionName'] != 'unified_collection';
+      }).map((result) {
+        return Map<dynamic, dynamic>.from({
           'content': _decodeIfNeeded(result['content'] ?? ''),
           'sender_name': _decodeIfNeeded(result['sender_name'] ?? 'Unknown'),
           'collectionName':
               _decodeIfNeeded(result['collectionName'] ?? 'Unknown Collection'),
           'timestamp_ms': result['timestamp_ms'] ?? 0,
           'photos': result['photos'] ?? [],
-          'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
+          'is_geoblocked_for_viewer':
+              result['is_geoblocked_for_viewer'] ?? false,
           'is_online': result['is_online'] ?? false,
-        };
+        });
       }).toList();
       isCrossCollectionSearch = true;
     });
@@ -216,34 +280,59 @@ class MessageSelectorState extends State<MessageSelector> {
     }
   }
 
-  Future<void> _navigateToMessage(String collectionName, int timestamp) async {
-    if (isCrossCollectionSearch && collectionName != selectedCollection) {
+  void handleMessageTap(String collectionName, int timestamp) async {
+    if (collectionName != selectedCollection) {
       setState(() {
+        messages = [];
         isLoading = true;
-      });
-      await _changeCollection(collectionName);
-      await Future.delayed(const Duration(milliseconds: 500));
-      setState(() {
-        isLoading = false;
+        selectedCollection = collectionName;
+        isCollectionSelectorVisible = false;
         isCrossCollectionSearch = false;
-        crossCollectionMessages = [];
       });
-    }
 
-    final manager = MessageIndexManager();
-    manager.updateMessages(
-        isCrossCollectionSearch ? crossCollectionMessages : messages);
-    final messageIndex =
-        manager.getIndexForTimestamp(timestamp, isPhotoSearch: true);
+      try {
+        // Load messages for the new collection
+        await fetchMessages(
+          selectedCollection,
+          fromDate,
+          toDate,
+          setState,
+          (bool loading) => setState(() => isLoading = loading),
+          (List<dynamic> newMessages) async {
+            final processedMessages = List<Map<dynamic, dynamic>>.from(
+                newMessages.map((m) => Map<dynamic, dynamic>.from(m)));
 
-    if (messageIndex != null) {
-      await scrollToHighlightedMessage(0, [messageIndex], itemScrollController);
-      setState(() {
-        searchResults = [messageIndex];
-        currentSearchIndex = 0;
-        isSearchVisible = true;
-        isSearchActive = true;
-      });
+            setState(() {
+              messages = processedMessages;
+              isLoading = false;
+            });
+
+            // Important: Wait for the next frame to ensure messages are rendered
+            await Future.delayed(const Duration(milliseconds: 100));
+
+            // Now scroll to the target message
+            final manager = MessageIndexManager();
+            manager.updateMessages(messages);
+            final index = manager.getIndexForTimestamp(timestamp);
+
+            if (index != null) {
+              scrollToHighlightedMessage(
+                index,
+                [index],
+                itemScrollController,
+                SearchType.crossCollection,
+              );
+            }
+          },
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error handling message tap: $e');
+        }
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -314,7 +403,7 @@ class MessageSelectorState extends State<MessageSelector> {
                             selectedCollectionName: selectedCollection ?? '',
                             profilePhotoUrl: profilePhotoUrl,
                             isCrossCollectionSearch: isCrossCollectionSearch,
-                            onMessageTap: _navigateToMessage,
+                            onMessageTap: handleMessageTap,
                           ),
                   ),
                   if (isCollectionSelectorVisible || selectedCollection == null)
@@ -326,36 +415,73 @@ class MessageSelectorState extends State<MessageSelector> {
                         onCollectionChanged: _changeCollection,
                       ),
                     ),
-                  if (isSearchVisible) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: searchController,
-                              decoration: const InputDecoration(
-                                labelText: 'Search messages',
-                                suffixIcon: Icon(Icons.search),
-                              ),
-                              onChanged: _performSearch,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_upward),
-                            onPressed: () => _navigateSearch(-1),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_downward),
-                            onPressed: () => _navigateSearch(1),
+                  if (isSearchBarVisible) ...[
+                    Container(
+                      margin: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Text(
-                          '${searchResults.isNotEmpty ? currentSearchIndex + 1 : 0}/${searchResults.length} results'),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search messages...',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_upward),
+                                    onPressed: () => _navigateSearch(-1),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_downward),
+                                    onPressed: () => _navigateSearch(1),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: toggleSearchBar,
+                                  ),
+                                ],
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSubmitted: _handleSearch,
+                          ),
+                          if (isGlobalLoading)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                      'Found $currentFoundMatches matches so far...'),
+                                ],
+                              ),
+                            ),
+                          if (!isGlobalLoading && searchResults.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                '${currentSearchIndex + 1}/${searchResults.length} results',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
                   if (isPhotoAvailable && selectedCollection != null)
@@ -374,39 +500,10 @@ class MessageSelectorState extends State<MessageSelector> {
       ),
       bottomNavigationBar: Navbar(
         title: 'Meta Elysia',
-        onSearchPressed: () {
-          setState(() {
-            isSearchVisible = !isSearchVisible;
-            if (!isSearchVisible) {
-              searchController.clear();
-              searchResults.clear();
-              currentSearchIndex = -1;
-              isSearchActive = false;
-            }
-          });
-        },
-        onDatabasePressed: () {
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Database Management'),
-                content:
-                    DatabaseManager(refreshCollections: refreshCollections),
-                actions: [
-                  TextButton(
-                    child: const Text('Close'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-        },
+        onSearchPressed: toggleSearchBar,
         onCollectionSelectorPressed: toggleCollectionSelector,
         isCollectionSelectorVisible: isCollectionSelectorVisible,
+        selectedCollection: selectedCollection ?? '',
       ),
     );
   }

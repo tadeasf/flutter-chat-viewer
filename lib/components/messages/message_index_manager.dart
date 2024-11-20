@@ -35,18 +35,23 @@ class MessageIndexManager {
     }
   }
 
-  int? getIndexForTimestamp(int timestamp, {bool isPhotoSearch = false}) {
-    if (_timestampToIndexMap == null || _timestampToIndexMap!.isEmpty) {
+  int? getIndexForTimestamp(int timestamp, {bool isPhotoTimestamp = false}) {
+    if (_sortedMessages == null || _sortedMessages!.isEmpty) {
       return null;
     }
 
-    if (isPhotoSearch) {
-      // For photos, find the message that contains this photo's creation timestamp
+    if (isPhotoTimestamp) {
+      // Convert photo timestamp to milliseconds for comparison
+      final photoTimestampMs = timestamp * 1000;
+
       for (var i = 0; i < _sortedMessages!.length; i++) {
-        var message = _sortedMessages![i];
-        if (message['photos'] != null) {
+        final message = _sortedMessages![i];
+        if (message['photos'] != null &&
+            (message['photos'] as List).isNotEmpty) {
           for (var photo in message['photos']) {
-            if ((photo['creation_timestamp'] * 1000) == timestamp) {
+            final photoCreationTime =
+                (photo['creation_timestamp'] as int?) ?? 0;
+            if (photoCreationTime * 1000 == photoTimestampMs) {
               return i;
             }
           }
@@ -54,18 +59,7 @@ class MessageIndexManager {
       }
     }
 
-    // If no photo match found or not a photo search, use regular timestamp matching
-    var timestamps = _timestampToIndexMap!.keys.toList()..sort();
-
-    if (_timestampToIndexMap!.containsKey(timestamp)) {
-      return _timestampToIndexMap![timestamp];
-    }
-
-    // Find closest timestamp
-    var closestTimestamp = timestamps.reduce((a, b) {
-      return (timestamp - a).abs() < (timestamp - b).abs() ? a : b;
-    });
-    return _timestampToIndexMap![closestTimestamp];
+    return _timestampToIndexMap?[timestamp];
   }
 
   List<dynamic> get sortedMessages => _sortedMessages ?? [];

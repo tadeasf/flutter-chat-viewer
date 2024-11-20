@@ -78,6 +78,13 @@ class PhotoGalleryState extends State<PhotoGallery> {
             return Container();
           }
           final photo = _photos[index]['photos'][0];
+          final photoUri = photo['uri'] as String;
+          final imageUrl = photo['fullUri'] ??
+              ApiService.getPhotoUrl(
+                  widget.collectionName,
+                  photoUri.contains('/photos/')
+                      ? photoUri
+                      : photoUri.split('/').last);
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -91,6 +98,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
                             Map<String, dynamic>.from(photo['photos'][0]))
                         .toList(),
                     showAppBar: true,
+                    onLongPress: (_) {},
                   ),
                 ),
               );
@@ -98,8 +106,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
             child: Hero(
               tag: 'photo_${photo['uri']}',
               child: CachedNetworkImage(
-                imageUrl: photo['fullUri'] ??
-                    '${ApiService.baseUrl}/inbox/${widget.collectionName}/photos/${photo['uri'].split('/').last}',
+                imageUrl: imageUrl,
                 httpHeaders: ApiService.headers,
                 fit: BoxFit.cover,
                 placeholder: (context, url) =>

@@ -1,21 +1,24 @@
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter/material.dart';
+import 'search_type.dart';
 
-Future<void> scrollToHighlightedMessage(
-    int currentSearchIndex,
-    List<int> searchResults,
-    ItemScrollController itemScrollController) async {
-  if (currentSearchIndex < 0 || 
-      currentSearchIndex >= searchResults.length || 
-      !itemScrollController.isAttached) {
-    return;
+Future<void> scrollToHighlightedMessage(int index, List<int> searchResults,
+    ItemScrollController itemScrollController, SearchType searchType) async {
+  if (!itemScrollController.isAttached) {
+    debugPrint('ScrollController not attached, waiting...');
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!itemScrollController.isAttached) {
+      debugPrint('ScrollController still not attached after delay');
+      return;
+    }
   }
 
-  final int messageIndex = searchResults[currentSearchIndex];
-  
+  final targetIndex =
+      searchType == SearchType.searchWidget ? searchResults[index] : index;
+
   try {
     await itemScrollController.scrollTo(
-      index: messageIndex,
+      index: targetIndex,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       alignment: 0.3,

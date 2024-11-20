@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import './gallery/photo_handler.dart';
-import './ui_utils/date_selector.dart';
 import './ui_utils/theme_manager.dart';
 import './profile_photo/profile_photo.dart';
 import './search/cross_collection_search.dart';
@@ -75,48 +73,6 @@ class AppDrawer extends StatelessWidget {
                     ),
                   ),
                 const SizedBox(height: 16),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Date Range',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      ListTile(
-                        leading: const Icon(Icons.date_range),
-                        title: Text(
-                          'From: ${fromDate != null ? DateFormat('yyyy-MM-dd').format(fromDate!) : 'Not set'}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        onTap: () => DateSelector.selectDate(
-                            context,
-                            true,
-                            fromDate,
-                            toDate,
-                            setState,
-                            selectedCollection,
-                            fetchMessages),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.date_range),
-                        title: Text(
-                          'To: ${toDate != null ? DateFormat('yyyy-MM-dd').format(toDate!) : 'Not set'}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        onTap: () => DateSelector.selectDate(
-                            context,
-                            false,
-                            fromDate,
-                            toDate,
-                            setState,
-                            selectedCollection,
-                            fetchMessages),
-                      ),
-                    ],
-                  ),
-                ),
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
