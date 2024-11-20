@@ -1,4 +1,4 @@
-package com.tadeasfort.flutter_chat_viewer
+package com.tadeasfort.meta_elysia
 
 import android.os.Bundle
 import android.view.WindowManager
