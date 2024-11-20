@@ -19,7 +19,6 @@ class MessageIndexManager {
           )),
     );
 
-    // Extract all photos from messages
     _allPhotos = [];
     for (var message in _sortedMessages!) {
       if (message['photos'] != null && (message['photos'] as List).isNotEmpty) {
@@ -27,30 +26,45 @@ class MessageIndexManager {
           _allPhotos!.add({
             'uri': photo['uri'],
             'timestamp_ms': message['timestamp_ms'],
-            'collectionName': message['collectionName']
+            'creation_timestamp': photo['creation_timestamp'] * 1000,
+            'collectionName':
+                message['collectionName'] ?? message['collection_name'],
           });
         }
       }
     }
   }
 
-  int? getIndexForTimestamp(int timestamp) {
+  int? getIndexForTimestamp(int timestamp, {bool isPhotoSearch = false}) {
     if (_timestampToIndexMap == null || _timestampToIndexMap!.isEmpty) {
       return null;
     }
 
-    // First try exact match
+    if (isPhotoSearch) {
+      // For photos, find the message that contains this photo's creation timestamp
+      for (var i = 0; i < _sortedMessages!.length; i++) {
+        var message = _sortedMessages![i];
+        if (message['photos'] != null) {
+          for (var photo in message['photos']) {
+            if ((photo['creation_timestamp'] * 1000) == timestamp) {
+              return i;
+            }
+          }
+        }
+      }
+    }
+
+    // If no photo match found or not a photo search, use regular timestamp matching
+    var timestamps = _timestampToIndexMap!.keys.toList()..sort();
+
     if (_timestampToIndexMap!.containsKey(timestamp)) {
       return _timestampToIndexMap![timestamp];
     }
 
-    // If no exact match, find the closest message
-    var timestamps = _timestampToIndexMap!.keys.toList()..sort();
-    var closestTimestamp = timestamps.firstWhere(
-      (t) => t >= timestamp,
-      orElse: () => timestamps.last,
-    );
-
+    // Find closest timestamp
+    var closestTimestamp = timestamps.reduce((a, b) {
+      return (timestamp - a).abs() < (timestamp - b).abs() ? a : b;
+    });
     return _timestampToIndexMap![closestTimestamp];
   }
 

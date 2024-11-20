@@ -45,15 +45,17 @@ class PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     return '${ApiService.baseUrl}/inbox/${widget.collectionName}/photos/${uri.split('/').last}';
   }
 
+  void _handleLongPress() {
+    if (widget.onLongPress != null) {
+      final currentPhoto = widget.photos[currentIndex];
+      widget.onLongPress!(currentPhoto);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onLongPress: () {
-        if (widget.onLongPress != null) {
-          final currentPhoto = widget.photos[currentIndex];
-          widget.onLongPress!(currentPhoto);
-        }
-      },
+      onLongPress: _handleLongPress,
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: widget.showAppBar

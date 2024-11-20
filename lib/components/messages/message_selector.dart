@@ -217,28 +217,27 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   Future<void> _navigateToMessage(String collectionName, int timestamp) async {
-    setState(() {
-      isLoading = true;
-    });
-
-    if (collectionName != selectedCollection) {
+    if (isCrossCollectionSearch && collectionName != selectedCollection) {
+      setState(() {
+        isLoading = true;
+      });
       await _changeCollection(collectionName);
       await Future.delayed(const Duration(milliseconds: 500));
+      setState(() {
+        isLoading = false;
+        isCrossCollectionSearch = false;
+        crossCollectionMessages = [];
+      });
     }
 
-    setState(() {
-      isCrossCollectionSearch = false;
-      crossCollectionMessages = [];
-    });
-
     final manager = MessageIndexManager();
-    manager.updateMessages(messages);
-
-    final messageIndex = manager.getIndexForTimestamp(timestamp);
+    manager.updateMessages(
+        isCrossCollectionSearch ? crossCollectionMessages : messages);
+    final messageIndex =
+        manager.getIndexForTimestamp(timestamp, isPhotoSearch: true);
 
     if (messageIndex != null) {
       await scrollToHighlightedMessage(0, [messageIndex], itemScrollController);
-
       setState(() {
         searchResults = [messageIndex];
         currentSearchIndex = 0;
@@ -246,10 +245,6 @@ class MessageSelectorState extends State<MessageSelector> {
         isSearchActive = true;
       });
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   @override
