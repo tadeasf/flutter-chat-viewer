@@ -10,5 +10,4 @@ void navigateSearch(
   if (newIndex < 0) newIndex = searchResults.length - 1;
 
   updateCurrentSearchIndex(newIndex);
-  scrollToHighlightedMessage();
 }

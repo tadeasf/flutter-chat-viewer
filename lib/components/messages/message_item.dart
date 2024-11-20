@@ -5,11 +5,13 @@ import '../api_db/api_service.dart';
 import 'message_profile_photo.dart';
 import '../gallery/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../messages/message_index_manager.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
   final bool isAuthor;
   final bool isHighlighted;
+  final bool isSearchActive;
   final String selectedCollectionName;
   final String? profilePhotoUrl;
   final bool isCrossCollectionSearch;
@@ -20,6 +22,7 @@ class MessageItem extends StatefulWidget {
     required this.message,
     required this.isAuthor,
     required this.isHighlighted,
+    required this.isSearchActive,
     required this.selectedCollectionName,
     this.profilePhotoUrl,
     required this.isCrossCollectionSearch,
@@ -68,30 +71,26 @@ class MessageItemState extends State<MessageItem> {
   String _generateFullUri(String uri) {
     // If it's already a full URL, return it
     if (uri.startsWith('http')) return uri;
-    
-    // Split the URI into parts and extract collection name and filename
-    final uriParts = uri.split('/');
-    // The collection name is always at index 2 in the messages/inbox/collectionName format
-    final collectionName = uriParts[2];
-    // The filename is always the last part
-    final photoFileName = uriParts.last;
-    
-    return '${ApiService.baseUrl}/inbox/$collectionName/photos/$photoFileName';
-  }
 
-  void _handleImageTap(String imageUrl) {
-    final photos = [{'filename': imageUrl.split('/').last}];
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PhotoViewGalleryScreen(
-          collectionName: widget.selectedCollectionName,
-          initialIndex: 0,
-          photos: photos,
-          showAppBar: false,
-        ),
-      ),
-    );
+    // The URI from the API response is in format: messages/inbox/collectionName/photos/filename
+    // We need to extract just the collection name and filename
+    final parts = uri.split('/');
+    String collectionName;
+    String filename;
+
+    if (parts.length >= 5) {
+      // Extract from full path
+      collectionName = parts[2];
+      filename = parts.last;
+    } else {
+      // Fallback to the current collection
+      collectionName = widget.isCrossCollectionSearch
+          ? widget.message['collectionName'] ?? widget.selectedCollectionName
+          : widget.selectedCollectionName;
+      filename = uri.split('/').last;
+    }
+
+    return '${ApiService.baseUrl}/inbox/$collectionName/photos/$filename';
   }
 
   @override
@@ -101,21 +100,21 @@ class MessageItemState extends State<MessageItem> {
 
     Color getBubbleColor() {
       if (widget.isHighlighted) {
-        return isDarkMode ? yellow : yellow.withOpacity(0.3);
+        return isDarkMode
+            ? const Color(0xFFFFD700)
+                .withOpacity(0.3) // Gold color for dark mode
+            : const Color(0xFFFFD700)
+                .withOpacity(0.2); // Gold color for light mode
       }
       if (isInstagram) {
         if (widget.isAuthor) {
           return isDarkMode
-              ? const Color(0xFF8A4F6D)
-                  .withOpacity(0.3) // Lighter and less vibrant pinkish color
-              : const Color(0xFF8A4F6D)
-                  .withOpacity(0.3); // Lighter and less vibrant pinkish color
+              ? const Color(0xFF8A4F6D).withOpacity(0.3)
+              : const Color(0xFF8A4F6D).withOpacity(0.3);
         } else {
           return isDarkMode
-              ? const Color(0xFF8A4F6D)
-                  .withOpacity(0.6) // Darker and less vibrant pinkish color
-              : const Color(0xFF8A4F6D)
-                  .withOpacity(0.6); // Darker and less vibrant pinkish color
+              ? const Color(0xFF8A4F6D).withOpacity(0.6)
+              : const Color(0xFF8A4F6D).withOpacity(0.6);
         }
       }
       // Facebook styling
@@ -128,53 +127,96 @@ class MessageItemState extends State<MessageItem> {
 
     Color getTextColor() {
       if (widget.isHighlighted) {
-        return isDarkMode ? base : Colors.black87;
+        return isDarkMode ? Colors.white : Colors.black;
       }
       return isDarkMode ? text : Colors.black87;
     }
 
     Widget buildMessageContent() {
-      if (widget.message['photos'] != null && (widget.message['photos'] as List).isNotEmpty) {
-        final photo = widget.message['photos'][0];
-        final photoUrl = photo['fullUri'] ?? _generateFullUri(photo['uri']);
+      if (widget.message['photos'] != null &&
+          (widget.message['photos'] as List).isNotEmpty) {
+        final photos = widget.message['photos'] as List;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.message['content'] != null)
-              Text(
-                _ensureDecoded(widget.message['content']),
-                style: TextStyle(
-                  color: getTextColor(),
-                  fontSize: 16,
+            if (widget.message['content'] != null &&
+                widget.message['content'].isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _ensureDecoded(widget.message['content']),
+                  style: TextStyle(
+                    color: getTextColor(),
+                    fontSize: 16,
+                  ),
                 ),
               ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PhotoViewGalleryScreen(
-                        collectionName: widget.selectedCollectionName,
-                        initialIndex: 0,
-                        photos: [{
-                          ...Map<String, dynamic>.from(photo),
-                          'fullUri': photoUrl
-                        }],
-                        showAppBar: false,
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: photos.map<Widget>((photo) {
+                return GestureDetector(
+                  onTap: () {
+                    final manager = MessageIndexManager();
+                    final allPhotos = manager.allPhotos;
+
+                    // Find the index of the current photo in all photos
+                    final currentPhotoUri = photo['uri'];
+                    final initialIndex = allPhotos
+                        .indexWhere((p) => p['uri'] == currentPhotoUri);
+
+                    final galleryPhotos = allPhotos.map((photo) {
+                      return {
+                        'filename': photo['uri'].split('/').last,
+                        'fullUri': _generateFullUri(photo['uri']),
+                        'timestamp_ms': photo['timestamp_ms'],
+                      };
+                    }).toList();
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PhotoViewGalleryScreen(
+                          collectionName: widget.selectedCollectionName,
+                          initialIndex: initialIndex,
+                          photos: galleryPhotos,
+                          showAppBar: true,
+                        ),
                       ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: _generateFullUri(photo['uri']),
+                      httpHeaders: ApiService.headers,
+                      fit: BoxFit.cover,
+                      width: 200,
+                      height: 200,
+                      memCacheWidth: 400,
+                      memCacheHeight: 400,
+                      placeholder: (context, url) => const SizedBox(
+                        width: 200,
+                        height: 200,
+                        child: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) {
+                        debugPrint('Error loading image: $error');
+                        return const SizedBox(
+                          width: 200,
+                          height: 200,
+                          child: Center(
+                            child: Icon(Icons.error),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-                child: CachedNetworkImage(
-                  imageUrl: photoUrl,
-                  placeholder: (context, url) => const CircularProgressIndicator(),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
-                ),
-              ),
+                  ),
+                );
+              }).toList(),
             ),
           ],
         );

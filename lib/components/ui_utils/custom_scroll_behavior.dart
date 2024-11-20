@@ -9,6 +9,6 @@ class CustomScrollBehavior extends ScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const ClampingScrollPhysics();
+    return const BouncingScrollPhysics();
   }
 }

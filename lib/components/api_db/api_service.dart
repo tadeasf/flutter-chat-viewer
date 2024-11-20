@@ -140,17 +140,17 @@ class ApiService {
     if (filename.startsWith('https')) {
       return filename;
     }
-    
+
     // If it's a full URI path (like 'inbox/collection/photos/filename.jpg')
     if (filename.startsWith('inbox/')) {
       return '$baseUrl/$filename';
     }
-    
+
     // For profile photos and direct photo access
     if (filename.startsWith('serve/photo/')) {
       return '$baseUrl/$filename';
     }
-    
+
     // For gallery photos
     return '$baseUrl/inbox/$collectionName/photos/$filename';
   }
@@ -237,10 +237,10 @@ class ApiService {
     if (parts.length < 2) {
       throw Exception('Invalid URI format');
     }
-    
+
     final collectionName = parts[parts.length - 2];
     final filename = parts[parts.length - 1];
-    
+
     final url = getPhotoUrl(collectionName, filename);
     final response = await http.get(Uri.parse(url), headers: headers);
     if (response.statusCode == 200) {

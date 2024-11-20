@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'fetch_messages.dart';
-import '../search/search_messages.dart';
 import '../gallery/photo_handler.dart';
 import 'message_list.dart';
 import '../api_db/api_service.dart';
@@ -15,6 +14,8 @@ import '../search/navigate_search.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
 import '../navbar.dart';
+import '../search/scroll_to_highlighted_message.dart';
+import '../search/search_messages.dart';
 
 class MessageSelector extends StatefulWidget {
   final Function(ThemeMode) setThemeMode;
@@ -109,41 +110,6 @@ class MessageSelectorState extends State<MessageSelector> {
     });
   }
 
-  void _scrollToHighlightedMessage(int index) {
-    itemScrollController.scrollTo(
-      index: index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOutCubic,
-      alignment: 0.0,
-    );
-  }
-
-  void _performSearch(String query) {
-    searchMessages(
-      query,
-      _debounce,
-      setState,
-      messages,
-      _scrollToHighlightedMessage,
-      (List<int> results) {
-        setState(() {
-          searchResults = results;
-        });
-      },
-      (int index) {
-        setState(() {
-          currentSearchIndex = index;
-        });
-      },
-      (bool active) {
-        setState(() {
-          isSearchActive = active;
-        });
-      },
-      selectedCollection,
-    );
-  }
-
   void _navigateSearch(int direction) {
     navigateSearch(
       direction,
@@ -153,8 +119,9 @@ class MessageSelectorState extends State<MessageSelector> {
         setState(() {
           currentSearchIndex = index;
         });
+        scrollToHighlightedMessage(index, searchResults, itemScrollController);
       },
-      () => _scrollToHighlightedMessage(searchResults[currentSearchIndex]),
+      () {},
     );
   }
 
@@ -174,6 +141,33 @@ class MessageSelectorState extends State<MessageSelector> {
         isCollectionSelectorVisible = true;
       });
     }
+  }
+
+  // Add this method
+  void _performSearch(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      searchMessages(
+        query,
+        _debounce,
+        setState,
+        messages,
+        scrollToHighlightedMessage,
+        (results) {
+          setState(() {
+            searchResults = results;
+          });
+        },
+        updateCurrentSearchIndex,
+        (active) {
+          setState(() {
+            isSearchActive = active;
+          });
+        },
+        selectedCollection,
+        itemScrollController,
+      );
+    });
   }
 
   void refreshCollections() {
@@ -234,12 +228,7 @@ class MessageSelectorState extends State<MessageSelector> {
         messages.indexWhere((message) => message['timestamp_ms'] == timestamp);
 
     if (messageIndex != -1) {
-      itemScrollController.scrollTo(
-        index: messageIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-        alignment: 0.3,
-      );
+      scrollToHighlightedMessage(0, [messageIndex], itemScrollController);
     }
 
     setState(() {
@@ -415,7 +404,7 @@ class MessageSelectorState extends State<MessageSelector> {
       Function(List<Map<String, dynamic>>) callback) async {
     int maxRetries = 3;
     int currentTry = 0;
-    
+
     while (currentTry < maxRetries) {
       try {
         final loadedCollections = await ApiService.fetchCollections();
@@ -423,7 +412,7 @@ class MessageSelectorState extends State<MessageSelector> {
           callback(loadedCollections);
           return;
         }
-        
+
         currentTry++;
         if (currentTry < maxRetries) {
           await Future.delayed(Duration(seconds: 2 * currentTry));
@@ -432,14 +421,14 @@ class MessageSelectorState extends State<MessageSelector> {
         if (kDebugMode) {
           print('Error loading collections (attempt $currentTry): $e');
         }
-        
+
         currentTry++;
         if (currentTry < maxRetries) {
           await Future.delayed(Duration(seconds: 2 * currentTry));
         }
       }
     }
-    
+
     // If we get here, all retries failed
     callback([]); // Return empty list to trigger empty state UI
   }
