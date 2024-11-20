@@ -82,10 +82,15 @@ class CollectionSelectorState extends State<CollectionSelector> {
   }
 
   Future<void> refreshCollections() async {
+    setState(() {
+      isLoading = true;
+    });
+    
     await loadCollections((loadedCollections) {
       setState(() {
         collections = loadedCollections;
         filteredCollections = loadedCollections;
+        isLoading = false;
       });
     });
   }

@@ -8,7 +8,8 @@ plugins {
 android {
     namespace = "com.tadeasfort.flutter_chat_viewer"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "25.1.8937393"
+    // ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

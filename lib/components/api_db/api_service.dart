@@ -136,11 +136,23 @@ class ApiService {
     }
   }
 
-  static String getPhotoUrl(String uri) {
-    if (uri.startsWith('https')) {
-      return uri; // Return as-is if it's already a full URL
+  static String getPhotoUrl(String collectionName, String filename) {
+    if (filename.startsWith('https')) {
+      return filename;
     }
-    return '$baseUrl/$uri';
+    
+    // If it's a full URI path (like 'inbox/collection/photos/filename.jpg')
+    if (filename.startsWith('inbox/')) {
+      return '$baseUrl/$filename';
+    }
+    
+    // For profile photos and direct photo access
+    if (filename.startsWith('serve/photo/')) {
+      return '$baseUrl/$filename';
+    }
+    
+    // For gallery photos
+    return '$baseUrl/inbox/$collectionName/photos/$filename';
   }
 
   static String getProfilePhotoUrl(String collectionName) {
@@ -220,7 +232,16 @@ class ApiService {
 
   // This method will be used to get image URLs with the API key
   static Future<String> getSecureImageUrl(String uri) async {
-    final url = getPhotoUrl(uri);
+    // Parse the URI to extract collection name and filename
+    final parts = uri.split('/');
+    if (parts.length < 2) {
+      throw Exception('Invalid URI format');
+    }
+    
+    final collectionName = parts[parts.length - 2];
+    final filename = parts[parts.length - 1];
+    
+    final url = getPhotoUrl(collectionName, filename);
     final response = await http.get(Uri.parse(url), headers: headers);
     if (response.statusCode == 200) {
       return url;

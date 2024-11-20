@@ -35,21 +35,34 @@ class MessageList extends StatelessWidget {
     } else if (item is Map) {
       return Map<String, dynamic>.from(item);
     }
-    // If it's not a Map at all, return an empty Map
     return {};
   }
 
   @override
   Widget build(BuildContext context) {
+    // Sort messages by timestamp (oldest first)
+    final sortedMessages = List<dynamic>.from(messages)
+      ..sort((a, b) => (_ensureStringDynamicMap(a)['timestamp_ms'] as int)
+          .compareTo(_ensureStringDynamicMap(b)['timestamp_ms'] as int));
+
+    // Update search result indices to match new sorted order
+    final updatedSearchResults = searchResults.map((oldIndex) {
+      final oldMessage = messages[oldIndex];
+      return sortedMessages.indexWhere((msg) => 
+        _ensureStringDynamicMap(msg)['timestamp_ms'] == 
+        _ensureStringDynamicMap(oldMessage)['timestamp_ms']
+      );
+    }).toList();
+
     return ScrollConfiguration(
       behavior: CustomScrollBehavior(),
       child: ScrollablePositionedList.builder(
-        itemCount: messages.length,
+        itemCount: sortedMessages.length,
         itemBuilder: (context, index) {
-          final message = _ensureStringDynamicMap(messages[index]);
+          final message = _ensureStringDynamicMap(sortedMessages[index]);
           final isHighlighted = isSearchActive &&
-              searchResults.contains(index) &&
-              searchResults.indexOf(index) == currentSearchIndex;
+              updatedSearchResults.contains(index) &&
+              updatedSearchResults.indexOf(index) == currentSearchIndex;
 
           return MessageItem(
             message: message,

@@ -265,89 +265,113 @@ class MessageSelectorState extends State<MessageSelector> {
         picker: picker,
         onCrossCollectionSearch: _handleCrossCollectionSearch,
       ),
-      body: collections.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Chat Viewer',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Expanded(
-                  child: isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : MessageList(
-                          messages: isCrossCollectionSearch
-                              ? crossCollectionMessages
-                              : messages,
-                          searchResults: searchResults,
-                          currentSearchIndex: currentSearchIndex,
-                          itemScrollController: itemScrollController,
-                          itemPositionsListener: itemPositionsListener,
-                          isSearchActive: isSearchVisible,
-                          selectedCollectionName: selectedCollection ?? '',
-                          profilePhotoUrl: profilePhotoUrl,
-                          isCrossCollectionSearch: isCrossCollectionSearch,
-                          onMessageTap: _navigateToMessage,
-                        ),
-                ),
-                if (isCollectionSelectorVisible || selectedCollection == null)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: CollectionSelector(
-                      selectedCollection: selectedCollection,
-                      initialCollections: filteredCollections,
-                      onCollectionChanged: _changeCollection,
-                    ),
-                  ),
-                if (isSearchVisible) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await loadCollections((loadedCollections) {
+            setState(() {
+              collections = loadedCollections;
+              filteredCollections = loadedCollections;
+            });
+          });
+        },
+        child: collections.isEmpty
+            ? ListView(
+                children: const [
+                  SizedBox(height: 200),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: searchController,
-                            decoration: const InputDecoration(
-                              labelText: 'Search messages',
-                              suffixIcon: Icon(Icons.search),
-                            ),
-                            onChanged: _performSearch,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.arrow_upward),
-                          onPressed: () => _navigateSearch(-1),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.arrow_downward),
-                          onPressed: () => _navigateSearch(1),
-                        ),
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Pull down to refresh collections'),
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                        '${searchResults.isNotEmpty ? currentSearchIndex + 1 : 0}/${searchResults.length} results'),
-                  ),
                 ],
-                if (isPhotoAvailable && selectedCollection != null)
+              )
+            : Column(
+                children: [
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Image.network(
-                      'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
-                      height: 100,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Text('Failed to load image');
-                      },
+                    child: Text(
+                      'Chat Viewer',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-              ],
-            ),
+                  Expanded(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : MessageList(
+                            messages: isCrossCollectionSearch
+                                ? crossCollectionMessages
+                                : messages,
+                            searchResults: searchResults,
+                            currentSearchIndex: currentSearchIndex,
+                            itemScrollController: itemScrollController,
+                            itemPositionsListener: itemPositionsListener,
+                            isSearchActive: isSearchVisible,
+                            selectedCollectionName: selectedCollection ?? '',
+                            profilePhotoUrl: profilePhotoUrl,
+                            isCrossCollectionSearch: isCrossCollectionSearch,
+                            onMessageTap: _navigateToMessage,
+                          ),
+                  ),
+                  if (isCollectionSelectorVisible || selectedCollection == null)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: CollectionSelector(
+                        selectedCollection: selectedCollection,
+                        initialCollections: filteredCollections,
+                        onCollectionChanged: _changeCollection,
+                      ),
+                    ),
+                  if (isSearchVisible) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: searchController,
+                              decoration: const InputDecoration(
+                                labelText: 'Search messages',
+                                suffixIcon: Icon(Icons.search),
+                              ),
+                              onChanged: _performSearch,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_upward),
+                            onPressed: () => _navigateSearch(-1),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_downward),
+                            onPressed: () => _navigateSearch(1),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text(
+                          '${searchResults.isNotEmpty ? currentSearchIndex + 1 : 0}/${searchResults.length} results'),
+                    ),
+                  ],
+                  if (isPhotoAvailable && selectedCollection != null)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Image.network(
+                        'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                        height: 100,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Text('Failed to load image');
+                        },
+                      ),
+                    ),
+                ],
+              ),
+      ),
       bottomNavigationBar: Navbar(
         title: 'Chat Viewer',
         onSearchPressed: () {
@@ -389,13 +413,34 @@ class MessageSelectorState extends State<MessageSelector> {
 
   Future<void> loadCollections(
       Function(List<Map<String, dynamic>>) callback) async {
-    try {
-      final loadedCollections = await ApiService.fetchCollections();
-      callback(loadedCollections);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error loading collections: $e');
+    int maxRetries = 3;
+    int currentTry = 0;
+    
+    while (currentTry < maxRetries) {
+      try {
+        final loadedCollections = await ApiService.fetchCollections();
+        if (loadedCollections.isNotEmpty) {
+          callback(loadedCollections);
+          return;
+        }
+        
+        currentTry++;
+        if (currentTry < maxRetries) {
+          await Future.delayed(Duration(seconds: 2 * currentTry));
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error loading collections (attempt $currentTry): $e');
+        }
+        
+        currentTry++;
+        if (currentTry < maxRetries) {
+          await Future.delayed(Duration(seconds: 2 * currentTry));
+        }
       }
     }
+    
+    // If we get here, all retries failed
+    callback([]); // Return empty list to trigger empty state UI
   }
 }

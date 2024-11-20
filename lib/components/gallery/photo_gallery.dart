@@ -4,6 +4,7 @@ import 'photo_view_screen.dart';
 import '../api_db/api_service.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
+import 'photo_view_gallery.dart';
 
 class PhotoGallery extends StatefulWidget {
   final String collectionName;
@@ -79,45 +80,35 @@ class PhotoGalleryState extends State<PhotoGallery> {
           }
           final photo = _photos[index]['photos'][0];
           return GestureDetector(
-            onTap: () async {
-              final imageUrl =
-                  await ApiService.getSecureImageUrl(photo['fullUri']);
-              if (context.mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PhotoViewScreen(
-                      imageUrl: imageUrl,
-                      collectionName: widget.collectionName,
-                    ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PhotoViewGalleryScreen(
+                    collectionName: widget.collectionName,
+                    initialIndex: index,
+                    photos: _photos.map((photo) => 
+                      Map<String, dynamic>.from(photo['photos'][0])
+                    ).toList(),
+                    showAppBar: true,
                   ),
-                );
-              }
+                ),
+              );
             },
-            child: FutureBuilder<String>(
-              future: ApiService.getSecureImageUrl(photo['fullUri']),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError || !snapshot.hasData) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.error, color: Colors.red),
-                  );
-                }
-                return CachedNetworkImage(
-                  imageUrl: snapshot.data!,
-                  httpHeaders: ApiService.headers,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.error, color: Colors.red),
-                  ),
-                );
-              },
+            child: Hero(
+              tag: 'photo_${photo['uri']}',
+              child: CachedNetworkImage(
+                imageUrl: photo['fullUri'] ?? 
+                    '${ApiService.baseUrl}/inbox/${widget.collectionName}/photos/${photo['uri'].split('/').last}',
+                httpHeaders: ApiService.headers,
+                fit: BoxFit.cover,
+                placeholder: (context, url) =>
+                    const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.error, color: Colors.red),
+                ),
+              ),
             ),
           );
         },

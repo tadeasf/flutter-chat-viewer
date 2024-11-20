@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../api_db/api_service.dart';
 import 'message_profile_photo.dart';
-import '../gallery/photo_view_screen.dart';
+import '../gallery/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class MessageItem extends StatefulWidget {
@@ -66,10 +66,32 @@ class MessageItemState extends State<MessageItem> {
   }
 
   String _generateFullUri(String uri) {
+    // If it's already a full URL, return it
+    if (uri.startsWith('http')) return uri;
+    
+    // Split the URI into parts and extract collection name and filename
     final uriParts = uri.split('/');
+    // The collection name is always at index 2 in the messages/inbox/collectionName format
     final collectionName = uriParts[2];
+    // The filename is always the last part
     final photoFileName = uriParts.last;
+    
     return '${ApiService.baseUrl}/inbox/$collectionName/photos/$photoFileName';
+  }
+
+  void _handleImageTap(String imageUrl) {
+    final photos = [{'filename': imageUrl.split('/').last}];
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PhotoViewGalleryScreen(
+          collectionName: widget.selectedCollectionName,
+          initialIndex: 0,
+          photos: photos,
+          showAppBar: false,
+        ),
+      ),
+    );
   }
 
   @override
@@ -112,8 +134,7 @@ class MessageItemState extends State<MessageItem> {
     }
 
     Widget buildMessageContent() {
-      if (widget.message['photos'] != null &&
-          (widget.message['photos'] as List).isNotEmpty) {
+      if (widget.message['photos'] != null && (widget.message['photos'] as List).isNotEmpty) {
         final photo = widget.message['photos'][0];
         final photoUrl = photo['fullUri'] ?? _generateFullUri(photo['uri']);
 
@@ -136,23 +157,22 @@ class MessageItemState extends State<MessageItem> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PhotoViewScreen(
-                        imageUrl: photoUrl,
+                      builder: (context) => PhotoViewGalleryScreen(
                         collectionName: widget.selectedCollectionName,
+                        initialIndex: 0,
+                        photos: [{
+                          ...Map<String, dynamic>.from(photo),
+                          'fullUri': photoUrl
+                        }],
+                        showAppBar: false,
                       ),
                     ),
                   );
                 },
                 child: CachedNetworkImage(
                   imageUrl: photoUrl,
-                  httpHeaders: ApiService.headers,
-                  height: 200,
-                  width: 200,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) =>
-                      const Text('Failed to load image'),
+                  placeholder: (context, url) => const CircularProgressIndicator(),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
             ),

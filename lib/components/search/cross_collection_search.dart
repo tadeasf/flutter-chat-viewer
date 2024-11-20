@@ -49,24 +49,64 @@ class CrossCollectionSearchDialogState
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Cross-Collection Search'),
-      content: TextField(
-        controller: _searchController,
-        decoration: const InputDecoration(hintText: 'Enter search query'),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Cross-Collection Search',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search across all collections...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+              ),
+              onSubmitted: (_) => _performSearch(),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isSearching ? null : _performSearch,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isSearching
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Search'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _isSearching ? null : _performSearch,
-          child: _isSearching
-              ? const CircularProgressIndicator()
-              : const Text('Search'),
-        ),
-      ],
     );
   }
 }
