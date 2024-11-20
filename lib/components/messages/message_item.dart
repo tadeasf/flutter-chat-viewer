@@ -170,7 +170,8 @@ class MessageItemState extends State<MessageItem> {
                       return {
                         'filename': photo['uri'].split('/').last,
                         'fullUri': _generateFullUri(photo['uri']),
-                        'timestamp_ms': photo['timestamp_ms'],
+                        'timestamp_ms': photo['creation_timestamp'],
+                        'collectionName': photo['collectionName'],
                       };
                     }).toList();
 
