@@ -5,7 +5,7 @@ import '../ui_utils/custom_scroll_behavior.dart';
 import 'message_index_manager.dart';
 
 class MessageList extends StatelessWidget {
-  final List<dynamic> messages;
+  final List<Map<dynamic, dynamic>> messages;
   final List<int> searchResults;
   final int currentSearchIndex;
   final ItemScrollController itemScrollController;
@@ -43,7 +43,8 @@ class MessageList extends StatelessWidget {
         itemCount: manager.sortedMessages.length,
         physics: const AlwaysScrollableScrollPhysics(),
         itemBuilder: (context, index) {
-          final message = manager.sortedMessages[index];
+          final message =
+              Map<String, dynamic>.from(manager.sortedMessages[index]);
           final isHighlighted = isSearchActive &&
               updatedSearchResults.contains(index) &&
               updatedSearchResults.indexOf(index) == currentSearchIndex;

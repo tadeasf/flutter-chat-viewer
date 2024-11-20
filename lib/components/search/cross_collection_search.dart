@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 
 class CrossCollectionSearchDialog extends StatefulWidget {
-  final Function(List<dynamic>) onSearchResults;
+  final Function(List<Map<String, dynamic>>) onSearchResults;
 
   const CrossCollectionSearchDialog({
     super.key,
@@ -28,10 +27,26 @@ class CrossCollectionSearchDialogState
     });
 
     try {
-      final searchResults =
+      final List<dynamic> rawResults =
           await ApiService.performCrossCollectionSearch(_searchController.text);
+
+      final List<Map<String, dynamic>> processedResults =
+          rawResults.map((result) {
+        if (result is! Map) return <String, dynamic>{};
+
+        return {
+          'content': result['content'] ?? '',
+          'sender_name': result['sender_name'] ?? 'Unknown',
+          'collectionName': result['collectionName'] ?? 'Unknown Collection',
+          'timestamp_ms': result['timestamp_ms'] ?? 0,
+          'photos': result['photos'] ?? [],
+          'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
+          'is_online': result['is_online'] ?? false,
+        };
+      }).toList();
+
       if (!mounted) return;
-      widget.onSearchResults(searchResults);
+      widget.onSearchResults(processedResults);
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
@@ -89,7 +104,8 @@ class CrossCollectionSearchDialogState
                 ElevatedButton(
                   onPressed: _isSearching ? null : _performSearch,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

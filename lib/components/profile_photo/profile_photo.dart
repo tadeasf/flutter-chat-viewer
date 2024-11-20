@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'profile_photo_manager.dart';
 import 'package:logging/logging.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 
 class ProfilePhoto extends StatefulWidget {
   final String collectionName;

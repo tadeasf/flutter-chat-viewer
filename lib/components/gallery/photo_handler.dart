@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 import 'photo_gallery.dart';
 import 'dart:convert';
 import 'package:logging/logging.dart';

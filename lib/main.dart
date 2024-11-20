@@ -10,6 +10,14 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+// TODO: improve splash screen
+// TODO: fix long press photo to scroll feature
+// TODO: improve performance
+// TODO: improve search widget UI
+// TODO: include feature so that only one widget is visible at a time (search, collection selector, drawer..)
+// TODO: remove database widget
+// TODO: improve photo view widget
+
 void main() async {
   await dotenv.load(fileName: ".env");
   runApp(MyApp());
@@ -56,7 +64,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Meta Chat Viewer',
+      title: 'Meta Elysia',
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
       themeMode: _themeMode,

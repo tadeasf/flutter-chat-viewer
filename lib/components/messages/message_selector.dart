@@ -7,15 +7,16 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'fetch_messages.dart';
 import '../gallery/photo_handler.dart';
 import 'message_list.dart';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 import '../profile_photo/profile_photo_manager.dart';
-import '../api_db/database_manager.dart';
+import '../../utils/api_db/database_manager.dart';
 import '../search/navigate_search.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
 import '../navbar.dart';
 import '../search/scroll_to_highlighted_message.dart';
 import '../search/search_messages.dart';
+import 'message_index_manager.dart';
 
 class MessageSelector extends StatefulWidget {
   final Function(ThemeMode) setThemeMode;
@@ -34,7 +35,7 @@ class MessageSelectorState extends State<MessageSelector> {
   String? selectedCollection;
   DateTime? fromDate;
   DateTime? toDate;
-  List<dynamic> messages = [];
+  List<Map<dynamic, dynamic>> messages = [];
   bool isLoading = false;
   TextEditingController searchController = TextEditingController();
   final picker = ImagePicker();
@@ -58,7 +59,7 @@ class MessageSelectorState extends State<MessageSelector> {
           .reduce((a, b) => a > b ? a : b)
       : 0;
   bool isCollectionSelectorVisible = false;
-  List<dynamic> crossCollectionMessages = [];
+  List<Map<dynamic, dynamic>> crossCollectionMessages = [];
   bool isCrossCollectionSearch = false;
 
   @override
@@ -100,6 +101,7 @@ class MessageSelectorState extends State<MessageSelector> {
     setState(() {
       messages = loadedMessages
           .expand((message) => message is List ? message : [message])
+          .map((message) => message as Map<dynamic, dynamic>)
           .toList();
     });
   }
@@ -188,11 +190,17 @@ class MessageSelectorState extends State<MessageSelector> {
   void _handleCrossCollectionSearch(List<dynamic> searchResults) {
     setState(() {
       crossCollectionMessages = searchResults.map((result) {
-        return {
-          ...result,
-          'content': _decodeIfNeeded(result['content']),
-          'sender_name': _decodeIfNeeded(result['sender_name']),
-          'collectionName': _decodeIfNeeded(result['collectionName']),
+        if (result is! Map) return <String, dynamic>{};
+
+        return <dynamic, dynamic>{
+          'content': _decodeIfNeeded(result['content'] ?? ''),
+          'sender_name': _decodeIfNeeded(result['sender_name'] ?? 'Unknown'),
+          'collectionName':
+              _decodeIfNeeded(result['collectionName'] ?? 'Unknown Collection'),
+          'timestamp_ms': result['timestamp_ms'] ?? 0,
+          'photos': result['photos'] ?? [],
+          'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
+          'is_online': result['is_online'] ?? false,
         };
       }).toList();
       isCrossCollectionSearch = true;
@@ -215,6 +223,7 @@ class MessageSelectorState extends State<MessageSelector> {
 
     if (collectionName != selectedCollection) {
       await _changeCollection(collectionName);
+      await Future.delayed(const Duration(milliseconds: 500));
     }
 
     setState(() {
@@ -222,13 +231,20 @@ class MessageSelectorState extends State<MessageSelector> {
       crossCollectionMessages = [];
     });
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    final manager = MessageIndexManager();
+    manager.updateMessages(messages);
 
-    final messageIndex =
-        messages.indexWhere((message) => message['timestamp_ms'] == timestamp);
+    final messageIndex = manager.getIndexForTimestamp(timestamp);
 
-    if (messageIndex != -1) {
-      scrollToHighlightedMessage(0, [messageIndex], itemScrollController);
+    if (messageIndex != null) {
+      await scrollToHighlightedMessage(0, [messageIndex], itemScrollController);
+
+      setState(() {
+        searchResults = [messageIndex];
+        currentSearchIndex = 0;
+        isSearchVisible = true;
+        isSearchActive = true;
+      });
     }
 
     setState(() {
@@ -284,7 +300,7 @@ class MessageSelectorState extends State<MessageSelector> {
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
-                      'Chat Viewer',
+                      'Meta Elysia',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
@@ -362,7 +378,7 @@ class MessageSelectorState extends State<MessageSelector> {
               ),
       ),
       bottomNavigationBar: Navbar(
-        title: 'Chat Viewer',
+        title: 'Meta Elysia',
         onSearchPressed: () {
           setState(() {
             isSearchVisible = !isSearchVisible;

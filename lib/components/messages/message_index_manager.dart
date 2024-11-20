@@ -34,7 +34,26 @@ class MessageIndexManager {
     }
   }
 
-  int? getIndexForTimestamp(int timestamp) => _timestampToIndexMap?[timestamp];
+  int? getIndexForTimestamp(int timestamp) {
+    if (_timestampToIndexMap == null || _timestampToIndexMap!.isEmpty) {
+      return null;
+    }
+
+    // First try exact match
+    if (_timestampToIndexMap!.containsKey(timestamp)) {
+      return _timestampToIndexMap![timestamp];
+    }
+
+    // If no exact match, find the closest message
+    var timestamps = _timestampToIndexMap!.keys.toList()..sort();
+    var closestTimestamp = timestamps.firstWhere(
+      (t) => t >= timestamp,
+      orElse: () => timestamps.last,
+    );
+
+    return _timestampToIndexMap![closestTimestamp];
+  }
+
   List<dynamic> get sortedMessages => _sortedMessages ?? [];
   List<Map<String, dynamic>> get allPhotos => _allPhotos ?? [];
 }

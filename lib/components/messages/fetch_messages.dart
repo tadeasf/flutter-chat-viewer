@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 
 Future<void> fetchMessages(
     String? selectedCollection,

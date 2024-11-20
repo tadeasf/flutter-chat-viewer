@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
 import '../gallery/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -182,37 +182,58 @@ class MessageItemState extends State<MessageItem> {
                           initialIndex: initialIndex,
                           photos: galleryPhotos,
                           showAppBar: true,
+                          onLongPress: (currentPhoto) {
+                            Navigator.pop(context);
+                            final timestamp = currentPhoto['timestamp_ms'];
+                            final collectionName =
+                                widget.isCrossCollectionSearch
+                                    ? widget.message['collectionName'] ??
+                                        widget.selectedCollectionName
+                                    : widget.selectedCollectionName;
+                            widget.onMessageTap(collectionName, timestamp);
+                          },
                         ),
                       ),
                     );
                   },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: _generateFullUri(photo['uri']),
-                      httpHeaders: ApiService.headers,
-                      fit: BoxFit.cover,
-                      width: 200,
-                      height: 200,
-                      memCacheWidth: 400,
-                      memCacheHeight: 400,
-                      placeholder: (context, url) => const SizedBox(
+                  child: GestureDetector(
+                    onLongPress: () {
+                      final collectionName = widget.isCrossCollectionSearch
+                          ? widget.message['collectionName'] ??
+                              widget.selectedCollectionName
+                          : widget.selectedCollectionName;
+                      final timestamp =
+                          widget.message['timestamp_ms'] as int? ?? 0;
+                      widget.onMessageTap(collectionName, timestamp);
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: _generateFullUri(photo['uri']),
+                        httpHeaders: ApiService.headers,
+                        fit: BoxFit.cover,
                         width: 200,
                         height: 200,
-                        child: Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) {
-                        debugPrint('Error loading image: $error');
-                        return const SizedBox(
+                        memCacheWidth: 400,
+                        memCacheHeight: 400,
+                        placeholder: (context, url) => const SizedBox(
                           width: 200,
                           height: 200,
                           child: Center(
-                            child: Icon(Icons.error),
+                            child: CircularProgressIndicator(),
                           ),
-                        );
-                      },
+                        ),
+                        errorWidget: (context, url, error) {
+                          debugPrint('Error loading image: $error');
+                          return const SizedBox(
+                            width: 200,
+                            height: 200,
+                            child: Center(
+                              child: Icon(Icons.error),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 );

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 
 class PhotoViewScreen extends StatelessWidget {
   final String imageUrl;

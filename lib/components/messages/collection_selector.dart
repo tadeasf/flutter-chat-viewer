@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' show max;
-import '../api_db/load_collections.dart';
+import '../../utils/api_db/load_collections.dart';
 
 class CollectionSelector extends StatefulWidget {
   final String? selectedCollection;
@@ -85,7 +85,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
     setState(() {
       isLoading = true;
     });
-    
+
     await loadCollections((loadedCollections) {
       setState(() {
         collections = loadedCollections;

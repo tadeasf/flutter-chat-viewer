@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'photo_view_screen.dart';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
 import 'photo_view_gallery.dart';
@@ -87,9 +86,10 @@ class PhotoGalleryState extends State<PhotoGallery> {
                   builder: (context) => PhotoViewGalleryScreen(
                     collectionName: widget.collectionName,
                     initialIndex: index,
-                    photos: _photos.map((photo) => 
-                      Map<String, dynamic>.from(photo['photos'][0])
-                    ).toList(),
+                    photos: _photos
+                        .map((photo) =>
+                            Map<String, dynamic>.from(photo['photos'][0]))
+                        .toList(),
                     showAppBar: true,
                   ),
                 ),
@@ -98,7 +98,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
             child: Hero(
               tag: 'photo_${photo['uri']}',
               child: CachedNetworkImage(
-                imageUrl: photo['fullUri'] ?? 
+                imageUrl: photo['fullUri'] ??
                     '${ApiService.baseUrl}/inbox/${widget.collectionName}/photos/${photo['uri'].split('/').last}',
                 httpHeaders: ApiService.headers,
                 fit: BoxFit.cover,

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../api_db/api_service.dart';
+import '../../utils/api_db/api_service.dart';
 import 'package:logging/logging.dart';
 
 class ProfilePhotoManager {
