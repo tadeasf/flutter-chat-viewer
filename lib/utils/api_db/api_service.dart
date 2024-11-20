@@ -85,9 +85,16 @@ class ApiService {
     }
     final response = await http.get(Uri.parse(url), headers: headers);
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      final List<dynamic> messages =
+          json.decode(utf8.decode(response.bodyBytes));
+
+      // Sort messages by timestamp_ms in ascending order (oldest first)
+      messages.sort((a, b) =>
+          (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
+
+      return messages;
     } else {
-      throw Exception('Failed to load messages');
+      throw Exception('Failed to load messages: ${response.statusCode}');
     }
   }
 

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
 import '../gallery/photo_view_gallery.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../search/search_type.dart';
+import '../search/scroll_to_highlighted_message.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../messages/message_index_manager.dart';
 
 class MessageItem extends StatefulWidget {
@@ -16,6 +19,8 @@ class MessageItem extends StatefulWidget {
   final String? profilePhotoUrl;
   final bool isCrossCollectionSearch;
   final Function(String collectionName, int timestamp) onMessageTap;
+  final List<Map<dynamic, dynamic>> messages;
+  final ItemScrollController itemScrollController;
 
   const MessageItem({
     super.key,
@@ -27,6 +32,8 @@ class MessageItem extends StatefulWidget {
     this.profilePhotoUrl,
     required this.isCrossCollectionSearch,
     required this.onMessageTap,
+    required this.messages,
+    required this.itemScrollController,
   });
 
   @override
@@ -93,6 +100,51 @@ class MessageItemState extends State<MessageItem> {
     return '${ApiService.baseUrl}/inbox/$collectionName/photos/$filename';
   }
 
+  void _handlePhotoTap(BuildContext context, int index, List<dynamic> photos) {
+    final manager = MessageIndexManager();
+    manager.updateMessages(widget.messages);
+
+    // Get all photos from all messages to enable swiping through the entire collection
+    final allPhotos = manager.allPhotos;
+
+    // Find the starting index in the full collection
+    final startingPhoto = photos[index];
+    final startingIndex = allPhotos.indexWhere((photo) =>
+        photo['uri'] == startingPhoto['uri'] &&
+        photo['timestamp_ms'] == widget.message['timestamp_ms']);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PhotoViewGalleryScreen(
+          photos:
+              allPhotos, // Use all photos instead of just this message's photos
+          initialIndex: startingIndex >= 0 ? startingIndex : 0,
+          onLongPress: (currentPhoto) {
+            Navigator.pop(context);
+            final messageIndex = manager.getIndexForTimestamp(
+              currentPhoto['timestamp_ms'] as int,
+              isPhotoTimestamp: true,
+            );
+
+            if (messageIndex != null) {
+              scrollToHighlightedMessage(
+                messageIndex,
+                [messageIndex],
+                widget.itemScrollController,
+                SearchType.photoView,
+              );
+            }
+          },
+          collectionName: widget.isCrossCollectionSearch
+              ? widget.message['collectionName']
+              : widget.selectedCollectionName,
+          showAppBar: true,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -157,84 +209,35 @@ class MessageItemState extends State<MessageItem> {
               runSpacing: 4,
               children: photos.map<Widget>((photo) {
                 return GestureDetector(
-                  onTap: () {
-                    final manager = MessageIndexManager();
-                    final allPhotos = manager.allPhotos;
-
-                    // Find the index of the current photo in all photos
-                    final currentPhotoUri = photo['uri'];
-                    final initialIndex = allPhotos
-                        .indexWhere((p) => p['uri'] == currentPhotoUri);
-
-                    final galleryPhotos = allPhotos.map((photo) {
-                      return {
-                        'filename': photo['uri'].split('/').last,
-                        'fullUri': _generateFullUri(photo['uri']),
-                        'timestamp_ms': photo['creation_timestamp'],
-                        'collectionName': photo['collectionName'],
-                      };
-                    }).toList();
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PhotoViewGalleryScreen(
-                          collectionName: widget.selectedCollectionName,
-                          initialIndex: initialIndex,
-                          photos: galleryPhotos,
-                          showAppBar: true,
-                          onLongPress: (currentPhoto) {
-                            Navigator.pop(context);
-                            final timestamp = currentPhoto['timestamp_ms'];
-                            final collectionName =
-                                widget.isCrossCollectionSearch
-                                    ? widget.message['collectionName'] ??
-                                        widget.selectedCollectionName
-                                    : widget.selectedCollectionName;
-                            widget.onMessageTap(collectionName, timestamp);
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  child: GestureDetector(
-                    onLongPress: () {
-                      final collectionName = widget.isCrossCollectionSearch
-                          ? widget.message['collectionName'] ??
-                              widget.selectedCollectionName
-                          : widget.selectedCollectionName;
-                      final timestamp =
-                          widget.message['timestamp_ms'] as int? ?? 0;
-                      widget.onMessageTap(collectionName, timestamp);
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: _generateFullUri(photo['uri']),
-                        httpHeaders: ApiService.headers,
-                        fit: BoxFit.cover,
+                  onTap: () => _handlePhotoTap(
+                      context, photos.indexOf(photo), widget.message['photos']),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: _generateFullUri(photo['uri']),
+                      httpHeaders: ApiService.headers,
+                      fit: BoxFit.cover,
+                      width: 200,
+                      height: 200,
+                      memCacheWidth: 400,
+                      memCacheHeight: 400,
+                      placeholder: (context, url) => const SizedBox(
                         width: 200,
                         height: 200,
-                        memCacheWidth: 400,
-                        memCacheHeight: 400,
-                        placeholder: (context, url) => const SizedBox(
+                        child: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) {
+                        debugPrint('Error loading image: $error');
+                        return const SizedBox(
                           width: 200,
                           height: 200,
                           child: Center(
-                            child: CircularProgressIndicator(),
+                            child: Icon(Icons.error),
                           ),
-                        ),
-                        errorWidget: (context, url, error) {
-                          debugPrint('Error loading image: $error');
-                          return const SizedBox(
-                            width: 200,
-                            height: 200,
-                            child: Center(
-                              child: Icon(Icons.error),
-                            ),
-                          );
-                        },
-                      ),
+                        );
+                      },
                     ),
                   ),
                 );

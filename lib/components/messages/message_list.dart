@@ -30,34 +30,42 @@ class MessageList extends StatelessWidget {
     required this.onMessageTap,
   });
 
+  bool isHighlighted(int index) {
+    if (!isSearchActive || searchResults.isEmpty || currentSearchIndex < 0) {
+      return false;
+    }
+
+    final targetIndex = searchResults[currentSearchIndex];
+    return index == targetIndex;
+  }
+
   @override
   Widget build(BuildContext context) {
     final manager = MessageIndexManager();
     manager.updateMessages(messages);
 
-    final updatedSearchResults = searchResults;
-
     return ScrollConfiguration(
       behavior: CustomScrollBehavior(),
       child: ScrollablePositionedList.builder(
-        itemCount: manager.sortedMessages.length,
+        itemCount: messages.length,
         physics: const AlwaysScrollableScrollPhysics(),
         itemBuilder: (context, index) {
-          final message =
-              Map<String, dynamic>.from(manager.sortedMessages[index]);
-          final isHighlighted = isSearchActive &&
-              updatedSearchResults.contains(index) &&
-              updatedSearchResults.indexOf(index) == currentSearchIndex;
+          final message = Map<String, dynamic>.from(messages[index]);
+          final collectionName = isCrossCollectionSearch
+              ? message['collectionName']
+              : selectedCollectionName;
 
           return MessageItem(
             message: message,
             isAuthor: message['sender_name'] == 'Tadeáš Fořt',
-            isHighlighted: isHighlighted,
+            isHighlighted: isHighlighted(index),
             isSearchActive: isSearchActive,
-            selectedCollectionName: selectedCollectionName,
+            selectedCollectionName: collectionName,
             profilePhotoUrl: profilePhotoUrl,
             isCrossCollectionSearch: isCrossCollectionSearch,
             onMessageTap: onMessageTap,
+            messages: messages,
+            itemScrollController: itemScrollController,
           );
         },
         itemScrollController: itemScrollController,

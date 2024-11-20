@@ -3,21 +3,24 @@ import 'package:flutter/material.dart';
 class Navbar extends StatelessWidget {
   final String title;
   final VoidCallback onSearchPressed;
-  final VoidCallback onDatabasePressed;
   final VoidCallback onCollectionSelectorPressed;
   final bool isCollectionSelectorVisible;
+  final String? selectedCollection;
 
   const Navbar({
     super.key,
     required this.title,
     required this.onSearchPressed,
-    required this.onDatabasePressed,
     required this.onCollectionSelectorPressed,
     required this.isCollectionSelectorVisible,
+    required this.selectedCollection,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool hasCollection =
+        selectedCollection != null && selectedCollection!.isNotEmpty;
+
     return BottomAppBar(
       elevation: 8.0,
       color: Theme.of(context).primaryColor,
@@ -38,11 +41,10 @@ class Navbar extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: onSearchPressed,
-          ),
-          IconButton(
-            icon: const Icon(Icons.storage),
-            onPressed: onDatabasePressed,
+            onPressed: hasCollection ? onSearchPressed : null,
+            tooltip: hasCollection
+                ? 'Search in ${selectedCollection!.split('_').join(' ')}'
+                : 'Select a collection first',
           ),
         ],
       ),
