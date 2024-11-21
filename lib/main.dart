@@ -15,9 +15,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 // by showing a list similarly as in collection widget sorted DESC according to number of messages containing
 // searched string
 
-// TODO: in message list view, fix the photo preview - we are now not respecting the photo dimensions
-// and it looks weird
-
 void main() async {
   await dotenv.load(fileName: ".env");
   runApp(MyApp());
