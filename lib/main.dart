@@ -10,9 +10,12 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// TODO: improve splash screen
-// TODO: include feature so that only one widget is visible at a time (search, collection selector, drawer..)
+// TODO: include a feature where when cross collection search is triggered
+// we could show new button in the dropdown menu where we could let the user switch which collections are being displayed
+// by showing a list similarly as in collection widget sorted DESC according to number of messages containing
+// searched string
 
+// TODO: include long press photo to scroll to highlighted photo message in gallery photo view component as well
 void main() async {
   await dotenv.load(fileName: ".env");
   runApp(MyApp());

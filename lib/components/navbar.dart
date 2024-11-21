@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../components/ui_utils/visibility_state.dart';
 
 class Navbar extends StatelessWidget {
   final String title;
@@ -6,6 +7,7 @@ class Navbar extends StatelessWidget {
   final VoidCallback onCollectionSelectorPressed;
   final bool isCollectionSelectorVisible;
   final String? selectedCollection;
+  final VisibilityState currentVisibility;
 
   const Navbar({
     super.key,
@@ -14,6 +16,7 @@ class Navbar extends StatelessWidget {
     required this.onCollectionSelectorPressed,
     required this.isCollectionSelectorVisible,
     required this.selectedCollection,
+    required this.currentVisibility,
   });
 
   @override
@@ -28,19 +31,23 @@ class Navbar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           IconButton(
-            icon: const Icon(Icons.menu),
+            icon: Icon(currentVisibility == VisibilityState.drawer
+                ? Icons.menu_open
+                : Icons.menu),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
           IconButton(
-            icon: Icon(isCollectionSelectorVisible
+            icon: Icon(currentVisibility == VisibilityState.collectionSelector
                 ? Icons.view_list
                 : Icons.view_list_outlined),
             onPressed: onCollectionSelectorPressed,
           ),
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: Icon(currentVisibility == VisibilityState.search
+                ? Icons.search_off
+                : Icons.search),
             onPressed: hasCollection ? onSearchPressed : null,
             tooltip: hasCollection
                 ? 'Search in ${selectedCollection!.split('_').join(' ')}'
