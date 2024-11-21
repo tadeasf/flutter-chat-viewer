@@ -23,6 +23,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
   late List<Map<String, dynamic>> collections;
   late List<Map<String, dynamic>> filteredCollections;
   final TextEditingController searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   bool isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
   bool isLoading = true;
@@ -40,6 +41,8 @@ class CollectionSelectorState extends State<CollectionSelector> {
   void dispose() {
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
+    searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -121,6 +124,18 @@ class CollectionSelectorState extends State<CollectionSelector> {
     });
   }
 
+  void _toggleCollectionSelector() {
+    setState(() {
+      isOpen = !isOpen;
+    });
+    if (isOpen) {
+      refreshCollections();
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _searchFocusNode.requestFocus();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     int maxMessageCount = filteredCollections.isNotEmpty
@@ -156,6 +171,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                         padding: const EdgeInsets.all(12.0),
                         child: TextField(
                           controller: searchController,
+                          focusNode: _searchFocusNode,
                           onChanged: filterCollections,
                           style: const TextStyle(color: Colors.white),
                           decoration: const InputDecoration(
@@ -244,14 +260,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () {
-            setState(() {
-              isOpen = !isOpen;
-            });
-            if (isOpen) {
-              refreshCollections();
-            }
-          },
+          onTap: _toggleCollectionSelector,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
