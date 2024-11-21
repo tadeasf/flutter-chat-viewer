@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'fetch_messages.dart';
@@ -19,6 +18,7 @@ import 'message_index_manager.dart';
 import '../search/search_type.dart';
 import '../ui_utils/visibility_state.dart';
 import '../search/search_dialog.dart';
+import '../search/cross_collection_filter.dart';
 
 class MessageSelector extends StatefulWidget {
   final Function(ThemeMode) setThemeMode;
@@ -71,6 +71,8 @@ class MessageSelectorState extends State<MessageSelector> {
   final FocusNode _searchFocusNode = FocusNode();
   bool isCrossCollectionLoading = false;
   String? currentSearchQuery;
+  Set<String> selectedCollections = {};
+  bool isFilterVisible = false;
 
   @override
   void initState() {
@@ -136,21 +138,6 @@ class MessageSelectorState extends State<MessageSelector> {
     }
   }
 
-  void _navigateSearch(int direction) {
-    navigateSearch(
-      direction,
-      searchResults,
-      currentSearchIndex,
-      (index) {
-        setState(() {
-          currentSearchIndex = index;
-        });
-      },
-      scrollToHighlightedMessage,
-      itemScrollController,
-    );
-  }
-
   Future<void> _changeCollection(String? newValue) async {
     setState(() {
       selectedCollection = newValue;
@@ -205,48 +192,6 @@ class MessageSelectorState extends State<MessageSelector> {
     _setVisibilityState(VisibilityState.collectionSelector);
   }
 
-  void _handleSearch(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    setState(() {
-      searchController.text = query;
-      isSearchActive = true;
-      searchQueryInWidget = query;
-    });
-
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      searchMessages(
-        query,
-        _debounce,
-        setState,
-        messages,
-        (index) => scrollToHighlightedMessage(
-          index,
-          searchResults,
-          itemScrollController,
-          SearchType.searchWidget,
-        ),
-        (results) {
-          setState(() {
-            searchResults = results;
-            isSearchActive = true;
-          });
-        },
-        (index) {
-          setState(() {
-            currentSearchIndex = index;
-          });
-        },
-        (active) {
-          setState(() {
-            isSearchActive = active;
-          });
-        },
-        selectedCollection,
-      );
-    });
-  }
-
   void refreshCollections() {
     loadCollections((loadedCollections) {
       setState(() {
@@ -257,32 +202,51 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void _handleCrossCollectionSearch(List<dynamic> results) {
+    final counts = <String, int>{};
+    for (final result in results) {
+      final collectionName = result['collectionName'] as String;
+      counts[collectionName] = (counts[collectionName] ?? 0) + 1;
+    }
+
+    // Initialize selected collections with all collections
+    selectedCollections = Set.from(counts.keys);
+
     setState(() {
-      crossCollectionMessages = results.map((result) {
-        if (result is! Map) return <String, dynamic>{};
-        return Map<dynamic, dynamic>.from({
-          'content': _decodeIfNeeded(result['content']),
-          'sender_name': _decodeIfNeeded(result['sender_name']),
-          'collectionName': _decodeIfNeeded(result['collectionName']),
-          'timestamp_ms': result['timestamp_ms'] ?? 0,
-          'photos': result['photos'] ?? [],
-          'is_geoblocked_for_viewer':
-              result['is_geoblocked_for_viewer'] ?? false,
-          'is_online': result['is_online'] ?? false,
-        });
-      }).toList();
+      crossCollectionMessages = List<Map<dynamic, dynamic>>.from(results);
+      messages = List<Map<dynamic, dynamic>>.from(results);
       isCrossCollectionSearch = true;
       isSearchActive = true;
     });
   }
 
-  String _decodeIfNeeded(dynamic text) {
-    if (text == null) return '';
-    try {
-      return utf8.decode(text.toString().codeUnits);
-    } catch (e) {
-      return text.toString();
+  void _filterCrossCollectionMessages(Set<String> selectedCollections) {
+    setState(() {
+      messages = crossCollectionMessages.where((message) {
+        return selectedCollections.contains(message['collectionName']);
+      }).toList();
+    });
+  }
+
+  void _showCollectionFilter() {
+    if (!isCrossCollectionSearch) return;
+
+    final counts = <String, int>{};
+    for (final message in crossCollectionMessages) {
+      final collectionName = message['collectionName'] as String;
+      counts[collectionName] = (counts[collectionName] ?? 0) + 1;
     }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => CrossCollectionFilter(
+        collectionCounts: counts,
+        selectedCollections: selectedCollections,
+        onCollectionsChanged: (collections) {
+          selectedCollections = collections;
+          _filterCrossCollectionMessages(collections);
+        },
+      ),
+    );
   }
 
   void handleMessageTap(String collectionName, int timestamp) async {
@@ -341,9 +305,76 @@ class MessageSelectorState extends State<MessageSelector> {
     }
   }
 
+  Widget _buildSearchWidget() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          if (!isCrossCollectionSearch && searchResults.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_upward),
+              onPressed: () => navigateSearch(
+                -1,
+                searchResults,
+                currentSearchIndex,
+                (index) {
+                  setState(() {
+                    currentSearchIndex = index;
+                  });
+                },
+                scrollToHighlightedMessage,
+                itemScrollController,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_downward),
+              onPressed: () => navigateSearch(
+                1,
+                searchResults,
+                currentSearchIndex,
+                (index) {
+                  setState(() {
+                    currentSearchIndex = index;
+                  });
+                },
+                scrollToHighlightedMessage,
+                itemScrollController,
+              ),
+            ),
+            Text('${currentSearchIndex + 1}/${searchResults.length}'),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: isCrossCollectionSearch
+                ? Text('${messages.length} results across collections')
+                : Text('Search: $currentSearchQuery'),
+          ),
+          if (isCrossCollectionSearch)
+            IconButton(
+              icon: const Icon(Icons.filter_list),
+              onPressed: _showCollectionFilter,
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Meta Elysia'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.search),
+            onPressed: toggleSearchBar,
+          ),
+          IconButton(
+            icon: Icon(Icons.more_vert),
+            onPressed: toggleCollectionSelector,
+          ),
+        ],
+      ),
       drawer: AppDrawer(
         selectedCollection: selectedCollection,
         isPhotoAvailable: isPhotoAvailable,
@@ -362,263 +393,71 @@ class MessageSelectorState extends State<MessageSelector> {
         messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
         itemScrollController: itemScrollController,
       ),
-      body: Stack(
+      body: Column(
         children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              await loadCollections((loadedCollections) {
-                setState(() {
-                  collections = loadedCollections;
-                  filteredCollections = loadedCollections;
-                });
-              });
-            },
-            child: collections.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 200),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('Pull down to refresh collections'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Meta Elysia',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                      Expanded(
-                        child: isLoading || isCrossCollectionLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : MessageList(
-                                messages: isCrossCollectionSearch
-                                    ? crossCollectionMessages
-                                    : messages,
-                                searchResults: searchResults,
-                                currentSearchIndex: currentSearchIndex,
-                                itemScrollController: itemScrollController,
-                                itemPositionsListener: itemPositionsListener,
-                                isSearchActive: isSearchVisible,
-                                selectedCollectionName:
-                                    selectedCollection ?? '',
-                                profilePhotoUrl: profilePhotoUrl,
-                                isCrossCollectionSearch:
-                                    isCrossCollectionSearch,
-                                onMessageTap: handleMessageTap,
-                              ),
-                      ),
-                      if (isCollectionSelectorVisible ||
-                          selectedCollection == null)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: CollectionSelector(
-                            selectedCollection: selectedCollection,
-                            initialCollections: filteredCollections,
-                            onCollectionChanged: _changeCollection,
-                          ),
-                        ),
-                      if (isPhotoAvailable && selectedCollection != null)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Image.network(
-                            'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
-                            height: 100,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Text('Failed to load image');
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-          ),
-          if (_currentVisibility == VisibilityState.collectionSelector)
-            _buildCollectionSelectorOverlay(),
-        ],
-      ),
-      bottomNavigationBar: isSearchActive
-          ? _buildSearchResultsBar()
-          : (_currentVisibility == VisibilityState.search
-              ? _buildSearchOverlay()
-              : Navbar(
-                  title: 'Meta Elysia',
-                  onSearchPressed: toggleSearchBar,
-                  onCollectionSelectorPressed: toggleCollectionSelector,
-                  isCollectionSelectorVisible:
-                      _currentVisibility == VisibilityState.collectionSelector,
-                  selectedCollection: selectedCollection ?? '',
-                  currentVisibility: _currentVisibility,
-                )),
-    );
-  }
-
-  Widget _buildSearchOverlay() {
-    if (_currentVisibility != VisibilityState.search) {
-      return _buildSearchResultsBar();
-    }
-
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          height: kBottomNavigationBarHeight,
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0, vertical: 8.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8.0),
-                      border: Border.all(
-                        color: Colors.white24,
-                        width: 1.0,
-                      ),
+          if (isSearchActive) _buildSearchWidget(),
+          Expanded(
+            child: Stack(
+              children: [
+                if (isLoading || isCrossCollectionLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (messages.isEmpty && !isCollectionSelectorVisible)
+                  Center(
+                    child: Text(
+                      isCrossCollectionSearch
+                          ? 'No results found in any collection'
+                          : selectedCollection == null
+                              ? 'Select a collection to view messages'
+                              : 'No messages in this collection',
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    child: TextField(
-                      controller: searchController,
-                      focusNode: _searchFocusNode,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.0,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search messages...',
-                        hintStyle: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 16.0,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.white70,
-                          size: 20.0,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4.0,
-                          vertical: 12.0,
-                        ),
-                        isDense: true,
-                      ),
-                      onSubmitted: (value) {
-                        _handleSearch(value);
-                        _setVisibilityState(VisibilityState.none);
+                  )
+                else
+                  MessageList(
+                    messages: isCrossCollectionSearch ? messages : messages,
+                    searchResults: searchResults,
+                    currentSearchIndex: currentSearchIndex,
+                    itemScrollController: itemScrollController,
+                    itemPositionsListener: itemPositionsListener,
+                    isSearchActive: isSearchVisible,
+                    selectedCollectionName: selectedCollection ?? '',
+                    profilePhotoUrl: profilePhotoUrl,
+                    isCrossCollectionSearch: isCrossCollectionSearch,
+                    onMessageTap: handleMessageTap,
+                  ),
+                if (isCollectionSelectorVisible || selectedCollection == null)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: CollectionSelector(
+                      selectedCollection: selectedCollection,
+                      initialCollections: filteredCollections,
+                      onCollectionChanged: _changeCollection,
+                    ),
+                  ),
+                if (isPhotoAvailable && selectedCollection != null)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Image.network(
+                      'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                      height: 100,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Text('Failed to load image');
                       },
                     ),
                   ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 24.0,
-                ),
-                padding: const EdgeInsets.all(12.0),
-                onPressed: toggleSearchBar,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchResultsBar() {
-    if (!isSearchActive) return const SizedBox.shrink();
-
-    final String displayText = searchResults.isNotEmpty
-        ? '"${currentSearchQuery ?? ""}" (${currentSearchIndex + 1}/${searchResults.length})'
-        : 'No results for "${currentSearchQuery ?? ""}"';
-
-    return Container(
-      height: kBottomNavigationBarHeight,
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
+              ],
+            ),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                displayText,
-                style: const TextStyle(color: Colors.white),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          if (searchResults.isNotEmpty) ...[
-            IconButton(
-              icon: const Icon(Icons.arrow_upward, color: Colors.white),
-              onPressed: () => _navigateSearch(-1),
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_downward, color: Colors.white),
-              onPressed: () => _navigateSearch(1),
-            ),
-          ],
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                searchController.clear();
-                searchResults.clear();
-                isSearchActive = false;
-                currentSearchQuery = null;
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCollectionSelectorOverlay() {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
-        padding: const EdgeInsets.all(16.0),
-        child: CollectionSelector(
-          selectedCollection: selectedCollection,
-          initialCollections: filteredCollections,
-          onCollectionChanged: _changeCollection,
-        ),
+      bottomNavigationBar: Navbar(
+        title: 'Meta Elysia',
+        onSearchPressed: toggleSearchBar,
+        onCollectionSelectorPressed: toggleCollectionSelector,
+        isCollectionSelectorVisible:
+            _currentVisibility == VisibilityState.collectionSelector,
+        selectedCollection: selectedCollection ?? '',
+        currentVisibility: _currentVisibility,
       ),
     );
   }

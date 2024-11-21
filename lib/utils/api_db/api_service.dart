@@ -260,7 +260,7 @@ class ApiService {
   static Future<List<dynamic>> performCrossCollectionSearch(
       String query) async {
     final response = await post(
-      '/search',
+      '/search_text',
       body: {'query': query},
       headers: headers, // This includes the x-api-key
     );
