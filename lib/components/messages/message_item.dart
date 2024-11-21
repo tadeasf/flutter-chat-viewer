@@ -198,6 +198,7 @@ class MessageItemState extends State<MessageItem> {
       if (widget.message['photos'] != null &&
           (widget.message['photos'] as List).isNotEmpty) {
         final photos = widget.message['photos'] as List;
+        const double displayWidth = 200.0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,11 +207,14 @@ class MessageItemState extends State<MessageItem> {
                 widget.message['content'].isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  _ensureDecoded(widget.message['content']),
-                  style: TextStyle(
-                    color: getTextColor(),
-                    fontSize: 16,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: displayWidth),
+                  child: Text(
+                    _ensureDecoded(widget.message['content']),
+                    style: TextStyle(
+                      color: getTextColor(),
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -218,6 +222,9 @@ class MessageItemState extends State<MessageItem> {
               spacing: 4,
               runSpacing: 4,
               children: photos.map<Widget>((photo) {
+                // Use a fixed width for message photos
+                const double displayWidth = 200.0;
+
                 return GestureDetector(
                   onTap: () => _handlePhotoTap(
                       context, photos.indexOf(photo), widget.message['photos']),
@@ -226,24 +233,23 @@ class MessageItemState extends State<MessageItem> {
                     child: CachedNetworkImage(
                       imageUrl: _generateFullUri(photo['uri']),
                       httpHeaders: ApiService.headers,
+                      width: displayWidth,
                       fit: BoxFit.cover,
-                      width: 200,
-                      height: 200,
-                      memCacheWidth: 400,
-                      memCacheHeight: 400,
-                      placeholder: (context, url) => const SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: Center(
+                      memCacheWidth: (displayWidth * 2).toInt(),
+                      placeholder: (context, url) => SizedBox(
+                        width: displayWidth,
+                        height:
+                            displayWidth, // Initially square, will adjust when loaded
+                        child: const Center(
                           child: CircularProgressIndicator(),
                         ),
                       ),
                       errorWidget: (context, url, error) {
                         debugPrint('Error loading image: $error');
-                        return const SizedBox(
-                          width: 200,
-                          height: 200,
-                          child: Center(
+                        return SizedBox(
+                          width: displayWidth,
+                          height: displayWidth,
+                          child: const Center(
                             child: Icon(Icons.error),
                           ),
                         );
