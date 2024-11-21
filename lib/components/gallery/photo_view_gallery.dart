@@ -96,6 +96,13 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                   backgroundColor: Colors.black.withOpacity(0.5),
                   title: Text('${_currentIndex + 1} / ${widget.photos.length}'),
                   actions: [
+                    if (widget.onJumpToMessage != null)
+                      IconButton(
+                        icon: const Icon(Icons.message),
+                        onPressed: () => widget.onJumpToMessage
+                            ?.call(widget.photos[_currentIndex]),
+                        tooltip: 'Jump to Message',
+                      ),
                     if (widget.onJumpToGallery != null)
                       IconButton(
                         icon: const Icon(Icons.grid_view),
@@ -106,6 +113,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                     IconButton(
                       icon: const Icon(Icons.download),
                       onPressed: () => _downloadCurrentImage(),
+                      tooltip: 'Download Image',
                     ),
                   ],
                 )
