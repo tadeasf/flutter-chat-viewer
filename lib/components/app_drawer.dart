@@ -4,6 +4,7 @@ import './gallery/photo_handler.dart';
 import './ui_utils/theme_manager.dart';
 import './profile_photo/profile_photo.dart';
 import './search/cross_collection_search.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class AppDrawer extends StatelessWidget {
   final String? selectedCollection;
@@ -20,6 +21,8 @@ class AppDrawer extends StatelessWidget {
   final ImagePicker picker;
   final Function(List<dynamic>) onCrossCollectionSearch;
   final VoidCallback onDrawerClosed;
+  final List<Map<dynamic, dynamic>> messages;
+  final ItemScrollController itemScrollController;
 
   const AppDrawer({
     super.key,
@@ -37,6 +40,8 @@ class AppDrawer extends StatelessWidget {
     required this.picker,
     required this.onCrossCollectionSearch,
     required this.onDrawerClosed,
+    required this.messages,
+    required this.itemScrollController,
   });
 
   @override
@@ -100,6 +105,8 @@ class AppDrawer extends StatelessWidget {
                       PhotoHandler.handleShowAllPhotos(
                         context,
                         selectedCollection,
+                        messages: messages,
+                        itemScrollController: itemScrollController,
                       );
                     },
                   ),
