@@ -19,6 +19,7 @@ class AppDrawer extends StatelessWidget {
   final ThemeMode themeMode;
   final ImagePicker picker;
   final Function(List<dynamic>) onCrossCollectionSearch;
+  final VoidCallback onDrawerClosed;
 
   const AppDrawer({
     super.key,
@@ -35,86 +36,103 @@ class AppDrawer extends StatelessWidget {
     required this.themeMode,
     required this.picker,
     required this.onCrossCollectionSearch,
+    required this.onDrawerClosed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Drawer(
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    selectedCollection ?? 'No Collection Selected',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                if (isProfilePhotoVisible && selectedCollection != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: ProfilePhoto(
-                      key: ValueKey(profilePhotoUrl), // Add this line
-                      collectionName: selectedCollection!,
-                      size: 80.0,
-                      isOnline: true,
-                      profilePhotoUrl: profilePhotoUrl,
-                      showButtons: true,
-                      onPhotoDeleted: () {
-                        // Add this callback
-                        setState(() {
-                          // Update the state to reflect the deleted photo
-                        });
+    return PopScope<dynamic>(
+      canPop: true,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        onDrawerClosed();
+      },
+      child: Drawer(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 16.0),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        onDrawerClosed();
                       },
                     ),
                   ),
-                const SizedBox(height: 16),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: Text('Gallery',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  onTap: () {
-                    Navigator.pop(context);
-                    PhotoHandler.handleShowAllPhotos(
-                      context,
-                      selectedCollection,
-                    );
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.search),
-                  title: Text('Cross-Collection Search',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  onTap: () {
-                    Navigator.pop(context);
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return CrossCollectionSearchDialog(
-                          onSearchResults: onCrossCollectionSearch,
-                        );
-                      },
-                    );
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: Text('Settings',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ThemeManager.showSettingsDialog(
-                        context, themeMode, setThemeMode);
-                  },
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      selectedCollection ?? 'No Collection Selected',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  if (isProfilePhotoVisible && selectedCollection != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: ProfilePhoto(
+                        key: ValueKey(profilePhotoUrl), // Add this line
+                        collectionName: selectedCollection!,
+                        size: 80.0,
+                        isOnline: true,
+                        profilePhotoUrl: profilePhotoUrl,
+                        showButtons: true,
+                        onPhotoDeleted: () {
+                          // Add this callback
+                          setState(() {
+                            // Update the state to reflect the deleted photo
+                          });
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library),
+                    title: Text('Gallery',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () {
+                      Navigator.pop(context);
+                      PhotoHandler.handleShowAllPhotos(
+                        context,
+                        selectedCollection,
+                      );
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.search),
+                    title: Text('Cross-Collection Search',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () {
+                      Navigator.pop(context);
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return CrossCollectionSearchDialog(
+                            onSearchResults: onCrossCollectionSearch,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.settings),
+                    title: Text('Settings',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ThemeManager.showSettingsDialog(
+                          context, themeMode, setThemeMode);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),

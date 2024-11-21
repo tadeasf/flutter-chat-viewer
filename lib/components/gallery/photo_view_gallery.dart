@@ -130,8 +130,34 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
   }
 
   Future<void> _downloadCurrentImage() async {
+    if (!mounted) return;
+
     final photo = widget.photos[_currentIndex];
     final imageUrl = _getPhotoUrl(photo);
-    await ImageDownloader.downloadImage(context, imageUrl);
+
+    // Show a confirmation dialog
+    final shouldDownload = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Download Image'),
+          content: const Text('Do you want to download this image?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+            ),
+            TextButton(
+              child: const Text('Download'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDownload == true && mounted) {
+      await ImageDownloader.downloadImage(context, imageUrl);
+    }
   }
 }

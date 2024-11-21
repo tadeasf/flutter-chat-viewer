@@ -131,52 +131,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('Select Collection:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () {
-            setState(() {
-              isOpen = !isOpen;
-            });
-            if (isOpen) {
-              refreshCollections();
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E).withOpacity(0.8),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.selectedCollection ?? 'Select a collection',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                Icon(
-                  isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ],
-            ),
-          ),
-        ),
         if (isOpen)
           Container(
             height: 300,
-            margin: const EdgeInsets.only(top: 8),
+            margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E2E).withOpacity(0.8),
               borderRadius: BorderRadius.circular(12),
@@ -184,7 +144,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 4,
-                  offset: const Offset(0, 2),
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
@@ -280,6 +240,47 @@ class CollectionSelectorState extends State<CollectionSelector> {
                     ],
                   ),
           ),
+        const Text('Select Collection:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () {
+            setState(() {
+              isOpen = !isOpen;
+            });
+            if (isOpen) {
+              refreshCollections();
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E2E).withOpacity(0.8),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.selectedCollection ?? 'Select a collection',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                Icon(
+                  isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
