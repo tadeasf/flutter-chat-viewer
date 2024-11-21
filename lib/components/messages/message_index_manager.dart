@@ -35,7 +35,11 @@ class MessageIndexManager {
     }
   }
 
-  int? getIndexForTimestamp(int timestamp, {bool isPhotoTimestamp = false}) {
+  int? getIndexForTimestamp(
+    int timestamp, {
+    bool isPhotoTimestamp = false,
+    bool useCreationTimestamp = false,
+  }) {
     if (_sortedMessages == null || _sortedMessages!.isEmpty) {
       return null;
     }

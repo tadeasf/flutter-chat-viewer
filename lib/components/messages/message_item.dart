@@ -9,6 +9,7 @@ import '../search/search_type.dart';
 import '../search/scroll_to_highlighted_message.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../messages/message_index_manager.dart';
+import '../gallery/photo_gallery.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -104,10 +105,7 @@ class MessageItemState extends State<MessageItem> {
     final manager = MessageIndexManager();
     manager.updateMessages(widget.messages);
 
-    // Get all photos from all messages to enable swiping through the entire collection
     final allPhotos = manager.allPhotos;
-
-    // Find the starting index in the full collection
     final startingPhoto = photos[index];
     final startingIndex = allPhotos.indexWhere((photo) =>
         photo['uri'] == startingPhoto['uri'] &&
@@ -117,8 +115,7 @@ class MessageItemState extends State<MessageItem> {
       context,
       MaterialPageRoute(
         builder: (context) => PhotoViewGalleryScreen(
-          photos:
-              allPhotos, // Use all photos instead of just this message's photos
+          photos: allPhotos,
           initialIndex: startingIndex >= 0 ? startingIndex : 0,
           onLongPress: (currentPhoto) {
             Navigator.pop(context);
@@ -135,6 +132,19 @@ class MessageItemState extends State<MessageItem> {
                 SearchType.photoView,
               );
             }
+          },
+          onJumpToGallery: (currentIndex) {
+            Navigator.pop(context);
+            final currentPhoto = allPhotos[currentIndex];
+            PhotoGalleryState.navigateToGalleryAndScroll(
+              context,
+              widget.isCrossCollectionSearch
+                  ? widget.message['collectionName']
+                  : widget.selectedCollectionName,
+              currentPhoto,
+              widget.messages,
+              widget.itemScrollController,
+            );
           },
           collectionName: widget.isCrossCollectionSearch
               ? widget.message['collectionName']

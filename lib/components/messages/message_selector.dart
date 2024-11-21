@@ -359,6 +359,8 @@ class MessageSelectorState extends State<MessageSelector> {
         picker: picker,
         onCrossCollectionSearch: _handleCrossCollectionSearch,
         onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
+        messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
+        itemScrollController: itemScrollController,
       ),
       body: Stack(
         children: [

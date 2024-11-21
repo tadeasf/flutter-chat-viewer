@@ -1,1 +1,1 @@
-enum SearchType { searchWidget, photoView, crossCollection }
+enum SearchType { searchWidget, photoView, crossCollection, galleryGrid }

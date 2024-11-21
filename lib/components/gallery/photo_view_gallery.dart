@@ -8,17 +8,21 @@ import 'package:flutter/services.dart';
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
   final int initialIndex;
-  final Function(Map<String, dynamic>) onLongPress;
+  final Function(Map<String, dynamic>)? onLongPress;
   final String collectionName;
   final bool showAppBar;
+  final Function(int)? onJumpToGallery;
+  final Function(Map<String, dynamic>)? onJumpToMessage;
 
   const PhotoViewGalleryScreen({
     super.key,
     required this.photos,
     required this.initialIndex,
-    required this.onLongPress,
+    this.onLongPress,
     required this.collectionName,
     this.showAppBar = true,
+    this.onJumpToGallery,
+    this.onJumpToMessage,
   });
 
   @override
@@ -82,7 +86,9 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
       onKeyEvent: _handleKeyEvent,
       autofocus: true,
       child: GestureDetector(
-        onLongPress: () => widget.onLongPress(widget.photos[_currentIndex]),
+        onLongPress: widget.onLongPress != null
+            ? () => widget.onLongPress!(widget.photos[_currentIndex])
+            : null,
         child: Scaffold(
           backgroundColor: Colors.black,
           appBar: widget.showAppBar
@@ -90,6 +96,13 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                   backgroundColor: Colors.black.withOpacity(0.5),
                   title: Text('${_currentIndex + 1} / ${widget.photos.length}'),
                   actions: [
+                    if (widget.onJumpToGallery != null)
+                      IconButton(
+                        icon: const Icon(Icons.grid_view),
+                        onPressed: () =>
+                            widget.onJumpToGallery?.call(_currentIndex),
+                        tooltip: 'Jump to Gallery',
+                      ),
                     IconButton(
                       icon: const Icon(Icons.download),
                       onPressed: () => _downloadCurrentImage(),

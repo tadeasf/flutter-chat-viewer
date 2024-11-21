@@ -4,6 +4,7 @@ import '../../utils/api_db/api_service.dart';
 import 'photo_gallery.dart';
 import 'dart:convert';
 import 'package:logging/logging.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class PhotoHandler {
   static final Logger _logger = Logger('PhotoHandler');
@@ -13,13 +14,21 @@ class PhotoHandler {
   static String? imageUrl;
 
   static void handleShowAllPhotos(
-      BuildContext context, String? selectedCollection) {
+    BuildContext context,
+    String? selectedCollection, {
+    List<Map<dynamic, dynamic>>? messages = const [],
+    ItemScrollController? itemScrollController,
+  }) {
     if (selectedCollection == null) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PhotoGallery(collectionName: selectedCollection),
+        builder: (context) => PhotoGallery(
+          collectionName: selectedCollection,
+          messages: messages ?? [],
+          itemScrollController: itemScrollController ?? ItemScrollController(),
+        ),
       ),
     );
   }
