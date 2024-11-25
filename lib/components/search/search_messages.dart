@@ -9,10 +9,14 @@ Future<List<int>> _computeSearchResults(List<dynamic> params) async {
   final normalizedQuery = removeDiacritics(query.toLowerCase());
 
   // Handle special search queries
-  if (normalizedQuery == "photo" || normalizedQuery == "video") {
+  if (normalizedQuery == "photo" ||
+      normalizedQuery == "video" ||
+      normalizedQuery == "audio") {
     int totalMedia = 0;
     List<int> mediaIndices = [];
     bool searchingForPhotos = normalizedQuery == "photo";
+    bool searchingForVideos = normalizedQuery == "video";
+    bool searchingForAudio = normalizedQuery == "audio";
 
     for (int i = 0; i < messages.length; i++) {
       final message = messages[i];
@@ -27,12 +31,18 @@ Future<List<int>> _computeSearchResults(List<dynamic> params) async {
           totalMedia += (message['photos'] as List).length;
           mediaIndices.add(i);
         }
-      } else {
-        // searching for videos
-        final hasVideos =
-            message['videos'] != null && (message['videos'] as List).isNotEmpty;
+      } else if (searchingForVideos) {
+        final hasVideos = message['video_files'] != null &&
+            (message['video_files'] as List).isNotEmpty;
         if (hasVideos) {
-          totalMedia += (message['videos'] as List).length;
+          totalMedia += (message['video_files'] as List).length;
+          mediaIndices.add(i);
+        }
+      } else if (searchingForAudio) {
+        final hasAudio = message['audio_files'] != null &&
+            (message['audio_files'] as List).isNotEmpty;
+        if (hasAudio) {
+          totalMedia += (message['audio_files'] as List).length;
           mediaIndices.add(i);
         }
       }
@@ -40,10 +50,11 @@ Future<List<int>> _computeSearchResults(List<dynamic> params) async {
 
     if (kDebugMode) {
       print('Total messages: ${messages.length}');
-      print(
-          'Total ${searchingForPhotos ? "photo" : "video"} messages found: ${mediaIndices.length}');
-      print(
-          'Total ${searchingForPhotos ? "photos" : "videos"} count: $totalMedia');
+      String mediaType = searchingForPhotos
+          ? "photo"
+          : (searchingForVideos ? "video" : "audio");
+      print('Total $mediaType messages found: ${mediaIndices.length}');
+      print('Total $mediaType count: $totalMedia');
     }
 
     return mediaIndices;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
@@ -10,7 +9,10 @@ import '../search/scroll_to_highlighted_message.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../messages/message_index_manager.dart';
 import '../gallery/photo_gallery.dart';
-import 'video_message.dart';
+import 'package:just_audio/just_audio.dart';
+import 'audio_message_player.dart';
+import '../media/video_player_screen.dart';
+import 'package:intl/intl.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -44,6 +46,7 @@ class MessageItem extends StatefulWidget {
 
 class MessageItemState extends State<MessageItem> {
   bool _isExpanded = false;
+  final Map<String, AudioPlayer> _audioPlayers = {};
 
   // Darker and less vibrant Catppuccin Mocha inspired colors
   static const Color base = Color(0xFF0D0D0D);
@@ -156,18 +159,240 @@ class MessageItemState extends State<MessageItem> {
     );
   }
 
+  void _handleVideoTap(BuildContext context, String videoUrl) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VideoPlayerScreen(videoUrl: videoUrl),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    // Dispose all audio players
+    for (var player in _audioPlayers.values) {
+      player.dispose();
+    }
+    super.dispose();
+  }
+
+  Color getTextColor() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    if (widget.isHighlighted) {
+      return isDarkMode ? Colors.white : Colors.black;
+    }
+    return isDarkMode ? text : Colors.black87;
+  }
+
+  Widget buildMessageContent() {
+    final List<Widget> mediaWidgets = [];
+    const double displayWidth = 300.0;
+
+    // Handle text content
+    if (widget.message['content'] != null &&
+        widget.message['content'].toString().isNotEmpty) {
+      final String content = _ensureDecoded(widget.message['content']);
+      final bool isLongMessage =
+          content.length > 300; // Threshold for expansion
+
+      mediaWidgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: displayWidth),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isLongMessage && !_isExpanded
+                      ? '${content.substring(0, 300)}...'
+                      : content,
+                  style: TextStyle(
+                    color: getTextColor(),
+                    fontSize: 16,
+                  ),
+                ),
+                if (isLongMessage)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isExpanded = !_isExpanded;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        _isExpanded ? 'Show less' : 'Read more',
+                        style: TextStyle(
+                          color: getTextColor().withOpacity(0.7),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Handle photos
+    if (widget.message['photos'] != null &&
+        (widget.message['photos'] as List).isNotEmpty) {
+      final photos = widget.message['photos'] as List;
+      mediaWidgets.add(
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: photos.map<Widget>((photo) {
+            return GestureDetector(
+              onTap: () => _handlePhotoTap(
+                  context, photos.indexOf(photo), widget.message['photos']),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: _generateFullUri(photo['uri']),
+                  httpHeaders: ApiService.headers,
+                  width: displayWidth,
+                  fit: BoxFit.cover,
+                  memCacheWidth: (displayWidth * 2).toInt(),
+                  placeholder: (context, url) => const SizedBox(
+                    width: displayWidth,
+                    height: displayWidth,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => const SizedBox(
+                    width: displayWidth,
+                    height: displayWidth,
+                    child: Center(child: Icon(Icons.error)),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    }
+
+    // Handle videos
+    if (widget.message['video_files'] != null &&
+        (widget.message['video_files'] as List).isNotEmpty) {
+      final videos = widget.message['video_files'] as List;
+      mediaWidgets.add(
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: videos.map<Widget>((video) {
+            final videoUrl = ApiService.getVideoUrl(
+              widget.selectedCollectionName,
+              video['uri'],
+            );
+
+            return GestureDetector(
+              onTap: () => _handleVideoTap(context, videoUrl),
+              child: Container(
+                width: displayWidth,
+                height: displayWidth * 0.75,
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(Icons.play_circle_outline,
+                        color: Colors.white, size: 48),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.videocam, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text('Video',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    }
+
+    // Handle audio files
+    if (widget.message['audio_files'] != null &&
+        (widget.message['audio_files'] as List).isNotEmpty) {
+      final audioFiles = widget.message['audio_files'] as List;
+      mediaWidgets.add(
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: audioFiles.map<Widget>((audio) {
+            final audioUrl = ApiService.getAudioUrl(
+              widget.selectedCollectionName,
+              audio['uri'],
+            );
+
+            return AudioMessagePlayer(
+              key: ValueKey(audio['uri']),
+              audioUrl: audioUrl,
+              onPlayerCreated: (String uri, AudioPlayer player) {
+                _audioPlayers[uri] = player;
+              },
+              onPlayerDisposed: (String uri) {
+                _audioPlayers.remove(uri);
+              },
+            );
+          }).toList(),
+        ),
+      );
+    }
+
+    // If there are no media widgets but there is content, return just the content
+    if (mediaWidgets.isEmpty &&
+        widget.message['content'] != null &&
+        widget.message['content'].toString().isNotEmpty) {
+      return Text(
+        _ensureDecoded(widget.message['content']),
+        style: TextStyle(
+          color: getTextColor(),
+          fontSize: 16,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: mediaWidgets,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isInstagram = widget.message['is_geoblocked_for_viewer'] != null;
+    final isInstagram = widget.message.containsKey('is_geoblocked_for_viewer');
 
     Color getBubbleColor() {
       if (widget.isHighlighted) {
         return isDarkMode
-            ? const Color(0xFFFFD700)
-                .withOpacity(0.3) // Gold color for dark mode
-            : const Color(0xFFFFD700)
-                .withOpacity(0.2); // Gold color for light mode
+            ? const Color(0xFFFFD700).withOpacity(0.3)
+            : const Color(0xFFFFD700).withOpacity(0.2);
       }
       if (isInstagram) {
         if (widget.isAuthor) {
@@ -188,120 +413,6 @@ class MessageItemState extends State<MessageItem> {
       }
     }
 
-    Color getTextColor() {
-      if (widget.isHighlighted) {
-        return isDarkMode ? Colors.white : Colors.black;
-      }
-      return isDarkMode ? text : Colors.black87;
-    }
-
-    Widget buildMessageContent() {
-      if (widget.message['videos'] != null &&
-          (widget.message['videos'] as List).isNotEmpty) {
-        final videos = widget.message['videos'] as List;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.message['content'] != null &&
-                widget.message['content'].isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  _ensureDecoded(widget.message['content']),
-                  style: TextStyle(
-                    color: getTextColor(),
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ...videos.map((video) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: VideoMessage(
-                    videoUri: video['uri'],
-                    collectionName: widget.isCrossCollectionSearch
-                        ? widget.message['collectionName']
-                        : widget.selectedCollectionName,
-                  ),
-                )),
-          ],
-        );
-      } else if (widget.message['photos'] != null &&
-          (widget.message['photos'] as List).isNotEmpty) {
-        final photos = widget.message['photos'] as List;
-        const double displayWidth = 200.0;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.message['content'] != null &&
-                widget.message['content'].isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: displayWidth),
-                  child: Text(
-                    _ensureDecoded(widget.message['content']),
-                    style: TextStyle(
-                      color: getTextColor(),
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: photos.map<Widget>((photo) {
-                // Use a fixed width for message photos
-                const double displayWidth = 200.0;
-
-                return GestureDetector(
-                  onTap: () => _handlePhotoTap(
-                      context, photos.indexOf(photo), widget.message['photos']),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: _generateFullUri(photo['uri']),
-                      httpHeaders: ApiService.headers,
-                      width: displayWidth,
-                      fit: BoxFit.cover,
-                      memCacheWidth: (displayWidth * 2).toInt(),
-                      placeholder: (context, url) => SizedBox(
-                        width: displayWidth,
-                        height:
-                            displayWidth, // Initially square, will adjust when loaded
-                        child: const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) {
-                        debugPrint('Error loading image: $error');
-                        return SizedBox(
-                          width: displayWidth,
-                          height: displayWidth,
-                          child: const Center(
-                            child: Icon(Icons.error),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        );
-      } else {
-        return Text(
-          _ensureDecoded(widget.message['content'] ?? 'No content'),
-          style: TextStyle(
-            color: getTextColor(),
-            fontSize: 16,
-          ),
-        );
-      }
-    }
-
     return GestureDetector(
       onLongPress: () {
         final collectionName = widget.isCrossCollectionSearch
@@ -319,6 +430,10 @@ class MessageItemState extends State<MessageItem> {
             bottom: 4,
             left: widget.isAuthor ? 64 : 8,
             right: widget.isAuthor ? 8 : 64,
+          ),
+          constraints: const BoxConstraints(
+            maxWidth: 400,
+            minWidth: 100,
           ),
           child: Column(
             crossAxisAlignment: widget.isAuthor
@@ -368,10 +483,10 @@ class MessageItemState extends State<MessageItem> {
                 },
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: getBubbleColor(),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -389,7 +504,8 @@ class MessageItemState extends State<MessageItem> {
                         Text(
                           DateFormat('yyyy-MM-dd HH:mm').format(
                             DateTime.fromMillisecondsSinceEpoch(
-                                widget.message['timestamp_ms']),
+                              widget.message['timestamp_ms'],
+                            ),
                           ),
                           style: TextStyle(
                             fontSize: 12,

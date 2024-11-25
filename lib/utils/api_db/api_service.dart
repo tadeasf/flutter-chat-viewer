@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:typed_data';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
@@ -284,5 +285,35 @@ class ApiService {
     }
 
     return '$baseUrl/inbox/${Uri.encodeComponent(collectionName)}/videos/${Uri.encodeComponent(uri)}';
+  }
+
+  static String getAudioUrl(String collectionName, String uri) {
+    if (uri.startsWith('https')) {
+      return uri;
+    }
+
+    // If it's a full URI path (like 'messages/inbox/collection/audio/filename.aac')
+    if (uri.startsWith('messages/inbox/')) {
+      return '$baseUrl/inbox/${uri.split('messages/inbox/')[1]}';
+    }
+
+    return '$baseUrl/inbox/$collectionName/audio/$uri';
+  }
+
+  static Future<Uint8List> fetchAudioData(String url) async {
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to load audio: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to load audio: $e');
+    }
   }
 }
