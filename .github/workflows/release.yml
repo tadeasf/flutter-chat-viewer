@@ -15,7 +15,7 @@ on:
 jobs:  
   build:      
     name: Build & Release 
-    runs-on: macos-latest 
+    runs-on: ubuntu-latest 
 
     steps:
         #1 Checkout Repository
@@ -59,7 +59,7 @@ jobs:
         
         #6 Building APK
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
         #7 Upload Artifacts
       - name: Upload Artifacts
@@ -108,3 +108,25 @@ jobs:
             - Cross-collection search improvements with retry mechanism
             - Performance optimizations for large message collections
             - Bug fixes and stability improvements
+
+        #12 Cache Flutter dependencies
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ env.FLUTTER_HOME }}/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+        #13 Cache Gradle dependencies
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
