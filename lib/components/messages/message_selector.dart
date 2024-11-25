@@ -432,13 +432,41 @@ class MessageSelectorState extends State<MessageSelector> {
           : (_currentVisibility == VisibilityState.search
               ? _buildSearchOverlay()
               : Navbar(
-                  title: 'Meta Elysia',
-                  onSearchPressed: toggleSearchBar,
+                  title: selectedCollection ?? '',
+                  onSearchPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext dialogContext) {
+                        return SearchDialog(
+                          onSearch: _handleSearchRequest,
+                          selectedCollection: selectedCollection,
+                        );
+                      },
+                    );
+                  },
                   onCollectionSelectorPressed: toggleCollectionSelector,
-                  isCollectionSelectorVisible:
-                      _currentVisibility == VisibilityState.collectionSelector,
-                  selectedCollection: selectedCollection ?? '',
+                  isCollectionSelectorVisible: isCollectionSelectorVisible,
+                  selectedCollection: selectedCollection,
                   currentVisibility: _currentVisibility,
+                  onCrossCollectionSearch: (results) {
+                    setState(() {
+                      crossCollectionMessages = results
+                          .map((result) => {
+                                'content': result['content'],
+                                'sender_name': result['sender_name'],
+                                'collectionName': result['collectionName'],
+                                'timestamp_ms': result['timestamp_ms'] ?? 0,
+                                'photos': result['photos'] ?? [],
+                                'is_geoblocked_for_viewer':
+                                    result['is_geoblocked_for_viewer'] ?? false,
+                                'is_online': result['is_online'] ?? false,
+                              })
+                          .toList();
+                      isCrossCollectionSearch = true;
+                      messages = crossCollectionMessages;
+                      isSearchActive = true;
+                    });
+                  },
                 )),
     );
   }
@@ -637,23 +665,13 @@ class MessageSelectorState extends State<MessageSelector> {
     callback([]); // Return empty list to trigger empty state UI
   }
 
-  void _showSearchDialog() {
-    final BuildContext currentContext = context;
-
-    showDialog(
-      context: currentContext,
-      builder: (BuildContext dialogContext) {
-        return SearchDialog(
-          onSearch: _handleSearchRequest,
-          selectedCollection: selectedCollection,
-        );
-      },
-    );
-  }
-
   void _handleSearchRequest(String query, bool isCrossCollection) {
-    Navigator.of(context).pop();
-    _processSearch(query, isCrossCollection);
+    if (mounted) {
+      setState(() {
+        _currentVisibility = VisibilityState.search;
+      });
+      _processSearch(query, isCrossCollection);
+    }
   }
 
   Future<void> _processSearch(String query, bool isCrossCollection) async {

@@ -41,8 +41,12 @@ class SearchDialogState extends State<SearchDialog> {
       setState(() {
         _isSearching = true;
       });
+
       widget.onSearch(query, _isCrossCollection);
-      Navigator.pop(context);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
