@@ -39,6 +39,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+        #4.5 Create .env file
+      - name: Create .env file
+        run: |
+          echo "API_KEY=${{ secrets.API_KEY }}" >> .env
+
         #5 Setup Keystore
       - name: Decode Keystore
         run: |
