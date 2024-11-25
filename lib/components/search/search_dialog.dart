@@ -42,6 +42,7 @@ class SearchDialogState extends State<SearchDialog> {
         _isSearching = true;
       });
       widget.onSearch(query, _isCrossCollection);
+      Navigator.pop(context);
     }
   }
 
@@ -49,6 +50,7 @@ class SearchDialogState extends State<SearchDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: const Color(0xFF1E1E2E),
       child: Container(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -61,19 +63,32 @@ class SearchDialogState extends State<SearchDialog> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Enter search term...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: Colors.white54),
+                prefixIcon: const Icon(Icons.search, color: Colors.white54),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white),
                 ),
                 filled: true,
+                fillColor: const Color(0xFF313244),
               ),
               onSubmitted: (_) {
                 if (!_isCrossCollection) {
@@ -83,8 +98,10 @@ class SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Search across all collections'),
+              title: const Text('Search across all collections',
+                  style: TextStyle(color: Colors.white)),
               value: _isCrossCollection,
+              activeColor: const Color(0xFFCBA6F7),
               onChanged: (bool value) {
                 setState(() {
                   _isCrossCollection = value;
@@ -97,7 +114,8 @@ class SearchDialogState extends State<SearchDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Color(0xFFCBA6F7))),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
@@ -107,6 +125,7 @@ class SearchDialogState extends State<SearchDialog> {
                       horizontal: 24,
                       vertical: 12,
                     ),
+                    backgroundColor: const Color(0xFFCBA6F7),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -115,9 +134,16 @@ class SearchDialogState extends State<SearchDialog> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         )
-                      : Text(_isCrossCollection ? 'Search All' : 'Search'),
+                      : Text(
+                          _isCrossCollection ? 'Search All' : 'Search',
+                          style: const TextStyle(color: Colors.black),
+                        ),
                 ),
               ],
             ),

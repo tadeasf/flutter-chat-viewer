@@ -260,18 +260,46 @@ class ApiService {
 
   static Future<List<dynamic>> performCrossCollectionSearch(
       String query) async {
-    final response = await post(
-      '/search',
-      body: {'query': query},
-      headers: headers, // This includes the x-api-key
-    );
+    int retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = Duration(seconds: 2);
 
-    if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
-    } else {
-      throw Exception(
-          'Failed to perform cross-collection search: ${response.statusCode}');
+    while (retryCount < maxRetries) {
+      try {
+        final response = await post(
+          '/search',
+          body: {'query': query},
+          headers: headers,
+        );
+
+        if (response.statusCode == 200) {
+          final results = json.decode(utf8.decode(response.bodyBytes));
+
+          // If we get less than 5 messages and it's not the last retry, try again
+          if (results is List &&
+              results.length < 5 &&
+              retryCount < maxRetries - 1) {
+            await Future.delayed(retryDelay);
+            retryCount++;
+            continue;
+          }
+
+          return results;
+        } else {
+          throw Exception(
+              'Failed to perform cross-collection search: ${response.statusCode}');
+        }
+      } catch (e) {
+        if (retryCount == maxRetries - 1) {
+          rethrow;
+        }
+        await Future.delayed(retryDelay);
+        retryCount++;
+      }
     }
+
+    throw Exception(
+        'Failed to perform cross-collection search after $maxRetries attempts');
   }
 
   static String getVideoUrl(String collectionName, String uri) {
