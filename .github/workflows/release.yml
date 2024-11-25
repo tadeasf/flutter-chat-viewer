@@ -5,11 +5,12 @@ on:
     branches:
       - dev
       - test
+      - main
   push:
     branches:
       - dev
       - test
-
+      - main
 jobs:  
   build:      
     name: Build & Release 
