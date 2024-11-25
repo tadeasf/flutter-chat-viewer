@@ -197,54 +197,35 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void toggleSearchBar() {
-    if (selectedCollection == null) return;
-    _showSearchDialog();
+    setState(() {
+      // Reset search state when toggling search bar
+      if (_currentVisibility == VisibilityState.search) {
+        searchResults = [];
+        currentSearchIndex = -1;
+        isSearchActive = false;
+        currentSearchQuery = null;
+      }
+      _currentVisibility = _currentVisibility == VisibilityState.search
+          ? VisibilityState.none
+          : VisibilityState.search;
+    });
   }
 
   void toggleCollectionSelector() {
     _setVisibilityState(VisibilityState.collectionSelector);
   }
 
-  void _handleSearch(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
+  void _handleSearch(String query, bool isCrossCollection) {
+    // Reset search state before starting new search
     setState(() {
-      searchController.text = query;
-      isSearchActive = true;
-      searchQueryInWidget = query;
+      searchResults = [];
+      currentSearchIndex = -1;
+      isSearchActive = false;
+      currentSearchQuery = query;
     });
 
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      searchMessages(
-        query,
-        _debounce,
-        setState,
-        messages,
-        (index) => scrollToHighlightedMessage(
-          index,
-          searchResults,
-          itemScrollController,
-          SearchType.searchWidget,
-        ),
-        (results) {
-          setState(() {
-            searchResults = results;
-            isSearchActive = true;
-          });
-        },
-        (index) {
-          setState(() {
-            currentSearchIndex = index;
-          });
-        },
-        (active) {
-          setState(() {
-            isSearchActive = active;
-          });
-        },
-        selectedCollection,
-      );
-    });
+    // Proceed with search
+    _processSearch(query, isCrossCollection);
   }
 
   void refreshCollections() {
@@ -526,7 +507,7 @@ class MessageSelectorState extends State<MessageSelector> {
                         isDense: true,
                       ),
                       onSubmitted: (value) {
-                        _handleSearch(value);
+                        _handleSearch(value, false);
                         _setVisibilityState(VisibilityState.none);
                       },
                     ),
