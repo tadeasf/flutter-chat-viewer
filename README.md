@@ -1,16 +1,69 @@
-# meta elysia
+# Meta Chat Viewer
 
-A new Flutter project.
+A Flutter application for viewing and searching through Facebook Messenger chat history with advanced features.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- 📱 View and search through Facebook Messenger conversations
+- 🔍 Cross-collection search functionality
+- 📸 Support for photos, videos, and audio messages
+- 🎨 Dark/Light theme support
+- 🔄 Automatic retry mechanism for failed requests
+- 📊 Collection statistics and message count visualization
 
-A few resources to get you started if this is your first Flutter project:
+## Setup
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Create a `.env` file in the root directory with:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```env
+X_API_KEY=your_api_key_here
+```
+
+- Install dependencies:
+
+```bash
+flutter pub get
+```
+
+- Run the app:
+
+```bash
+flutter run
+```
+
+## Building
+
+To build a release APK:
+
+```bash
+flutter build apk --release
+```
+
+## Architecture
+
+The app uses:
+
+- Flutter for the UI
+- HTTP for API communication
+- GitHub Actions for CI/CD
+- Shared Preferences for local storage
+
+## API Integration
+
+The app communicates with a backend server at `backend.jevrej.cz` for:
+
+- Fetching message collections
+- Cross-collection search
+- Media handling (photos, videos, audio)
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+GPL-3.0
