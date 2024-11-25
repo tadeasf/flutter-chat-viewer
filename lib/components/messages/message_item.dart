@@ -189,50 +189,20 @@ class MessageItemState extends State<MessageItem> {
     final List<Widget> mediaWidgets = [];
     const double displayWidth = 300.0;
 
-    // Handle text content
+    // Add text content if present
     if (widget.message['content'] != null &&
         widget.message['content'].toString().isNotEmpty) {
-      final String content = _ensureDecoded(widget.message['content']);
-      final bool isLongMessage =
-          content.length > 300; // Threshold for expansion
-
       mediaWidgets.add(
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: 0),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: displayWidth),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isLongMessage && !_isExpanded
-                      ? '${content.substring(0, 300)}...'
-                      : content,
-                  style: TextStyle(
-                    color: getTextColor(),
-                    fontSize: 16,
-                  ),
-                ),
-                if (isLongMessage)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isExpanded = !_isExpanded;
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        _isExpanded ? 'Show less' : 'Read more',
-                        style: TextStyle(
-                          color: getTextColor().withOpacity(0.7),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            child: Text(
+              _ensureDecoded(widget.message['content']),
+              style: TextStyle(
+                color: getTextColor(),
+                fontSize: 16,
+              ),
             ),
           ),
         ),
@@ -364,21 +334,9 @@ class MessageItemState extends State<MessageItem> {
       );
     }
 
-    // If there are no media widgets but there is content, return just the content
-    if (mediaWidgets.isEmpty &&
-        widget.message['content'] != null &&
-        widget.message['content'].toString().isNotEmpty) {
-      return Text(
-        _ensureDecoded(widget.message['content']),
-        style: TextStyle(
-          color: getTextColor(),
-          fontSize: 16,
-        ),
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: mediaWidgets,
     );
   }
@@ -482,8 +440,7 @@ class MessageItemState extends State<MessageItem> {
                   });
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: getBubbleColor(),
                     borderRadius: BorderRadius.circular(20),
