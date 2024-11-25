@@ -11,6 +11,8 @@ on:
       - dev
       - test
       - main
+permissions:
+  contents: write
 
 jobs:  
   build:      

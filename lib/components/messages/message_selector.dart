@@ -241,19 +241,26 @@ class MessageSelectorState extends State<MessageSelector> {
     setState(() {
       crossCollectionMessages = results.map((result) {
         if (result is! Map) return <String, dynamic>{};
+
+        // Check if this is an Instagram message by the presence of is_geoblocked_for_viewer
+        final isInstagramMessage =
+            result.containsKey('is_geoblocked_for_viewer');
+
         return Map<dynamic, dynamic>.from({
           'content': _decodeIfNeeded(result['content']),
           'sender_name': _decodeIfNeeded(result['sender_name']),
           'collectionName': _decodeIfNeeded(result['collectionName']),
           'timestamp_ms': result['timestamp_ms'] ?? 0,
           'photos': result['photos'] ?? [],
-          'is_geoblocked_for_viewer':
-              result['is_geoblocked_for_viewer'] ?? false,
+          'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
           'is_online': result['is_online'] ?? false,
+          'is_instagram': isInstagramMessage, // Add this flag for styling
         });
       }).toList();
+
       isCrossCollectionSearch = true;
       isSearchActive = true;
+      messages = crossCollectionMessages;
     });
   }
 

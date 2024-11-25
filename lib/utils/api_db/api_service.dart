@@ -267,7 +267,7 @@ class ApiService {
     while (retryCount < maxRetries) {
       try {
         final response = await post(
-          '/search',
+          '/search_text',
           body: {'query': query},
           headers: headers,
         );

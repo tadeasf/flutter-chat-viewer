@@ -56,7 +56,11 @@ class MessageList extends StatelessWidget {
               : selectedCollectionName;
 
           return MessageItem(
-            message: message,
+            message: Map<String, dynamic>.from({
+              ...message,
+              'is_instagram': message['is_instagram'] ??
+                  message.containsKey('is_geoblocked_for_viewer'),
+            }),
             isAuthor: message['sender_name'] == 'Tadeáš Fořt',
             isHighlighted: isHighlighted(index),
             isSearchActive: isSearchActive,
