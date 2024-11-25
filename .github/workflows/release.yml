@@ -99,4 +99,12 @@ jobs:
         with:
           artifacts: "build/app/outputs/flutter-apk/app-release.apk"
           tag: v${{ env.VERSION }}
-          token: ${{ secrets.TOKEN }}
+          token: ${{ github.token }}
+          name: "Release v${{ env.VERSION }}"
+          body: |
+            Meta Chat Viewer Release v${{ env.VERSION }}
+            
+            Changes in this version:
+            - Cross-collection search improvements
+            - Performance optimizations
+            - Bug fixes
