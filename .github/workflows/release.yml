@@ -100,11 +100,11 @@ jobs:
           artifacts: "build/app/outputs/flutter-apk/app-release.apk"
           tag: v${{ env.VERSION }}
           token: ${{ github.token }}
-          name: "Release v${{ env.VERSION }}"
+          name: "Android Release v${{ env.VERSION }}"
           body: |
-            Meta Chat Viewer Release v${{ env.VERSION }}
+            Meta Chat Viewer Android Release v${{ env.VERSION }}
             
             Changes in this version:
-            - Cross-collection search improvements
-            - Performance optimizations
-            - Bug fixes
+            - Cross-collection search improvements with retry mechanism
+            - Performance optimizations for large message collections
+            - Bug fixes and stability improvements
