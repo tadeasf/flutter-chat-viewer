@@ -272,4 +272,17 @@ class ApiService {
           'Failed to perform cross-collection search: ${response.statusCode}');
     }
   }
+
+  static String getVideoUrl(String collectionName, String uri) {
+    // If it's a full URI path (like 'messages/inbox/collection/videos/filename.mp4')
+    if (uri.startsWith('messages/inbox/')) {
+      final parts = uri.split('/');
+      if (parts.length >= 5) {
+        collectionName = parts[2];
+        uri = parts.last;
+      }
+    }
+
+    return '$baseUrl/inbox/${Uri.encodeComponent(collectionName)}/videos/${Uri.encodeComponent(uri)}';
+  }
 }

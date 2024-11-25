@@ -10,6 +10,7 @@ import '../search/scroll_to_highlighted_message.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../messages/message_index_manager.dart';
 import '../gallery/photo_gallery.dart';
+import 'video_message.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -195,7 +196,36 @@ class MessageItemState extends State<MessageItem> {
     }
 
     Widget buildMessageContent() {
-      if (widget.message['photos'] != null &&
+      if (widget.message['videos'] != null &&
+          (widget.message['videos'] as List).isNotEmpty) {
+        final videos = widget.message['videos'] as List;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.message['content'] != null &&
+                widget.message['content'].isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _ensureDecoded(widget.message['content']),
+                  style: TextStyle(
+                    color: getTextColor(),
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ...videos.map((video) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: VideoMessage(
+                    videoUri: video['uri'],
+                    collectionName: widget.isCrossCollectionSearch
+                        ? widget.message['collectionName']
+                        : widget.selectedCollectionName,
+                  ),
+                )),
+          ],
+        );
+      } else if (widget.message['photos'] != null &&
           (widget.message['photos'] as List).isNotEmpty) {
         final photos = widget.message['photos'] as List;
         const double displayWidth = 200.0;

@@ -8,36 +8,48 @@ Future<List<int>> _computeSearchResults(List<dynamic> params) async {
 
   final normalizedQuery = removeDiacritics(query.toLowerCase());
 
-  if (normalizedQuery == "photo") {
-    // Debug: Print total messages and photos found
-    int totalPhotos = 0;
-    List<int> photoIndices = [];
+  // Handle special search queries
+  if (normalizedQuery == "photo" || normalizedQuery == "video") {
+    int totalMedia = 0;
+    List<int> mediaIndices = [];
+    bool searchingForPhotos = normalizedQuery == "photo";
 
     for (int i = 0; i < messages.length; i++) {
       final message = messages[i];
       final senderName = message['sender_name']?.toString().toLowerCase() ?? '';
-      final hasPhotos =
-          message['photos'] != null && (message['photos'] as List).isNotEmpty;
 
-      if (hasPhotos && senderName != "tadeáš fořt") {
-        totalPhotos += (message['photos'] as List).length;
-        photoIndices.add(i);
+      if (senderName == "tadeáš fořt") continue; // Skip author's messages
+
+      if (searchingForPhotos) {
+        final hasPhotos =
+            message['photos'] != null && (message['photos'] as List).isNotEmpty;
+        if (hasPhotos) {
+          totalMedia += (message['photos'] as List).length;
+          mediaIndices.add(i);
+        }
+      } else {
+        // searching for videos
+        final hasVideos =
+            message['videos'] != null && (message['videos'] as List).isNotEmpty;
+        if (hasVideos) {
+          totalMedia += (message['videos'] as List).length;
+          mediaIndices.add(i);
+        }
       }
     }
 
     if (kDebugMode) {
       print('Total messages: ${messages.length}');
-    }
-    if (kDebugMode) {
-      print('Total photo messages found: ${photoIndices.length}');
-    }
-    if (kDebugMode) {
-      print('Total photos count: $totalPhotos');
+      print(
+          'Total ${searchingForPhotos ? "photo" : "video"} messages found: ${mediaIndices.length}');
+      print(
+          'Total ${searchingForPhotos ? "photos" : "videos"} count: $totalMedia');
     }
 
-    return photoIndices;
+    return mediaIndices;
   }
 
+  // Regular text search
   return List<int>.generate(messages.length, (i) {
     final message = messages[i];
     final content = message['content']?.toString().toLowerCase() ?? '';
