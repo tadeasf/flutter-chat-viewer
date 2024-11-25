@@ -91,8 +91,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
     await loadCollections((loadedCollections) {
       setState(() {
-        collections = loadedCollections;
-        filteredCollections = loadedCollections;
+        collections = loadedCollections
+            .where((collection) => collection['name'] != 'unified_collection')
+            .toList()
+          ..sort((a, b) => (b['hits'] ?? 0)
+              .compareTo(a['hits'] ?? 0)); // Sort by hits descending
+        filteredCollections = collections;
         isLoading = false;
       });
     });
@@ -119,6 +123,10 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
   Future<void> switchToCollection(String collectionName) async {
     widget.onCollectionChanged(collectionName);
+
+    // Refresh collections to get updated hit counts
+    await refreshCollections();
+
     setState(() {
       isOpen = false;
     });

@@ -10,17 +10,7 @@ Future<void> loadCollections(
 
   while (currentTry < maxRetries) {
     try {
-      // Try to load cached collections first
-      final prefs = await SharedPreferences.getInstance();
-      final cachedCollections = prefs.getString('cachedCollections');
-
-      if (cachedCollections != null) {
-        final List<Map<String, dynamic>> collections =
-            List<Map<String, dynamic>>.from(json.decode(cachedCollections));
-        updateCollections(collections);
-      }
-
-      // Fetch new collections
+      // Fetch new collections first
       final loadedCollections = await ApiService.fetchCollections();
       if (kDebugMode) {
         print('Loaded collections: $loadedCollections');
@@ -29,6 +19,7 @@ Future<void> loadCollections(
       if (loadedCollections.isNotEmpty) {
         updateCollections(loadedCollections);
         // Cache the new collections
+        final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
             'cachedCollections', json.encode(loadedCollections));
         return; // Success, exit the retry loop
@@ -49,17 +40,17 @@ Future<void> loadCollections(
       if (currentTry < maxRetries) {
         await Future.delayed(
             Duration(seconds: 2 * currentTry)); // Exponential backoff
-      } else {
-        // On final try, if we have cached collections, keep using those
-        final prefs = await SharedPreferences.getInstance();
-        final cachedCollections = prefs.getString('cachedCollections');
-        if (cachedCollections != null) {
-          final List<Map<String, dynamic>> collections =
-              List<Map<String, dynamic>>.from(json.decode(cachedCollections));
-          updateCollections(collections);
-        }
       }
     }
+  }
+
+  // Only use cache if all retries failed
+  final prefs = await SharedPreferences.getInstance();
+  final cachedCollections = prefs.getString('cachedCollections');
+  if (cachedCollections != null) {
+    final List<Map<String, dynamic>> collections =
+        List<Map<String, dynamic>>.from(json.decode(cachedCollections));
+    updateCollections(collections);
   }
 }
 
