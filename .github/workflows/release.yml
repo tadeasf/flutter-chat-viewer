@@ -2,15 +2,10 @@ name: "Build"
 
 on:
   pull_request:
-    branches:
-      - dev
-      - test
-      - main
+    branches: [dev, test, main]
   push:
-    branches:
-      - dev
-      - test
-      - main
+    branches: [dev, test, main]
+
 permissions:
   contents: write
 
@@ -20,78 +15,99 @@ jobs:
     runs-on: ubuntu-latest 
 
     steps:
-        #1 Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+        #1 Cache Gradle dependencies first
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
 
-        #2 Setup Java
+        #2 Cache Flutter dependencies
+      - name: Cache Flutter Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ env.FLUTTER_HOME }}/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-flutter-
+
+        #3 Checkout Repository (with sparse checkout for faster cloning)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            pubspec.yaml
+            lib/
+            android/
+            .github/
+            assets/
+          sparse-checkout-cone-mode: true
+
+        #4 Setup Java with cache
       - name: Set Up Java
-        uses: actions/setup-java@v3.12.0
+        uses: actions/setup-java@v4
         with:
           distribution: 'oracle'
           java-version: '17'
+          cache: 'gradle'
 
-        #3 Setup Flutter
+        #5 Setup Flutter
       - name: Set Up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
           channel: 'stable'
+          cache: true
 
-        #4 Install Dependencies
-      - name: Install Dependencies
-        run: flutter pub get
-
-        #4.5 Create .env file
-      - name: Create .env file
+        #6 Install Dependencies & Create .env in parallel
+      - name: Parallel Setup
         run: |
-          echo "X_API_KEY=${{ secrets.X_API_KEY }}" >> .env
+          # Run tasks in parallel
+          (flutter pub get) &
+          (echo "X_API_KEY=${{ secrets.X_API_KEY }}" >> .env) &
+          wait
 
-        #5 Setup Keystore
-      - name: Decode Keystore
+        #7 Setup Keystore (combined steps for fewer operations)
+      - name: Setup Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-          
-      - name: Create key.properties
-        run: |
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
-          echo "storeFile=keystore.jks" >> android/key.properties
+          cat << EOF > android/key.properties
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=keystore.jks
+          EOF
         
-        #6 Building APK
+        #8 Build APK with optimizations
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
-
-        #7 Upload Artifacts
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Release
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-        #8 Extract and increment version from pubspec.yaml
-      - name: Extract and increment version from pubspec.yaml
-        id: extract_version
         run: |
-          # Read current version and increment patch number
+          flutter build apk \
+            --release \
+            --no-tree-shake-icons \
+            --target-platform android-arm64 \
+            --split-debug-info=./debug-info \
+            --obfuscate
+
+        #9 Version and Release (combined steps)
+      - name: Version and Release
+        run: |
+          # Update version
           current_version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
           new_version=$(echo $current_version | awk -F. '{print $1"."$2"."$3+1}')
-          
-          # Update pubspec.yaml with new version
           sed -i "s/^version: .*/version: $new_version/" pubspec.yaml
-          
-          # Set version for later use
           echo "VERSION=$new_version" >> $GITHUB_ENV
           
-          # Configure git and commit changes
+          # Git config and commit
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add pubspec.yaml
           git commit -m "chore: bump version to $new_version [skip ci]"
           git push
 
-        #9 Create Release
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
@@ -108,35 +124,3 @@ jobs:
             - Bug fixes and stability improvements
           generateReleaseNotes: false
           makeLatest: legacy
-          omitBody: false
-          omitBodyDuringUpdate: false
-          omitDraftDuringUpdate: false
-          omitName: false
-          omitNameDuringUpdate: false
-          omitPrereleaseDuringUpdate: false
-          removeArtifacts: false
-          replacesArtifacts: true
-          skipIfReleaseExists: false
-          updateOnlyUnreleased: false
-
-        #10 Cache Flutter dependencies
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.pub-cache
-            ${{ env.FLUTTER_HOME }}/.pub-cache
-          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-
-        #11 Cache Gradle dependencies
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
