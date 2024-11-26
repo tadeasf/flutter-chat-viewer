@@ -13,6 +13,12 @@ class ApiService {
         'x-api-key': apiKey,
       };
 
+  static Map<String, String> get headersWithMetrics => {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'metrics': 'true',
+      };
+
   static Future<List<Map<String, dynamic>>> fetchCollections() async {
     final response =
         await http.get(Uri.parse('$baseUrl/collections'), headers: headers);
@@ -84,7 +90,8 @@ class ApiService {
       if (toDate != null) queryParams.add('toDate=$toDate');
       url += '?${queryParams.join('&')}';
     }
-    final response = await http.get(Uri.parse(url), headers: headers);
+    final response =
+        await http.get(Uri.parse(url), headers: headersWithMetrics);
     if (response.statusCode == 200) {
       final List<dynamic> messages =
           json.decode(utf8.decode(response.bodyBytes));
