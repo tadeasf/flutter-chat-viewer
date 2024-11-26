@@ -32,10 +32,10 @@ Future<List<int>> _computeSearchResults(List<dynamic> params) async {
           mediaIndices.add(i);
         }
       } else if (searchingForVideos) {
-        final hasVideos = message['video_files'] != null &&
-            (message['video_files'] as List).isNotEmpty;
+        final hasVideos =
+            message['videos'] != null && (message['videos'] as List).isNotEmpty;
         if (hasVideos) {
-          totalMedia += (message['video_files'] as List).length;
+          totalMedia += (message['videos'] as List).length;
           mediaIndices.add(i);
         }
       } else if (searchingForAudio) {
