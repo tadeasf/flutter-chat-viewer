@@ -70,12 +70,26 @@ jobs:
           name: Release
           path: build/app/outputs/flutter-apk/app-release.apk
 
-        #8 Extract Version
-      - name: Extract version from pubspec.yaml
+        #8 Extract and increment version from pubspec.yaml
+      - name: Extract and increment version from pubspec.yaml
         id: extract_version
         run: |
-          version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
-          echo "VERSION=$version" >> $GITHUB_ENV
+          # Read current version and increment patch number
+          current_version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
+          new_version=$(echo $current_version | awk -F. '{print $1"."$2"."$3+1}')
+          
+          # Update pubspec.yaml with new version
+          sed -i "s/^version: .*/version: $new_version/" pubspec.yaml
+          
+          # Set version for later use
+          echo "VERSION=$new_version" >> $GITHUB_ENV
+          
+          # Configure git and commit changes
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add pubspec.yaml
+          git commit -m "chore: bump version to $new_version [skip ci]"
+          git push
 
         #9 Create Release
       - name: Create Release
