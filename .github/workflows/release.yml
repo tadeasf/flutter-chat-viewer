@@ -2,9 +2,9 @@ name: "Build"
 
 on:
   pull_request:
-    branches: [dev, test, feature, main]
+    branches: [dev, test, main]
   push:
-    branches: [dev, test, feature, main]
+    branches: [dev, test, main]
 
 permissions:
   contents: write
@@ -12,50 +12,58 @@ permissions:
 jobs:  
   build:      
     name: Build & Release 
-    runs-on: self-hosted
-    env:
-      ANDROID_HOME: /home/tadeas/Android/Sdk
-      JAVA_HOME: /home/tadeas/.asdf/installs/java/oracle-17.0.11
-      SHELL: /usr/bin/bash
+    runs-on: ubuntu-latest 
 
     steps:
-      - name: Validate Environment
-        run: |
-          echo "Checking Java..."
-          if [ -x "$JAVA_HOME/bin/java" ]; then
-            $JAVA_HOME/bin/java -version
-          else
-            echo "Error: Java not executable at $JAVA_HOME/bin/java"
-            ls -la $JAVA_HOME/bin/java
-          fi
-          echo "Checking Flutter..."
-          flutter doctor -v
-          echo "Checking Android SDK..."
-          echo $ANDROID_HOME
+        #1 Cache Gradle dependencies first
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
 
+        #2 Cache Flutter dependencies
+      - name: Cache Flutter Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ env.FLUTTER_HOME }}/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-flutter-
+
+        #3 Checkout Repository (with sparse checkout for faster cloning)
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             pubspec.yaml
-            pubspec.lock
             lib/
             android/
             .github/
             assets/
-          sparse-checkout-cone-mode: false
+          sparse-checkout-cone-mode: true
 
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v3
+        #4 Setup Java with cache
+      - name: Set Up Java
+        uses: actions/setup-java@v4
         with:
-          path: |
-            ~/.pub-cache
-            .dart_tool/
-            build/
-          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
+          distribution: 'oracle'
+          java-version: '17'
+          cache: 'gradle'
 
+        #5 Setup Flutter
+      - name: Set Up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+
+        #6 Install Dependencies & Create .env in parallel
       - name: Parallel Setup
         run: |
           # Run tasks in parallel
@@ -63,6 +71,7 @@ jobs:
           (echo "X_API_KEY=${{ secrets.X_API_KEY }}" >> .env) &
           wait
 
+        #7 Setup Keystore (combined steps for fewer operations)
       - name: Setup Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
@@ -72,19 +81,18 @@ jobs:
           keyAlias=${{ secrets.KEY_ALIAS }}
           storeFile=keystore.jks
           EOF
-
+        
+        #8 Build APK with optimizations
       - name: Build APK
         run: |
-          if ! flutter build apk \
+          flutter build apk \
             --release \
             --no-tree-shake-icons \
             --target-platform android-arm64 \
             --split-debug-info=./debug-info \
-            --obfuscate; then
-            echo "Build failed"
-            exit 1
-          fi
+            --obfuscate
 
+        #9 Version and Release (combined steps)
       - name: Version and Release
         run: |
           # Update version
@@ -116,10 +124,3 @@ jobs:
             - Bug fixes and stability improvements
           generateReleaseNotes: false
           makeLatest: legacy
-
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -f android/app/keystore.jks
-          rm -f android/key.properties
-          flutter clean
