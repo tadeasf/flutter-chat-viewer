@@ -15,7 +15,7 @@ jobs:
     runs-on: self-hosted
     env:
       ANDROID_HOME: /home/your-user/Android/Sdk
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+      JAVA_HOME: /root/.asdf/installs/java/oracle-17.0.11
 
     steps:
       - name: Validate Environment
