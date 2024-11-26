@@ -62,8 +62,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Meta Elysia',
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
+      theme: ThemeManager.getLightTheme(),
+      darkTheme: ThemeManager.getDarkTheme(),
       themeMode: _themeMode,
       home: MessageSelector(
         setThemeMode: _setThemeMode,

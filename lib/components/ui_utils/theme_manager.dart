@@ -13,6 +13,33 @@ class ThemeManager {
     await prefs.setInt('themeMode', mode.index);
   }
 
+  static ThemeData getLightTheme() {
+    return ThemeData(
+      fontFamily: 'JetBrainsMono',
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(fontFamily: 'JetBrainsMono'),
+        bodyMedium: TextStyle(fontFamily: 'JetBrainsMono'),
+        titleLarge: TextStyle(fontFamily: 'JetBrainsMono'),
+        titleMedium: TextStyle(fontFamily: 'JetBrainsMono'),
+        titleSmall: TextStyle(fontFamily: 'JetBrainsMono'),
+      ),
+    );
+  }
+
+  static ThemeData getDarkTheme() {
+    return ThemeData(
+      brightness: Brightness.dark,
+      fontFamily: 'JetBrainsMono',
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(fontFamily: 'JetBrainsMono'),
+        bodyMedium: TextStyle(fontFamily: 'JetBrainsMono'),
+        titleLarge: TextStyle(fontFamily: 'JetBrainsMono'),
+        titleMedium: TextStyle(fontFamily: 'JetBrainsMono'),
+        titleSmall: TextStyle(fontFamily: 'JetBrainsMono'),
+      ),
+    );
+  }
+
   static void showSettingsDialog(BuildContext context, ThemeMode currentMode,
       Function(ThemeMode) setThemeMode) {
     showDialog(
