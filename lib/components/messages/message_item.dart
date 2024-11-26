@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -341,6 +342,77 @@ class MessageItemState extends State<MessageItem> {
     );
   }
 
+  Future<void> _handleLongPress(BuildContext context) async {
+    if (!mounted || !widget.isCrossCollectionSearch) return;
+
+    final collectionName = widget.message['collectionName'];
+    if (collectionName == null) return;
+
+    bool collectionReady = false;
+    int maxAttempts = 3;
+    int currentAttempt = 0;
+
+    // Store context before async gap
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    while (!collectionReady && currentAttempt < maxAttempts) {
+      try {
+        final messages = await ApiService.fetchMessages(collectionName);
+
+        if (!mounted) return;
+
+        // Check if we got the "please wait" response
+        final messageContent =
+            messages[0]['content']?.toString().toLowerCase() ?? '';
+        if (messages.length == 1 &&
+            messageContent.contains('please try loading collection again')) {
+          await Future.delayed(const Duration(seconds: 5));
+          currentAttempt++;
+          continue;
+        }
+
+        // If we get here, the collection is ready
+        collectionReady = true;
+
+        if (!mounted) return;
+        navigator.pop(); // Remove loading dialog
+        widget.onMessageTap(
+          collectionName,
+          widget.message['timestamp_ms'],
+        );
+        return;
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error switching to collection: $e');
+        }
+        currentAttempt++;
+      }
+    }
+
+    // If we get here, all attempts failed
+    if (!mounted) return;
+    navigator.pop(); // Remove loading dialog
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Collection is still being prepared. Please try again in a moment.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -373,11 +445,7 @@ class MessageItemState extends State<MessageItem> {
 
     return GestureDetector(
       onLongPress: () {
-        final collectionName = widget.isCrossCollectionSearch
-            ? widget.message['collectionName'] ?? widget.selectedCollectionName
-            : widget.selectedCollectionName;
-        final timestamp = widget.message['timestamp_ms'] as int? ?? 0;
-        widget.onMessageTap(collectionName, timestamp);
+        _handleLongPress(context);
       },
       child: Align(
         alignment:

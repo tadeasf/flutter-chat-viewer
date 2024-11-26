@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' show max;
 import '../../utils/api_db/load_collections.dart';
+import '../../utils/api_db/api_service.dart';
 
 class CollectionSelector extends StatefulWidget {
   final String? selectedCollection;
@@ -122,14 +124,69 @@ class CollectionSelectorState extends State<CollectionSelector> {
   }
 
   Future<void> switchToCollection(String collectionName) async {
-    widget.onCollectionChanged(collectionName);
+    if (!mounted) return;
 
-    // Refresh collections to get updated hit counts
-    await refreshCollections();
-
+    // Show loading state
     setState(() {
-      isOpen = false;
+      isLoading = true;
     });
+
+    bool collectionReady = false;
+    int maxAttempts = 3;
+    int currentAttempt = 0;
+
+    while (!collectionReady && currentAttempt < maxAttempts) {
+      try {
+        // Try to load messages
+        final messages = await ApiService.fetchMessages(collectionName);
+
+        if (!mounted) return;
+
+        // Check if we got the "please wait" response
+        final messageContent =
+            messages[0]['content']?.toString().toLowerCase() ?? '';
+        if (messages.length == 1 &&
+            messageContent.contains('please try loading collection again')) {
+          await Future.delayed(const Duration(seconds: 5));
+          currentAttempt++;
+          continue;
+        }
+
+        // If we get here, the collection is ready
+        collectionReady = true;
+        widget.onCollectionChanged(collectionName);
+        await refreshCollections();
+
+        if (!mounted) return;
+
+        setState(() {
+          isLoading = false;
+          isOpen = false;
+        });
+        return;
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error switching collection: $e');
+        }
+        currentAttempt++;
+      }
+    }
+
+    if (!mounted) return;
+
+    // If we get here, all attempts failed
+    setState(() {
+      isLoading = false;
+    });
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Collection is still being prepared. Please try again in a moment.'),
+      ),
+    );
   }
 
   void _toggleCollectionSelector() {
