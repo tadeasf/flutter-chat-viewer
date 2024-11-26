@@ -403,7 +403,7 @@ class MessageSelectorState extends State<MessageSelector> {
                                 profilePhotoUrl: profilePhotoUrl,
                                 isCrossCollectionSearch:
                                     isCrossCollectionSearch,
-                                onMessageTap: handleMessageTap,
+                                onMessageTap: _handleCrossCollectionMessageTap,
                               ),
                       ),
                       if (isCollectionSelectorVisible ||
@@ -566,7 +566,10 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   Widget _buildSearchResultsBar() {
-    if (!isSearchActive) return const SizedBox.shrink();
+    // Don't show search results bar for cross-collection searches or when search is not active
+    if (!isSearchActive || isCrossCollectionSearch) {
+      return const SizedBox.shrink();
+    }
 
     final String displayText = searchResults.isNotEmpty
         ? '"${currentSearchQuery ?? ""}" (${currentSearchIndex + 1}/${searchResults.length})'
@@ -759,5 +762,32 @@ class MessageSelectorState extends State<MessageSelector> {
         selectedCollection,
       );
     });
+  }
+
+  void _handleCrossCollectionMessageTap(
+      String collectionName, int timestamp) async {
+    // Reset search states before switching collection
+    setState(() {
+      isSearchActive = false;
+      isCrossCollectionSearch = false;
+      searchResults = [];
+      currentSearchQuery = null;
+      currentSearchIndex = -1;
+    });
+
+    // Switch collection and scroll to message
+    await _changeCollection(collectionName);
+    if (!mounted) return;
+
+    // Find the message index and scroll to it without triggering search UI
+    final messageIndex = MessageIndexManager().getIndexForTimestamp(timestamp);
+    if (messageIndex != null) {
+      scrollToHighlightedMessage(
+        messageIndex,
+        [], // Empty search results since we don't want search UI
+        itemScrollController,
+        SearchType.crossCollection,
+      );
+    }
   }
 }
