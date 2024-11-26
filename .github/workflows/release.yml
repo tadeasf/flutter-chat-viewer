@@ -15,13 +15,22 @@ jobs:
     runs-on: self-hosted
     env:
       ANDROID_HOME: /home/tadeas/Android/Sdk
-      JAVA_HOME: /root/.asdf/installs/java/oracle-17.0.11
+      JAVA_HOME: /home/tadeas/.asdf/installs/java/oracle-17.0.11
+      SHELL: /usr/bin/bash
 
     steps:
       - name: Validate Environment
         run: |
+          echo "Checking Java..."
+          if [ -x "$JAVA_HOME/bin/java" ]; then
+            $JAVA_HOME/bin/java -version
+          else
+            echo "Error: Java not executable at $JAVA_HOME/bin/java"
+            ls -la $JAVA_HOME/bin/java
+          fi
+          echo "Checking Flutter..."
           flutter doctor -v
-          java -version
+          echo "Checking Android SDK..."
           echo $ANDROID_HOME
 
       - name: Checkout Repository
@@ -29,11 +38,12 @@ jobs:
         with:
           sparse-checkout: |
             pubspec.yaml
+            pubspec.lock
             lib/
             android/
             .github/
             assets/
-          sparse-checkout-cone-mode: true
+          sparse-checkout-cone-mode: false
 
       - name: Cache Flutter dependencies
         uses: actions/cache@v3
