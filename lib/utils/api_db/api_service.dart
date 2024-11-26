@@ -90,16 +90,24 @@ class ApiService {
       if (toDate != null) queryParams.add('toDate=$toDate');
       url += '?${queryParams.join('&')}';
     }
+
+    if (kDebugMode) {
+      print('Fetching messages with headers: $headersWithMetrics');
+    }
+
     final response =
         await http.get(Uri.parse(url), headers: headersWithMetrics);
+
+    if (kDebugMode) {
+      print('Response status: ${response.statusCode}');
+      print('Response headers: ${response.headers}');
+    }
+
     if (response.statusCode == 200) {
       final List<dynamic> messages =
           json.decode(utf8.decode(response.bodyBytes));
-
-      // Sort messages by timestamp_ms in ascending order (oldest first)
       messages.sort((a, b) =>
           (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
-
       return messages;
     } else {
       throw Exception('Failed to load messages: ${response.statusCode}');
