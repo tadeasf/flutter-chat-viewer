@@ -3,7 +3,6 @@ import 'package:image_picker/image_picker.dart';
 import './gallery/photo_handler.dart';
 import './ui_utils/theme_manager.dart';
 import './profile_photo/profile_photo.dart';
-import './search/cross_collection_search.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -73,7 +72,9 @@ class AppDrawer extends StatelessWidget {
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
                       selectedCollection ?? 'No Collection Selected',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontSize: 18,
+                          ),
                     ),
                   ),
                   if (isProfilePhotoVisible && selectedCollection != null)
@@ -82,7 +83,7 @@ class AppDrawer extends StatelessWidget {
                       child: ProfilePhoto(
                         key: ValueKey(profilePhotoUrl), // Add this line
                         collectionName: selectedCollection!,
-                        size: 80.0,
+                        size: 120.0,
                         isOnline: true,
                         profilePhotoUrl: profilePhotoUrl,
                         showButtons: true,
@@ -107,23 +108,6 @@ class AppDrawer extends StatelessWidget {
                         selectedCollection,
                         messages: messages,
                         itemScrollController: itemScrollController,
-                      );
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.search),
-                    title: Text('Cross-Collection Search',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () {
-                      Navigator.pop(context);
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return CrossCollectionSearchDialog(
-                            onSearchResults: onCrossCollectionSearch,
-                          );
-                        },
                       );
                     },
                   ),

@@ -86,8 +86,16 @@ class PhotoViewScreen extends StatelessWidget {
             ),
             errorBuilder: (context, error, stackTrace) {
               return const Center(
-                  child: Text('Failed to load image',
-                      style: TextStyle(color: Colors.white)));
+                child: Text(
+                  'Failed to load image',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'CaskaydiaCove Nerd Font',
+                    fontStyle: FontStyle.normal,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              );
             },
           ),
           Positioned(

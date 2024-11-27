@@ -10,8 +10,8 @@ class MessageProfilePhoto extends StatelessWidget {
   const MessageProfilePhoto({
     super.key,
     required this.collectionName,
-    this.size = 40.0,
-    this.isOnline = false,
+    this.size = 128.0,
+    this.isOnline = true,
     required this.profilePhotoUrl,
   });
 

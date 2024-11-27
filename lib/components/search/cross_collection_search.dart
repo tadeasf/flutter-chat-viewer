@@ -76,6 +76,8 @@ class CrossCollectionSearchDialogState
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
+                fontFamily: 'CaskaydiaCove Nerd Font',
+                fontStyle: FontStyle.normal,
               ),
             ),
             const SizedBox(height: 24),

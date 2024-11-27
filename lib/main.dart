@@ -6,7 +6,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // Add this import
 import 'components/messages/message_selector.dart';
 import 'components/ui_utils/theme_manager.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -94,18 +93,12 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) {
-      print('Collection Name: ${widget.collectionName}');
-    }
     _loadCachedPhoto();
   }
 
   Future<void> _loadCachedPhoto() async {
     final prefs = await SharedPreferences.getInstance();
     final cachedUrl = prefs.getString('profile_photo_${widget.collectionName}');
-    if (kDebugMode) {
-      print('Cached URL: $cachedUrl');
-    }
     if (cachedUrl != null) {
       setState(() {
         _imageUrl = cachedUrl;
@@ -124,12 +117,6 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
         Uri.parse(requestUrl),
         headers: {'X-API-KEY': dotenv.env['X_API_KEY'] ?? ''},
       );
-      if (kDebugMode) {
-        print('Response status: ${response.statusCode}');
-      }
-      if (kDebugMode) {
-        print('Response body: ${response.body}');
-      }
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['isPhotoAvailable'] == true && data['photoUrl'] != null) {

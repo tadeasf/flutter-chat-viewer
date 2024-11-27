@@ -193,6 +193,9 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
+                              fontFamily: 'CaskaydiaCove Nerd Font',
+                              fontStyle: FontStyle.normal,
+                              fontWeight: FontWeight.w300,
                             ),
                           ),
                         ],

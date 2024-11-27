@@ -68,6 +68,8 @@ class SearchDialogState extends State<SearchDialog> {
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
+                fontFamily: 'CaskaydiaCove Nerd Font',
+                fontStyle: FontStyle.normal,
               ),
             ),
             const SizedBox(height: 24),
@@ -77,7 +79,12 @@ class SearchDialogState extends State<SearchDialog> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Enter search term...',
-                hintStyle: const TextStyle(color: Colors.white54),
+                hintStyle: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'CaskaydiaCove Nerd Font',
+                  fontStyle: FontStyle.normal,
+                  fontWeight: FontWeight.w300,
+                ),
                 prefixIcon: const Icon(Icons.search, color: Colors.white54),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -103,7 +110,12 @@ class SearchDialogState extends State<SearchDialog> {
             const SizedBox(height: 16),
             SwitchListTile(
               title: const Text('Search across all collections',
-                  style: TextStyle(color: Colors.white)),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'CaskaydiaCove Nerd Font',
+                    fontStyle: FontStyle.normal,
+                    fontWeight: FontWeight.w300,
+                  )),
               value: _isCrossCollection,
               activeColor: const Color(0xFFCBA6F7),
               onChanged: (bool value) {
@@ -119,7 +131,12 @@ class SearchDialogState extends State<SearchDialog> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Cancel',
-                      style: TextStyle(color: Color(0xFFCBA6F7))),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'CaskaydiaCove Nerd Font',
+                        fontStyle: FontStyle.normal,
+                        fontWeight: FontWeight.w300,
+                      )),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
@@ -146,7 +163,11 @@ class SearchDialogState extends State<SearchDialog> {
                         )
                       : Text(
                           _isCrossCollection ? 'Search All' : 'Search',
-                          style: const TextStyle(color: Colors.black),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black,
+                            fontFamily: 'CaskaydiaCove Nerd Font',
+                          ),
                         ),
                 ),
               ],

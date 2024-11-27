@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'api_service.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 
 Future<void> loadCollections(
     Function(List<Map<String, dynamic>>) updateCollections) async {
@@ -12,9 +11,6 @@ Future<void> loadCollections(
     try {
       // Fetch new collections first
       final loadedCollections = await ApiService.fetchCollections();
-      if (kDebugMode) {
-        print('Loaded collections: $loadedCollections');
-      }
 
       if (loadedCollections.isNotEmpty) {
         updateCollections(loadedCollections);
@@ -32,10 +28,6 @@ Future<void> loadCollections(
             Duration(seconds: 2 * currentTry)); // Exponential backoff
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching collections (attempt $currentTry): $e');
-      }
-
       currentTry++;
       if (currentTry < maxRetries) {
         await Future.delayed(
@@ -58,9 +50,6 @@ Future<List<Map<String, dynamic>>> loadMoreCollections() async {
   try {
     return await ApiService.fetchAlphabeticalCollections();
   } catch (e) {
-    if (kDebugMode) {
-      print('Error fetching more collections: $e');
-    }
     return [];
   }
 }

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' show max;
 import '../../utils/api_db/load_collections.dart';
@@ -165,9 +164,6 @@ class CollectionSelectorState extends State<CollectionSelector> {
         });
         return;
       } catch (e) {
-        if (kDebugMode) {
-          print('Error switching collection: $e');
-        }
         currentAttempt++;
       }
     }
@@ -238,10 +234,20 @@ class CollectionSelectorState extends State<CollectionSelector> {
                           controller: searchController,
                           focusNode: _searchFocusNode,
                           onChanged: filterCollections,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'CaskaydiaCove Nerd Font',
+                            fontStyle: FontStyle.normal,
+                            fontWeight: FontWeight.w300,
+                          ),
                           decoration: const InputDecoration(
                             hintText: 'Search collections...',
-                            hintStyle: TextStyle(color: Colors.white54),
+                            hintStyle: TextStyle(
+                              color: Colors.white54,
+                              fontFamily: 'CaskaydiaCove Nerd Font',
+                              fontStyle: FontStyle.normal,
+                              fontWeight: FontWeight.w300,
+                            ),
                             prefixIcon:
                                 Icon(Icons.search, color: Colors.white54),
                             border: OutlineInputBorder(
@@ -286,7 +292,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                     child: Text(
                                       '${item['name']}: ',
                                       style: const TextStyle(
-                                          color: Colors.white, fontSize: 16),
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontFamily: 'CaskaydiaCove Nerd Font',
+                                        fontStyle: FontStyle.normal,
+                                        fontWeight: FontWeight.w300,
+                                      ),
                                     ),
                                   ),
                                   const Icon(Icons.message,
@@ -298,6 +309,8 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
+                                      fontFamily: 'CaskaydiaCove Nerd Font',
+                                      fontStyle: FontStyle.normal,
                                     ),
                                   ),
                                 ],
@@ -322,7 +335,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
                   ),
           ),
         const Text('Select Collection:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'CaskaydiaCove Nerd Font',
+              fontStyle: FontStyle.normal,
+            )),
         const SizedBox(height: 8),
         InkWell(
           onTap: _toggleCollectionSelector,
@@ -344,7 +362,13 @@ class CollectionSelectorState extends State<CollectionSelector> {
               children: [
                 Text(
                   widget.selectedCollection ?? 'Select a collection',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontFamily: 'CaskaydiaCove Nerd Font',
+                    fontStyle: FontStyle.normal,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
                 Icon(
                   isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,

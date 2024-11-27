@@ -371,7 +371,13 @@ class MessageSelectorState extends State<MessageSelector> {
                           children: [
                             CircularProgressIndicator(),
                             SizedBox(height: 16),
-                            Text('Pull down to refresh collections'),
+                            Text(
+                              'Pull down to refresh collections',
+                              style: TextStyle(
+                                fontFamily: 'CaskaydiaCove Nerd Font',
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -383,7 +389,11 @@ class MessageSelectorState extends State<MessageSelector> {
                         padding: const EdgeInsets.all(16.0),
                         child: Text(
                           'Meta Elysia',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontFamily: 'CaskaydiaCove Nerd Font',
+                                    fontSize: 12,
+                                  ),
                         ),
                       ),
                       Expanded(
@@ -423,7 +433,13 @@ class MessageSelectorState extends State<MessageSelector> {
                             'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
                             height: 100,
                             errorBuilder: (context, error, stackTrace) {
-                              return const Text('Failed to load image');
+                              return const Text(
+                                'Failed to load image',
+                                style: TextStyle(
+                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                                  fontSize: 12,
+                                ),
+                              );
                             },
                           ),
                         ),
@@ -521,18 +537,24 @@ class MessageSelectorState extends State<MessageSelector> {
                       focusNode: _searchFocusNode,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16.0,
+                        fontSize: 11,
+                        fontFamily: 'CaskaydiaCove Nerd Font',
+                        fontStyle: FontStyle.normal,
+                        fontWeight: FontWeight.w300,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Search messages...',
                         hintStyle: const TextStyle(
                           color: Colors.white60,
-                          fontSize: 16.0,
+                          fontSize: 11,
+                          fontFamily: 'CaskaydiaCove Nerd Font',
+                          fontStyle: FontStyle.normal,
+                          fontWeight: FontWeight.w300,
                         ),
                         prefixIcon: const Icon(
                           Icons.search,
                           color: Colors.white70,
-                          size: 20.0,
+                          size: 16.0,
                         ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
@@ -553,7 +575,7 @@ class MessageSelectorState extends State<MessageSelector> {
                 icon: const Icon(
                   Icons.close,
                   color: Colors.white,
-                  size: 24.0,
+                  size: 20.0,
                 ),
                 padding: const EdgeInsets.all(12.0),
                 onPressed: toggleSearchBar,
@@ -789,5 +811,20 @@ class MessageSelectorState extends State<MessageSelector> {
         SearchType.crossCollection,
       );
     }
+  }
+
+  double getResponsiveFontSize(BuildContext context, double baseSize) {
+    // Get the screen width
+    double screenWidth = MediaQuery.of(context).size.width;
+
+    // Scale factor based on screen width
+    // Adjust these values based on your needs
+    double scaleFactor = screenWidth < 600
+        ? 0.9
+        : screenWidth < 1200
+            ? 1.0
+            : 1.1;
+
+    return baseSize * scaleFactor;
   }
 }
