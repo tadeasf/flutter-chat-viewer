@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:typed_data';
+import 'url_formatter.dart';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
@@ -17,6 +18,12 @@ class ApiService {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'metrics': 'true',
+      };
+
+  static Map<String, String> get videoHeaders => {
+        'x-api-key': apiKey,
+        'Accept': 'video/mp4,*/*',
+        'Connection': 'keep-alive',
       };
 
   static Future<List<Map<String, dynamic>>> fetchCollections() async {
@@ -160,27 +167,38 @@ class ApiService {
   }
 
   static String getPhotoUrl(String collectionName, String filename) {
-    if (filename.startsWith('https')) {
-      return filename;
-    }
+    print('getPhotoUrl: $baseUrl/inbox/$collectionName/photos/$filename');
+    return UrlFormatter.formatMediaUrl(
+      collectionName: collectionName,
+      uri: filename,
+      type: MediaType.photo,
+    );
+  }
 
-    // If it's a full URI path (like 'inbox/collection/photos/filename.jpg')
-    if (filename.startsWith('inbox/')) {
-      return '$baseUrl/$filename';
-    }
+  static String getVideoUrl(String collectionName, String uri) {
+    return UrlFormatter.formatMediaUrl(
+      collectionName: collectionName,
+      uri: uri,
+      type: MediaType.video,
+    );
+  }
 
-    // For profile photos and direct photo access
-    if (filename.startsWith('serve/photo/')) {
-      return '$baseUrl/$filename';
-    }
-
-    // For gallery photos
-    return '$baseUrl/inbox/$collectionName/photos/$filename';
+  static String getAudioUrl(String collectionName, String uri) {
+    // print the link we generate using the url formatter
+    print(UrlFormatter.formatMediaUrl(
+      collectionName: collectionName,
+      uri: uri,
+      type: MediaType.audio,
+    ));
+    return UrlFormatter.formatMediaUrl(
+      collectionName: collectionName,
+      uri: uri,
+      type: MediaType.audio,
+    );
   }
 
   static String getProfilePhotoUrl(String collectionName) {
-    return getUrlWithApiKey(
-        '/serve/photo/${Uri.encodeComponent(collectionName)}');
+    return UrlFormatter.formatProfilePhotoUrl(collectionName);
   }
 
   static Future<List<Map<String, dynamic>>> fetchPhotos(
@@ -317,32 +335,6 @@ class ApiService {
         'Failed to perform cross-collection search after $maxRetries attempts');
   }
 
-  static String getVideoUrl(String collectionName, String uri) {
-    // If it's a full URI path (like 'messages/inbox/collection/videos/filename.mp4')
-    if (uri.startsWith('messages/inbox/')) {
-      final parts = uri.split('/');
-      if (parts.length >= 5) {
-        collectionName = parts[2];
-        uri = parts.last;
-      }
-    }
-
-    return '$baseUrl/inbox/${Uri.encodeComponent(collectionName)}/videos/${Uri.encodeComponent(uri)}';
-  }
-
-  static String getAudioUrl(String collectionName, String uri) {
-    if (uri.startsWith('https')) {
-      return uri;
-    }
-
-    // If it's a full URI path (like 'messages/inbox/collection/audio/filename.aac')
-    if (uri.startsWith('messages/inbox/')) {
-      return '$baseUrl/inbox/${uri.split('messages/inbox/')[1]}';
-    }
-
-    return '$baseUrl/inbox/$collectionName/audio/$uri';
-  }
-
   static Future<Uint8List> fetchAudioData(String url) async {
     try {
       final response = await http.get(
@@ -357,6 +349,38 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Failed to load audio: $e');
+    }
+  }
+
+  // Add method to fetch video data if needed
+  static Future<Uint8List> fetchVideoData(String url) async {
+    try {
+      // Try first without Range header
+      final response = await http.get(
+        Uri.parse(url),
+        headers: videoHeaders,
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+
+      // If that fails, try with a simple GET request with basic headers
+      final fallbackResponse = await http.get(
+        Uri.parse(url),
+        headers: {
+          'x-api-key': apiKey,
+          'Accept': '*/*',
+        },
+      );
+
+      if (fallbackResponse.statusCode == 200) {
+        return fallbackResponse.bodyBytes;
+      }
+
+      throw Exception('Failed to load video: ${response.statusCode}');
+    } catch (e) {
+      throw Exception('Failed to load video: $e');
     }
   }
 }
