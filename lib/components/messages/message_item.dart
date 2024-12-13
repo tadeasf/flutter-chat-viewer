@@ -249,9 +249,9 @@ class MessageItemState extends State<MessageItem> {
     }
 
     // Handle videos
-    if (widget.message['video_files'] != null &&
-        (widget.message['video_files'] as List).isNotEmpty) {
-      final videos = widget.message['video_files'] as List;
+    if (widget.message['videos'] != null &&
+        (widget.message['videos'] as List).isNotEmpty) {
+      final videos = widget.message['videos'] as List;
       mediaWidgets.add(
         Wrap(
           spacing: 4,
@@ -261,40 +261,51 @@ class MessageItemState extends State<MessageItem> {
               widget.selectedCollectionName,
               video['uri'],
             );
-
             return GestureDetector(
               onTap: () => _handleVideoTap(context, videoUrl),
               child: Container(
                 width: displayWidth,
-                height: displayWidth * 0.75,
+                height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.black87,
+                  color: Colors.black.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Icon(Icons.play_circle_outline,
-                        color: Colors.white, size: 48),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(4),
+                    if (video['thumbnail_url'] != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: ApiService.getPhotoUrl(
+                            widget.selectedCollectionName,
+                            video['thumbnail_url'],
+                          ),
+                          httpHeaders: ApiService.headers,
+                          width: displayWidth,
+                          height: 200,
+                          fit: BoxFit.cover,
                         ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.videocam, color: Colors.white, size: 16),
-                            SizedBox(width: 4),
-                            Text('Video',
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 12)),
-                          ],
-                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_arrow, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Play Video',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
                       ),
                     ),
                   ],

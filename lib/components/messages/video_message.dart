@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import '../../utils/api_db/api_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class VideoMessage extends StatefulWidget {
   final String videoUri;
@@ -22,7 +24,7 @@ class VideoMessageState extends State<VideoMessage> {
   ChewieController? _chewieController;
   bool _isInitialized = false;
   String? _errorMessage;
-
+  bool _isLoading = true;
   @override
   void initState() {
     super.initState();
@@ -30,42 +32,55 @@ class VideoMessageState extends State<VideoMessage> {
   }
 
   Future<void> _initializeVideo() async {
-    final videoUrl =
-        ApiService.getVideoUrl(widget.collectionName, widget.videoUri);
-
     try {
-      _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(videoUrl),
-        httpHeaders: ApiService.headers,
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final videoUrl = ApiService.getVideoUrl(
+        widget.collectionName,
+        widget.videoUri,
+      );
+
+      // First fetch the video data
+      final videoData = await ApiService.fetchVideoData(videoUrl);
+
+      // Get temporary directory
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/temp_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+
+      // Write video data to temporary file
+      await file.writeAsBytes(videoData);
+
+      // Initialize video player with local file
+      _videoPlayerController = VideoPlayerController.file(
+        file,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
 
       await _videoPlayerController.initialize();
 
-      if (mounted) {
-        _chewieController = ChewieController(
-          videoPlayerController: _videoPlayerController,
-          aspectRatio: _videoPlayerController.value.aspectRatio,
-          autoPlay: false,
-          looping: false,
-          errorBuilder: (context, errorMessage) {
-            return Center(
-              child: Text(
-                errorMessage,
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          },
-        );
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController,
+        autoPlay: true,
+        looping: false,
+        showControls: true,
+        aspectRatio: _videoPlayerController.value.aspectRatio,
+      );
 
+      if (mounted) {
         setState(() {
           _isInitialized = true;
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error initializing video: $e');
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load video';
+          _errorMessage = 'Error loading video: $e';
+          _isLoading = false;
         });
       }
     }
@@ -81,26 +96,47 @@ class VideoMessageState extends State<VideoMessage> {
   @override
   Widget build(BuildContext context) {
     if (_errorMessage != null) {
-      return SizedBox(
+      return Container(
         height: 200,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red),
+              const Icon(Icons.error_outline, color: Colors.red, size: 40),
               const SizedBox(height: 8),
-              Text(_errorMessage!,
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  _errorMessage!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _initializeVideo,
+                child: const Text('Retry'),
+              ),
             ],
           ),
         ),
       );
     }
 
-    if (!_isInitialized) {
-      return const SizedBox(
+    if (_isLoading || !_isInitialized) {
+      return Container(
         height: 200,
-        child: Center(child: CircularProgressIndicator()),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
