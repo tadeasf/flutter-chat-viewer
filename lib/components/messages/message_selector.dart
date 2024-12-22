@@ -500,7 +500,7 @@ class MessageSelectorState extends State<MessageSelector> {
     }
 
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+      color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 156),
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -508,10 +508,10 @@ class MessageSelectorState extends State<MessageSelector> {
         child: Container(
           height: kBottomNavigationBarHeight,
           decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
+            color: Theme.of(context).primaryColor.withValues(alpha: 76),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 25),
                 blurRadius: 4,
                 offset: const Offset(0, -2),
               ),
@@ -525,7 +525,8 @@ class MessageSelectorState extends State<MessageSelector> {
                       horizontal: 8.0, vertical: 8.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.3),
+                      color:
+                          Theme.of(context).primaryColor.withValues(alpha: 76),
                       borderRadius: BorderRadius.circular(8.0),
                       border: Border.all(
                         color: Colors.white24,
@@ -600,10 +601,10 @@ class MessageSelectorState extends State<MessageSelector> {
     return Container(
       height: kBottomNavigationBarHeight,
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
+        color: Theme.of(context).primaryColor.withValues(alpha: 76),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 25),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -653,7 +654,7 @@ class MessageSelectorState extends State<MessageSelector> {
       right: 0,
       bottom: 0,
       child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
+        color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 156),
         padding: const EdgeInsets.all(16.0),
         child: CollectionSelector(
           selectedCollection: selectedCollection,

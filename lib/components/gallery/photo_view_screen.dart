@@ -103,7 +103,7 @@ class PhotoViewScreen extends StatelessWidget {
             right: 20,
             child: FloatingActionButton(
               onPressed: () => _downloadImage(context),
-              backgroundColor: Colors.black.withOpacity(0.7),
+              backgroundColor: Colors.black.withValues(alpha: 178),
               child: const Icon(Icons.download, color: Colors.white),
             ),
           ),

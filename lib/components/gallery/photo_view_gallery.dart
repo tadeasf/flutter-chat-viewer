@@ -90,10 +90,10 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
             ? () => widget.onLongPress!(widget.photos[_currentIndex])
             : null,
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: Colors.black.withValues(alpha: 127),
           appBar: widget.showAppBar
               ? AppBar(
-                  backgroundColor: Colors.black.withOpacity(0.5),
+                  backgroundColor: Colors.black.withValues(alpha: 127),
                   title: Text('${_currentIndex + 1} / ${widget.photos.length}'),
                   actions: [
                     if (widget.onJumpToMessage != null)

@@ -267,7 +267,7 @@ class MessageItemState extends State<MessageItem> {
                 width: displayWidth,
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 25),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -293,7 +293,7 @@ class MessageItemState extends State<MessageItem> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 25),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Row(
@@ -432,25 +432,29 @@ class MessageItemState extends State<MessageItem> {
     Color getBubbleColor() {
       if (widget.isHighlighted) {
         return isDarkMode
-            ? const Color(0xFFFFD700).withOpacity(0.3)
-            : const Color(0xFFFFD700).withOpacity(0.2);
+            ? const Color(0xFFFFD700).withValues(alpha: 38)
+            : const Color(0xFFFFD700).withValues(alpha: 20);
       }
       if (isInstagram) {
         if (widget.isAuthor) {
           return isDarkMode
-              ? const Color(0xFF8A4F6D).withOpacity(0.3)
-              : const Color(0xFF8A4F6D).withOpacity(0.3);
+              ? const Color(0xFF8A4F6D).withValues(alpha: 76)
+              : const Color(0xFF8A4F6D).withValues(alpha: 76);
         } else {
           return isDarkMode
-              ? const Color(0xFF8A4F6D).withOpacity(0.6)
-              : const Color(0xFF8A4F6D).withOpacity(0.6);
+              ? const Color(0xFF8A4F6D).withValues(alpha: 153)
+              : const Color(0xFF8A4F6D).withValues(alpha: 153);
         }
       }
       // Facebook styling
       if (widget.isAuthor) {
-        return isDarkMode ? surface1 : surface1.withOpacity(0.3);
+        return isDarkMode
+            ? surface1.withValues(alpha: 76)
+            : surface1.withValues(alpha: 76);
       } else {
-        return isDarkMode ? sapphire : sapphire.withOpacity(0.3);
+        return isDarkMode
+            ? sapphire.withValues(alpha: 76)
+            : sapphire.withValues(alpha: 76);
       }
     }
 
@@ -525,7 +529,7 @@ class MessageItemState extends State<MessageItem> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 127),
                         blurRadius: 3,
                         offset: const Offset(0, 1),
                       ),
@@ -545,7 +549,7 @@ class MessageItemState extends State<MessageItem> {
                           ),
                           style: TextStyle(
                             fontSize: 12,
-                            color: getTextColor().withOpacity(0.7),
+                            color: getTextColor().withValues(alpha: 178),
                           ),
                         ),
                       ],

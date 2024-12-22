@@ -214,11 +214,11 @@ class CollectionSelectorState extends State<CollectionSelector> {
             height: 300,
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E).withOpacity(0.8),
+              color: const Color(0xFF1E1E2E).withValues(alpha: 204),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 25),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
@@ -347,11 +347,11 @@ class CollectionSelectorState extends State<CollectionSelector> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E).withOpacity(0.8),
+              color: const Color(0xFF1E1E2E).withValues(alpha: 204),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 25),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),

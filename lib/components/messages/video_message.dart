@@ -99,7 +99,7 @@ class VideoMessageState extends State<VideoMessage> {
       return Container(
         height: 200,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 25),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
@@ -131,7 +131,7 @@ class VideoMessageState extends State<VideoMessage> {
       return Container(
         height: 200,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 25),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Center(
