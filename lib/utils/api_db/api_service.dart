@@ -167,7 +167,9 @@ class ApiService {
   }
 
   static String getPhotoUrl(String collectionName, String filename) {
-    print('getPhotoUrl: $baseUrl/inbox/$collectionName/photos/$filename');
+    if (kDebugMode) {
+      print('getPhotoUrl: $baseUrl/inbox/$collectionName/photos/$filename');
+    }
     return UrlFormatter.formatMediaUrl(
       collectionName: collectionName,
       uri: filename,
@@ -185,11 +187,13 @@ class ApiService {
 
   static String getAudioUrl(String collectionName, String uri) {
     // print the link we generate using the url formatter
-    print(UrlFormatter.formatMediaUrl(
-      collectionName: collectionName,
-      uri: uri,
-      type: MediaType.audio,
-    ));
+    if (kDebugMode) {
+      print(UrlFormatter.formatMediaUrl(
+        collectionName: collectionName,
+        uri: uri,
+        type: MediaType.audio,
+      ));
+    }
     return UrlFormatter.formatMediaUrl(
       collectionName: collectionName,
       uri: uri,
