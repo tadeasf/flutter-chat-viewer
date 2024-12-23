@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'dart:async';
@@ -163,77 +164,87 @@ class PhotoGalleryState extends State<PhotoGallery> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Photos - ${widget.collectionName}'),
-      ),
-      body: GridView.builder(
-        controller: _scrollController,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 4.0,
-          crossAxisSpacing: 4.0,
+    return KeyboardListener(
+      focusNode: FocusNode(),
+      autofocus: true,
+      onKeyEvent: (KeyEvent event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Photos - ${widget.collectionName}'),
         ),
-        itemCount: _photos.length + (_isLoading ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _photos.length && _isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (index >= _photos.length) {
-            return Container();
-          }
-          final photo = _photos[index]['photos'][0];
-          final photoUri = photo['uri'] as String;
-          final imageUrl = photo['fullUri'] ??
-              ApiService.getPhotoUrl(
-                  widget.collectionName,
-                  photoUri.contains('/photos/')
-                      ? photoUri
-                      : photoUri.split('/').last);
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PhotoViewGalleryScreen(
-                    collectionName: widget.collectionName,
-                    initialIndex: index,
-                    photos: _photos
-                        .map((photo) =>
-                            Map<String, dynamic>.from(photo['photos'][0]))
-                        .toList(),
-                    showAppBar: true,
-                    onJumpToMessage: _handleJumpToMessage,
-                    onJumpToGallery: (currentIndex) {
-                      final currentPhoto = _photos[currentIndex]['photos'][0];
-                      PhotoGalleryState.navigateToGalleryAndScroll(
-                        context,
-                        widget.collectionName,
-                        currentPhoto,
-                        widget.messages,
-                        widget.itemScrollController,
-                      );
-                    },
+        body: GridView.builder(
+          controller: _scrollController,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 4.0,
+            crossAxisSpacing: 4.0,
+          ),
+          itemCount: _photos.length + (_isLoading ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _photos.length && _isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (index >= _photos.length) {
+              return Container();
+            }
+            final photo = _photos[index]['photos'][0];
+            final photoUri = photo['uri'] as String;
+            final imageUrl = photo['fullUri'] ??
+                ApiService.getPhotoUrl(
+                    widget.collectionName,
+                    photoUri.contains('/photos/')
+                        ? photoUri
+                        : photoUri.split('/').last);
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PhotoViewGalleryScreen(
+                      collectionName: widget.collectionName,
+                      initialIndex: index,
+                      photos: _photos
+                          .map((photo) =>
+                              Map<String, dynamic>.from(photo['photos'][0]))
+                          .toList(),
+                      showAppBar: true,
+                      onJumpToMessage: _handleJumpToMessage,
+                      onJumpToGallery: (currentIndex) {
+                        final currentPhoto = _photos[currentIndex]['photos'][0];
+                        PhotoGalleryState.navigateToGalleryAndScroll(
+                          context,
+                          widget.collectionName,
+                          currentPhoto,
+                          widget.messages,
+                          widget.itemScrollController,
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+              child: Hero(
+                tag: 'photo_${photo['uri']}',
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  httpHeaders: ApiService.headers,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.error, color: Colors.red),
                   ),
                 ),
-              );
-            },
-            child: Hero(
-              tag: 'photo_${photo['uri']}',
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                httpHeaders: ApiService.headers,
-                fit: BoxFit.cover,
-                placeholder: (context, url) =>
-                    const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.error, color: Colors.red),
-                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

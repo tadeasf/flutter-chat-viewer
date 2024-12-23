@@ -19,6 +19,108 @@ import 'message_index_manager.dart';
 import '../search/search_type.dart';
 import '../ui_utils/visibility_state.dart';
 import '../search/search_dialog.dart';
+import 'package:flutter/services.dart';
+
+final searchKeySet = LogicalKeySet(
+  LogicalKeyboardKey.meta, // Use control on Windows
+  LogicalKeyboardKey.keyF,
+);
+
+final previousResultKeySet = LogicalKeySet(
+  LogicalKeyboardKey.meta,
+  LogicalKeyboardKey.keyJ,
+);
+
+final nextResultKeySet = LogicalKeySet(
+  LogicalKeyboardKey.meta,
+  LogicalKeyboardKey.keyK,
+);
+
+final galleryKeySet = LogicalKeySet(
+  LogicalKeyboardKey.meta,
+  LogicalKeyboardKey.keyG,
+);
+
+final collectionSelectorKeySet = LogicalKeySet(
+  LogicalKeyboardKey.meta,
+  LogicalKeyboardKey.keyC,
+);
+
+class SearchIntent extends Intent {}
+
+class PreviousResultIntent extends Intent {}
+
+class NextResultIntent extends Intent {}
+
+class GalleryIntent extends Intent {}
+
+class CollectionSelectorIntent extends Intent {}
+
+class MessageSelectorShortcuts extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onSearchTriggered;
+  final VoidCallback onPreviousResult;
+  final VoidCallback onNextResult;
+  final VoidCallback onGalleryOpen;
+  final VoidCallback onCollectionSelectorToggle;
+
+  const MessageSelectorShortcuts({
+    super.key,
+    required this.child,
+    required this.onSearchTriggered,
+    required this.onPreviousResult,
+    required this.onNextResult,
+    required this.onGalleryOpen,
+    required this.onCollectionSelectorToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusableActionDetector(
+      autofocus: true,
+      shortcuts: {
+        searchKeySet: SearchIntent(),
+        previousResultKeySet: PreviousResultIntent(),
+        nextResultKeySet: NextResultIntent(),
+        galleryKeySet: GalleryIntent(),
+        collectionSelectorKeySet: CollectionSelectorIntent(),
+      },
+      actions: {
+        SearchIntent: CallbackAction(
+          onInvoke: (intent) {
+            onSearchTriggered();
+            return null;
+          },
+        ),
+        PreviousResultIntent: CallbackAction(
+          onInvoke: (intent) {
+            onPreviousResult();
+            return null;
+          },
+        ),
+        NextResultIntent: CallbackAction(
+          onInvoke: (intent) {
+            onNextResult();
+            return null;
+          },
+        ),
+        GalleryIntent: CallbackAction(
+          onInvoke: (intent) {
+            onGalleryOpen();
+            return null;
+          },
+        ),
+        CollectionSelectorIntent: CallbackAction(
+          onInvoke: (intent) {
+            onCollectionSelectorToggle();
+            return null;
+          },
+        ),
+      },
+      child: child,
+    );
+  }
+}
 
 class MessageSelector extends StatefulWidget {
   final Function(ThemeMode) setThemeMode;
@@ -331,166 +433,204 @@ class MessageSelectorState extends State<MessageSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: AppDrawer(
-        selectedCollection: selectedCollection,
-        isPhotoAvailable: isPhotoAvailable,
-        isProfilePhotoVisible: _isProfilePhotoVisible,
-        fromDate: fromDate,
-        toDate: toDate,
-        profilePhotoUrl: profilePhotoUrl,
-        refreshCollections: refreshCollections,
-        setState: setState,
-        fetchMessages: fetchMessages,
-        setThemeMode: widget.setThemeMode,
-        themeMode: widget.themeMode,
-        picker: picker,
-        onCrossCollectionSearch: _handleCrossCollectionSearch,
-        onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
-        messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
-        itemScrollController: itemScrollController,
-      ),
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              await loadCollections((loadedCollections) {
-                setState(() {
-                  collections = loadedCollections;
-                  filteredCollections = loadedCollections;
+    return MessageSelectorShortcuts(
+      onSearchTriggered: () {
+        showDialog(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return SearchDialog(
+              onSearch: _handleSearchRequest,
+              selectedCollection: selectedCollection,
+            );
+          },
+        );
+      },
+      onPreviousResult: () {
+        if (isSearchActive) {
+          _navigateSearch(-1);
+        }
+      },
+      onNextResult: () {
+        if (isSearchActive) {
+          _navigateSearch(1);
+        }
+      },
+      onGalleryOpen: () {
+        if (selectedCollection != null && messages.isNotEmpty) {
+          PhotoHandler.handleShowAllPhotos(
+            context,
+            selectedCollection,
+            messages: messages,
+            itemScrollController: itemScrollController,
+          );
+        }
+      },
+      onCollectionSelectorToggle: toggleCollectionSelector,
+      child: Scaffold(
+        drawer: AppDrawer(
+          selectedCollection: selectedCollection,
+          isPhotoAvailable: isPhotoAvailable,
+          isProfilePhotoVisible: _isProfilePhotoVisible,
+          fromDate: fromDate,
+          toDate: toDate,
+          profilePhotoUrl: profilePhotoUrl,
+          refreshCollections: refreshCollections,
+          setState: setState,
+          fetchMessages: fetchMessages,
+          setThemeMode: widget.setThemeMode,
+          themeMode: widget.themeMode,
+          picker: picker,
+          onCrossCollectionSearch: _handleCrossCollectionSearch,
+          onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
+          messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
+          itemScrollController: itemScrollController,
+        ),
+        body: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                await loadCollections((loadedCollections) {
+                  setState(() {
+                    collections = loadedCollections;
+                    filteredCollections = loadedCollections;
+                  });
                 });
-              });
-            },
-            child: collections.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 200),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              'Pull down to refresh collections',
-                              style: TextStyle(
-                                fontFamily: 'CaskaydiaCove Nerd Font',
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Meta Elysia',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontFamily: 'CaskaydiaCove Nerd Font',
-                                    fontSize: 12,
-                                  ),
-                        ),
-                      ),
-                      Expanded(
-                        child: isLoading || isCrossCollectionLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : MessageList(
-                                messages: isCrossCollectionSearch
-                                    ? crossCollectionMessages
-                                    : messages,
-                                searchResults: searchResults,
-                                currentSearchIndex: currentSearchIndex,
-                                itemScrollController: itemScrollController,
-                                itemPositionsListener: itemPositionsListener,
-                                isSearchActive: isSearchVisible,
-                                selectedCollectionName:
-                                    selectedCollection ?? '',
-                                profilePhotoUrl: profilePhotoUrl,
-                                isCrossCollectionSearch:
-                                    isCrossCollectionSearch,
-                                onMessageTap: _handleCrossCollectionMessageTap,
-                              ),
-                      ),
-                      if (isCollectionSelectorVisible ||
-                          selectedCollection == null)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: CollectionSelector(
-                            selectedCollection: selectedCollection,
-                            initialCollections: filteredCollections,
-                            onCollectionChanged: _changeCollection,
-                          ),
-                        ),
-                      if (isPhotoAvailable && selectedCollection != null)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Image.network(
-                            'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
-                            height: 100,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Text(
-                                'Failed to load image',
+              },
+              child: collections.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 200),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text(
+                                'Pull down to refresh collections',
                                 style: TextStyle(
                                   fontFamily: 'CaskaydiaCove Nerd Font',
                                   fontSize: 12,
                                 ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
                         ),
-                    ],
-                  ),
-          ),
-          if (_currentVisibility == VisibilityState.collectionSelector)
-            _buildCollectionSelectorOverlay(),
-        ],
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(
+                            'Meta Elysia',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                                  fontSize: 12,
+                                ),
+                          ),
+                        ),
+                        Expanded(
+                          child: isLoading || isCrossCollectionLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : MessageList(
+                                  messages: isCrossCollectionSearch
+                                      ? crossCollectionMessages
+                                      : messages,
+                                  searchResults: searchResults,
+                                  currentSearchIndex: currentSearchIndex,
+                                  itemScrollController: itemScrollController,
+                                  itemPositionsListener: itemPositionsListener,
+                                  isSearchActive: isSearchVisible,
+                                  selectedCollectionName:
+                                      selectedCollection ?? '',
+                                  profilePhotoUrl: profilePhotoUrl,
+                                  isCrossCollectionSearch:
+                                      isCrossCollectionSearch,
+                                  onMessageTap:
+                                      _handleCrossCollectionMessageTap,
+                                ),
+                        ),
+                        if (isCollectionSelectorVisible ||
+                            selectedCollection == null)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: CollectionSelector(
+                              selectedCollection: selectedCollection,
+                              initialCollections: filteredCollections,
+                              onCollectionChanged: _changeCollection,
+                            ),
+                          ),
+                        if (isPhotoAvailable && selectedCollection != null)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Image.network(
+                              'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                              height: 100,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Text(
+                                  'Failed to load image',
+                                  style: TextStyle(
+                                    fontFamily: 'CaskaydiaCove Nerd Font',
+                                    fontSize: 12,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            if (_currentVisibility == VisibilityState.collectionSelector)
+              _buildCollectionSelectorOverlay(),
+          ],
+        ),
+        bottomNavigationBar: isSearchActive
+            ? _buildSearchResultsBar()
+            : (_currentVisibility == VisibilityState.search
+                ? _buildSearchOverlay()
+                : Navbar(
+                    title: selectedCollection ?? '',
+                    onSearchPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext dialogContext) {
+                          return SearchDialog(
+                            onSearch: _handleSearchRequest,
+                            selectedCollection: selectedCollection,
+                          );
+                        },
+                      );
+                    },
+                    onCollectionSelectorPressed: toggleCollectionSelector,
+                    isCollectionSelectorVisible: isCollectionSelectorVisible,
+                    selectedCollection: selectedCollection,
+                    currentVisibility: _currentVisibility,
+                    onCrossCollectionSearch: (results) {
+                      setState(() {
+                        crossCollectionMessages = results
+                            .map((result) => {
+                                  'content': result['content'],
+                                  'sender_name': result['sender_name'],
+                                  'collectionName': result['collectionName'],
+                                  'timestamp_ms': result['timestamp_ms'] ?? 0,
+                                  'photos': result['photos'] ?? [],
+                                  'is_geoblocked_for_viewer':
+                                      result['is_geoblocked_for_viewer'] ??
+                                          false,
+                                  'is_online': result['is_online'] ?? false,
+                                })
+                            .toList();
+                        isCrossCollectionSearch = true;
+                        messages = crossCollectionMessages;
+                        isSearchActive = true;
+                      });
+                    },
+                  )),
       ),
-      bottomNavigationBar: isSearchActive
-          ? _buildSearchResultsBar()
-          : (_currentVisibility == VisibilityState.search
-              ? _buildSearchOverlay()
-              : Navbar(
-                  title: selectedCollection ?? '',
-                  onSearchPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext dialogContext) {
-                        return SearchDialog(
-                          onSearch: _handleSearchRequest,
-                          selectedCollection: selectedCollection,
-                        );
-                      },
-                    );
-                  },
-                  onCollectionSelectorPressed: toggleCollectionSelector,
-                  isCollectionSelectorVisible: isCollectionSelectorVisible,
-                  selectedCollection: selectedCollection,
-                  currentVisibility: _currentVisibility,
-                  onCrossCollectionSearch: (results) {
-                    setState(() {
-                      crossCollectionMessages = results
-                          .map((result) => {
-                                'content': result['content'],
-                                'sender_name': result['sender_name'],
-                                'collectionName': result['collectionName'],
-                                'timestamp_ms': result['timestamp_ms'] ?? 0,
-                                'photos': result['photos'] ?? [],
-                                'is_geoblocked_for_viewer':
-                                    result['is_geoblocked_for_viewer'] ?? false,
-                                'is_online': result['is_online'] ?? false,
-                              })
-                          .toList();
-                      isCrossCollectionSearch = true;
-                      messages = crossCollectionMessages;
-                      isSearchActive = true;
-                    });
-                  },
-                )),
     );
   }
 

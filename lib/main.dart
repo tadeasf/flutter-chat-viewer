@@ -56,12 +56,32 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Meta Elysia',
-      theme: ThemeManager.getLightTheme(),
-      darkTheme: ThemeManager.getDarkTheme(),
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
       themeMode: _themeMode,
-      home: MessageSelector(
-        setThemeMode: _setThemeMode,
-        themeMode: _themeMode,
+      home: FocusScope(
+        autofocus: true,
+        child: MessageSelectorShortcuts(
+          onSearchTriggered: () {
+            // Global handler
+          },
+          onPreviousResult: () {
+            // Global handler
+          },
+          onNextResult: () {
+            // Global handler
+          },
+          onGalleryOpen: () {
+            // Global handler
+          },
+          onCollectionSelectorToggle: () {
+            // Global handler
+          },
+          child: MessageSelector(
+            setThemeMode: _setThemeMode,
+            themeMode: _themeMode,
+          ),
+        ),
       ),
     );
   }

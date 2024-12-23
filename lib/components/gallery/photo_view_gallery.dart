@@ -50,7 +50,9 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
 
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        Navigator.of(context).pop();
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
           _currentIndex > 0) {
         _pageController.previousPage(
           duration: const Duration(milliseconds: 300),
