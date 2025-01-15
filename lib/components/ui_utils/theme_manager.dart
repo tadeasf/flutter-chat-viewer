@@ -33,6 +33,26 @@ class AppColors {
 }
 
 class ThemeManager {
+  static const double minFontSize = 12.0;
+  static const double maxFontSize = 24.0;
+  static const double fontSizeStep = 2.0;
+  static double _fontSize = 16.0; // Default size
+
+  static double get fontSize => _fontSize;
+
+  static Future<void> initFontSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    _fontSize = prefs.getDouble('fontSize') ?? 16.0;
+  }
+
+  static Future<void> setFontSize(double size) async {
+    if (size >= minFontSize && size <= maxFontSize) {
+      _fontSize = size;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('fontSize', size);
+    }
+  }
+
   static Future<ThemeMode> loadThemeMode() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return ThemeMode

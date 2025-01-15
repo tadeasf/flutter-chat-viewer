@@ -14,6 +14,7 @@ import 'package:just_audio/just_audio.dart';
 import 'audio_message_player.dart';
 import '../media/video_player_screen.dart';
 import 'package:intl/intl.dart';
+import '../ui_utils/theme_manager.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -202,7 +203,7 @@ class MessageItemState extends State<MessageItem> {
               _ensureDecoded(widget.message['content']),
               style: TextStyle(
                 color: getTextColor(),
-                fontSize: 16,
+                fontSize: ThemeManager.fontSize,
               ),
             ),
           ),

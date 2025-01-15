@@ -22,6 +22,7 @@ class AppDrawer extends StatelessWidget {
   final VoidCallback onDrawerClosed;
   final List<Map<dynamic, dynamic>> messages;
   final ItemScrollController itemScrollController;
+  final VoidCallback onFontSizeChanged;
 
   const AppDrawer({
     super.key,
@@ -41,89 +42,113 @@ class AppDrawer extends StatelessWidget {
     required this.onDrawerClosed,
     required this.messages,
     required this.itemScrollController,
+    required this.onFontSizeChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return PopScope<dynamic>(
-      canPop: true,
-      onPopInvokedWithResult: (bool didPop, dynamic result) {
-        onDrawerClosed();
-      },
-      child: Drawer(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 16.0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        onDrawerClosed();
+    return Drawer(
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onDrawerClosed();
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    selectedCollection ?? 'No Collection Selected',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 18,
+                        ),
+                  ),
+                ),
+                if (isProfilePhotoVisible && selectedCollection != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: ProfilePhoto(
+                      key: ValueKey(profilePhotoUrl), // Add this line
+                      collectionName: selectedCollection!,
+                      size: 120.0,
+                      isOnline: true,
+                      profilePhotoUrl: profilePhotoUrl,
+                      showButtons: true,
+                      onPhotoDeleted: () {
+                        // Add this callback
+                        setState(() {
+                          // Update the state to reflect the deleted photo
+                        });
                       },
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      selectedCollection ?? 'No Collection Selected',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontSize: 18,
-                          ),
-                    ),
-                  ),
-                  if (isProfilePhotoVisible && selectedCollection != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: ProfilePhoto(
-                        key: ValueKey(profilePhotoUrl), // Add this line
-                        collectionName: selectedCollection!,
-                        size: 120.0,
-                        isOnline: true,
-                        profilePhotoUrl: profilePhotoUrl,
-                        showButtons: true,
-                        onPhotoDeleted: () {
-                          // Add this callback
-                          setState(() {
-                            // Update the state to reflect the deleted photo
-                          });
+                const SizedBox(height: 16),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: Text('Gallery',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                  onTap: () {
+                    Navigator.pop(context);
+                    PhotoHandler.handleShowAllPhotos(
+                      context,
+                      selectedCollection,
+                      messages: messages,
+                      itemScrollController: itemScrollController,
+                    );
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: Text('Settings',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ThemeManager.showSettingsDialog(
+                        context, themeMode, setThemeMode);
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.format_size),
+                  title: Row(
+                    children: [
+                      Text('Text Size'),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.remove),
+                        onPressed: () async {
+                          await ThemeManager.setFontSize(
+                            ThemeManager.fontSize - ThemeManager.fontSizeStep,
+                          );
+                          onFontSizeChanged();
                         },
                       ),
-                    ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.photo_library),
-                    title: Text('Gallery',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () {
-                      Navigator.pop(context);
-                      PhotoHandler.handleShowAllPhotos(
-                        context,
-                        selectedCollection,
-                        messages: messages,
-                        itemScrollController: itemScrollController,
-                      );
-                    },
+                      Text(ThemeManager.fontSize.toStringAsFixed(1)),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () async {
+                          await ThemeManager.setFontSize(
+                            ThemeManager.fontSize + ThemeManager.fontSizeStep,
+                          );
+                          onFontSizeChanged();
+                        },
+                      ),
+                    ],
                   ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.settings),
-                    title: Text('Settings',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ThemeManager.showSettingsDialog(
-                          context, themeMode, setThemeMode);
-                    },
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

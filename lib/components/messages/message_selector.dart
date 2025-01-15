@@ -484,6 +484,11 @@ class MessageSelectorState extends State<MessageSelector> {
           onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
           messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
           itemScrollController: itemScrollController,
+          onFontSizeChanged: () {
+            setState(() {
+              // This will trigger a rebuild with the new font size
+            });
+          },
         ),
         body: Stack(
           children: [
