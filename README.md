@@ -2,6 +2,45 @@
 
 A Flutter application for viewing and searching through Facebook Messenger chat history with advanced features.
 
+## Building Locally
+
+### Prerequisites
+
+- Flutter SDK
+- Java 17.0.13 (mise recommended for version management)
+- macOS for building the macOS app
+
+### Debug Build
+
+```bash
+./scripts/build-debug.sh
+```
+
+This will:
+
+1. Clean the project
+2. Get & upgrade dependencies
+3. Build debug APK and macOS app
+4. Copy builds to Desktop with versioning
+
+### Release Build
+
+```bash
+./scripts/build-release.sh
+```
+
+This will:
+
+1. Clean the project
+2. Get & upgrade dependencies
+3. Build release APK and macOS app
+4. Copy builds to Desktop with versioning
+
+Build outputs will be saved to:
+
+- APK: `~/Desktop/meta-chat-viewer_{debug|release}_latest.apk`
+- macOS: `~/Desktop/Meta Elysia_{debug|release}_latest.app`
+
 ## Features
 
 - 📱 View and search through Facebook Messenger conversations
@@ -13,31 +52,23 @@ A Flutter application for viewing and searching through Facebook Messenger chat 
 
 ## Setup
 
-- Create a `.env` file in the root directory with:
+1. Create a `.env` file in the root directory:
 
-```env
-X_API_KEY=your_api_key_here
-```
+    ```env
+    X_API_KEY=your_api_key_here
+    ```
 
-- Install dependencies:
+2. Install dependencies:
 
-```bash
-flutter pub get
-```
+    ```bash
+    flutter pub get
+    ```
 
-- Run the app:
+3. Run the app:
 
-```bash
-flutter run
-```
-
-## Building
-
-To build a release APK:
-
-```bash
-flutter build apk --release
-```
+    ```bash
+    flutter run
+    ```
 
 ## Architecture
 
