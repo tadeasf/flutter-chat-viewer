@@ -41,6 +41,7 @@ dependencies:
   video_player: ^2.8.2
   just_audio: ^0.9.42
   chewie: ^1.8.5
+  wakelock_plus: ^1.1.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
