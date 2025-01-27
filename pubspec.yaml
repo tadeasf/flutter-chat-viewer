@@ -40,7 +40,7 @@ dependencies:
   image_gallery_saver_plus: ^3.0.5
   video_player: ^2.8.2
   just_audio: ^0.9.42
-  chewie: ^1.8.5
+  chewie: ^1.10.0
   wakelock_plus: ^1.1.4
 dev_dependencies:
   flutter_test:
