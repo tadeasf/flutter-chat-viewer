@@ -39,9 +39,9 @@ spinner() {
 log_error() {
     local build_type=$1
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local log_file="/Users/tadeasfort/flutter_chat_viewer_build_fail_${build_type}_${timestamp}.log"
+    local log_file="${HOME}/flutter_chat_viewer_build_fail_${build_type}_${timestamp}.log"
     cat > "$log_file"
-    echo "Build failed. Log saved to: $log_file"
+    echo -e "${RED}Build failed. Log saved to: $log_file${RESET}"
 }
 
 # Add this function at the beginning with other functions
@@ -92,10 +92,11 @@ fi
 # Copy successful builds to Desktop with versioning
 if [ "$APK_SUCCESS" = true ]; then
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    APK_PATH="/Users/tadeasfort/Desktop/meta-chat-viewer_debug_latest.apk"
+    DESKTOP_DIR="${HOME}/Desktop"
+    APK_PATH="${DESKTOP_DIR}/meta-chat-viewer_debug_latest.apk"
     
     if [ -f "$APK_PATH" ]; then
-        mv "$APK_PATH" "/Users/tadeasfort/Desktop/meta-chat-viewer_debug_deprecated_${TIMESTAMP}.apk"
+        mv "$APK_PATH" "${DESKTOP_DIR}/meta-chat-viewer_debug_deprecated_${TIMESTAMP}.apk"
     fi
     
     cp build/app/outputs/flutter-apk/app-debug.apk "$APK_PATH"
@@ -104,10 +105,11 @@ fi
 
 if [ "$MACOS_SUCCESS" = true ]; then
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    APP_PATH="/Users/tadeasfort/Desktop/Meta Elysia debug_latest.app"
+    DESKTOP_DIR="${HOME}/Desktop"
+    APP_PATH="${DESKTOP_DIR}/Meta Elysia debug_latest.app"
     
     if [ -d "$APP_PATH" ]; then
-        mv "$APP_PATH" "/Users/tadeasfort/Desktop/Meta Elysia debug_deprecated_${TIMESTAMP}.app"
+        mv "$APP_PATH" "${DESKTOP_DIR}/Meta Elysia debug_deprecated_${TIMESTAMP}.app"
     fi
     
     cp -r build/macos/Build/Products/Debug/*.app "$APP_PATH"
