@@ -9,20 +9,6 @@ MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
 
-# Check Java version and set if needed
-REQUIRED_JAVA="17.0.13"
-CURRENT_JAVA=$(java --version | head -n 1 | awk '{print $2}' | cut -d'.' -f1-3)
-
-if [ "$CURRENT_JAVA" != "$REQUIRED_JAVA" ]; then
-    echo -e "${YELLOW}🔄 Setting Java version to $REQUIRED_JAVA...${RESET}"
-    mise use java@corretto-17.0.13.11.1 > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Failed to set Java version. Please ensure mise is installed and Java 17.0.13 is available.${RESET}"
-        exit 1
-    fi
-    echo -e "${GREEN}✅ Java version set successfully!${RESET}"
-fi
-
 # Function to show spinner
 spinner() {
     local pid=$1
@@ -50,6 +36,36 @@ print_separator() {
     printf '%*s\n' "$max_length" '' | tr ' ' '-'
 }
 
+# Platform selection
+echo -e "${BLUE}Select platform to build for:${RESET}"
+echo "1) Android"
+echo "2) macOS"
+echo "3) Linux"
+read -p "Enter your choice (1-3): " platform_choice
+
+case $platform_choice in
+    1) PLATFORM="android" ;;
+    2) PLATFORM="macos" ;;
+    3) PLATFORM="linux" ;;
+    *) echo -e "${RED}Invalid choice. Exiting.${RESET}" && exit 1 ;;
+esac
+
+# Check Java version only for Android builds
+if [ "$PLATFORM" = "android" ]; then
+    REQUIRED_JAVA="17.0.13"
+    CURRENT_JAVA=$(java --version | head -n 1 | awk '{print $2}' | cut -d'.' -f1-3)
+
+    if [ "$CURRENT_JAVA" != "$REQUIRED_JAVA" ]; then
+        echo -e "${YELLOW}🔄 Setting Java version to $REQUIRED_JAVA...${RESET}"
+        mise use java@corretto-17.0.13.11.1 > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}❌ Failed to set Java version. Please ensure mise is installed and Java 17.0.13 is available.${RESET}"
+            exit 1
+        fi
+        echo -e "${GREEN}✅ Java version set successfully!${RESET}"
+    fi
+fi
+
 echo -e "${BLUE}🧹 Cleaning Flutter project...${RESET}"
 print_separator
 flutter clean > /dev/null 2>&1 & spinner $!
@@ -58,67 +74,67 @@ echo -e "${BLUE}📦 Getting dependencies...${RESET}"
 print_separator
 flutter pub get > /dev/null 2>&1 & spinner $!
 
-echo -e "${BLUE}⬆️  Upgrading dependencies...${RESET}"
-print_separator
-flutter pub upgrade > /dev/null 2>&1 & spinner $!
+# Build based on platform selection
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+DESKTOP_DIR="${HOME}/Desktop"
 
-echo -e "${BLUE}🏗️  Building debug APK...${RESET}"
-print_separator
-flutter build apk --debug > /tmp/apk_build.log 2>&1 & 
-spinner $!
-if [ $? -ne 0 ]; then
-    cat /tmp/apk_build.log | log_error "apk"
-    APK_SUCCESS=false
-    APK_MESSAGE="${RED}❌ Failed - Log: /Users/tadeasfort/flutter_chat_viewer_build_fail_apk_$(date +%Y%m%d_%H%M%S).log${RESET}"
-else
-    APK_SUCCESS=true
-    APK_PATH="/Users/tadeasfort/Desktop/meta-chat-viewer_debug_latest.apk"
-    APK_MESSAGE="${GREEN}✅ Success - Output: $APK_PATH${RESET}"
-fi
-
-echo -e "${BLUE}🏗️  Building debug macOS app...${RESET}"
-print_separator
-flutter build macos --debug > /tmp/macos_build.log 2>&1 &
-spinner $!
-if [ $? -ne 0 ]; then
-    cat /tmp/macos_build.log | log_error "macos"
-    MACOS_SUCCESS=false
-    MACOS_MESSAGE="${RED}❌ Failed - Log: /Users/tadeasfort/flutter_chat_viewer_build_fail_macos_$(date +%Y%m%d_%H%M%S).log${RESET}"
-else
-    MACOS_SUCCESS=true
-    MACOS_MESSAGE="${GREEN}✅ Success - Output: /Users/tadeasfort/Desktop/Meta Elysia debug_latest.app${RESET}"
-fi
-
-# Copy successful builds to Desktop with versioning
-if [ "$APK_SUCCESS" = true ]; then
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    DESKTOP_DIR="${HOME}/Desktop"
-    APK_PATH="${DESKTOP_DIR}/meta-chat-viewer_debug_latest.apk"
-    
-    if [ -f "$APK_PATH" ]; then
-        mv "$APK_PATH" "${DESKTOP_DIR}/meta-chat-viewer_debug_deprecated_${TIMESTAMP}.apk"
-    fi
-    
-    cp build/app/outputs/flutter-apk/app-debug.apk "$APK_PATH"
-    echo -e "${GREEN}📱 Debug APK copied to Desktop${RESET}"
-fi
-
-if [ "$MACOS_SUCCESS" = true ]; then
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    DESKTOP_DIR="${HOME}/Desktop"
-    APP_PATH="${DESKTOP_DIR}/Meta Elysia debug_latest.app"
-    
-    if [ -d "$APP_PATH" ]; then
-        mv "$APP_PATH" "${DESKTOP_DIR}/Meta Elysia debug_deprecated_${TIMESTAMP}.app"
-    fi
-    
-    cp -r build/macos/Build/Products/Debug/*.app "$APP_PATH"
-    echo -e "${GREEN}🖥️  Debug macOS app copied to Desktop${RESET}"
-fi
+case $PLATFORM in
+    "android")
+        echo -e "${BLUE}🏗️  Building debug APK...${RESET}"
+        print_separator
+        flutter build apk --debug > /tmp/build.log 2>&1 & spinner $!
+        if [ $? -ne 0 ]; then
+            cat /tmp/build.log | log_error "apk"
+            BUILD_MESSAGE="${RED}❌ Failed - Log: ${HOME}/flutter_chat_viewer_build_fail_apk_${TIMESTAMP}.log${RESET}"
+        else
+            APK_PATH="${DESKTOP_DIR}/meta-chat-viewer_debug_latest.apk"
+            if [ -f "$APK_PATH" ]; then
+                mv "$APK_PATH" "${DESKTOP_DIR}/meta-chat-viewer_debug_deprecated_${TIMESTAMP}.apk"
+            fi
+            cp build/app/outputs/flutter-apk/app-debug.apk "$APK_PATH"
+            BUILD_MESSAGE="${GREEN}✅ Success - Output: $APK_PATH${RESET}"
+            echo -e "${GREEN}📱 Debug APK copied to Desktop${RESET}"
+        fi
+        ;;
+    "macos")
+        echo -e "${BLUE}🏗️  Building debug macOS app...${RESET}"
+        print_separator
+        flutter build macos --debug > /tmp/build.log 2>&1 & spinner $!
+        if [ $? -ne 0 ]; then
+            cat /tmp/build.log | log_error "macos"
+            BUILD_MESSAGE="${RED}❌ Failed - Log: ${HOME}/flutter_chat_viewer_build_fail_macos_${TIMESTAMP}.log${RESET}"
+        else
+            APP_PATH="${DESKTOP_DIR}/Meta Elysia debug_latest.app"
+            if [ -d "$APP_PATH" ]; then
+                mv "$APP_PATH" "${DESKTOP_DIR}/Meta Elysia debug_deprecated_${TIMESTAMP}.app"
+            fi
+            cp -r build/macos/Build/Products/Debug/*.app "$APP_PATH"
+            BUILD_MESSAGE="${GREEN}✅ Success - Output: $APP_PATH${RESET}"
+            echo -e "${GREEN}🖥️  Debug macOS app copied to Desktop${RESET}"
+        fi
+        ;;
+    "linux")
+        echo -e "${BLUE}🏗️  Building debug Linux app...${RESET}"
+        print_separator
+        flutter build linux --debug > /tmp/build.log 2>&1 & spinner $!
+        if [ $? -ne 0 ]; then
+            cat /tmp/build.log | log_error "linux"
+            BUILD_MESSAGE="${RED}❌ Failed - Log: ${HOME}/flutter_chat_viewer_build_fail_linux_${TIMESTAMP}.log${RESET}"
+        else
+            LINUX_PATH="${DESKTOP_DIR}/meta-chat-viewer_linux_debug_latest"
+            if [ -d "$LINUX_PATH" ]; then
+                mv "$LINUX_PATH" "${DESKTOP_DIR}/meta-chat-viewer_linux_debug_deprecated_${TIMESTAMP}"
+            fi
+            mkdir -p "$LINUX_PATH"
+            cp -r build/linux/x64/debug/bundle/* "$LINUX_PATH"
+            BUILD_MESSAGE="${GREEN}✅ Success - Output: $LINUX_PATH${RESET}"
+            echo -e "${GREEN}🐧 Debug Linux app copied to Desktop${RESET}"
+        fi
+        ;;
+esac
 
 # Update the final output
 echo -e "${MAGENTA}✨ Build process finished:${RESET}"
 print_separator
-echo -e "APK: $APK_MESSAGE"
-echo -e "APP: $MACOS_MESSAGE"
+echo -e "Build: $BUILD_MESSAGE"
 print_separator
