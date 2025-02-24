@@ -38,7 +38,7 @@ dependencies:
   photo_view: ^0.15.0
   http: ^1.2.2
   image_gallery_saver_plus: ^3.0.5
-  video_player: ^2.8.2
+  video_player: ^2.9.3
   just_audio: ^0.9.42
   chewie: ^1.8.5
   wakelock_plus: ^1.1.4
