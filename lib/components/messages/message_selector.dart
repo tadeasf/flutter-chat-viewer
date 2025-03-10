@@ -799,7 +799,7 @@ class MessageSelectorState extends State<MessageSelector> {
       right: 0,
       bottom: 0,
       child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 156),
+        color: Theme.of(context).scaffoldBackgroundColor,
         padding: const EdgeInsets.all(16.0),
         child: CollectionSelector(
           selectedCollection: selectedCollection,

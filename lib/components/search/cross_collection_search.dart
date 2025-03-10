@@ -64,33 +64,46 @@ class CrossCollectionSearchDialogState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: theme.colorScheme.surface,
       child: Container(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Cross-Collection Search',
-              style: TextStyle(
-                fontSize: 24,
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                fontFamily: 'CaskaydiaCove Nerd Font',
-                fontStyle: FontStyle.normal,
               ),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _searchController,
+              style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
                 hintText: 'Search across all collections...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
+                ),
+                prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.dividerColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.dividerColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary),
                 ),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
+                fillColor: theme.colorScheme.surface.withOpacity(0.7),
               ),
               onSubmitted: (_) => _performSearch(),
             ),
@@ -100,12 +113,20 @@ class CrossCollectionSearchDialogState
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
                   onPressed: _isSearching ? null : _performSearch,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -113,12 +134,22 @@ class CrossCollectionSearchDialogState
                     ),
                   ),
                   child: _isSearching
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.onPrimary,
+                            ),
+                          ),
                         )
-                      : const Text('Search'),
+                      : Text(
+                          'Search',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onPrimary,
+                          ),
+                        ),
                 ),
               ],
             ),

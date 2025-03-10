@@ -37,7 +37,7 @@ dependencies:
   build_runner: ^2.4.9
   photo_view: ^0.15.0
   http: ^1.2.2
-  image_gallery_saver_plus: ^3.0.5
+  image_gallery_saver_plus: ^4.0.1
   video_player: ^2.8.2
   just_audio: ^0.9.42
   chewie: ^1.8.5

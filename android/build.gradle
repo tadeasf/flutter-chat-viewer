@@ -24,8 +24,8 @@ tasks.register("clean", Delete) {
 buildscript {
     ext.kotlin_version = '1.9.0'
     ext {
-        compileSdkVersion = 33
-        targetSdkVersion = 33
+        compileSdkVersion = 35
+        targetSdkVersion = 35
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }

@@ -180,10 +180,14 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
     if (!mounted) return;
 
+    final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-            'Collection is still being prepared. Please try again in a moment.'),
+          'Collection is still being prepared. Please try again in a moment.',
+          style: TextStyle(color: theme.colorScheme.onError),
+        ),
+        backgroundColor: theme.colorScheme.error,
       ),
     );
   }
@@ -202,197 +206,251 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
+    // Get screen width to make selector wider
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Use 90% of screen width for the selector
+    final selectorWidth = screenWidth * 0.9;
+    
     int maxMessageCount = filteredCollections.isNotEmpty
         ? filteredCollections
             .map((c) => c['messageCount'] as int)
             .reduce((a, b) => max(a, b))
         : 1;
 
-    return KeyboardListener(
-      focusNode: _keyboardFocusNode,
-      onKeyEvent: (KeyEvent event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.enter &&
-            filteredCollections.isNotEmpty) {
-          widget.onCollectionChanged(filteredCollections.first['name']);
-          return;
-        }
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isOpen)
-            Container(
-              height: 300,
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2E).withValues(alpha: 204),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 25),
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
+    // Get the scaffold background color directly from theme to ensure consistency
+    final scaffoldColor = theme.scaffoldBackgroundColor;
+    final cardColor = theme.cardColor;
+    
+    // We need a full-width, full-height colored container with no margins to ensure
+    // all content has the correct background color
+    return Container(
+      color: scaffoldColor, // Explicitly set background color for the whole widget
+      width: double.infinity, // Take full width
+      alignment: Alignment.center, // Center content
+      child: Container(
+        width: selectorWidth,
+        // Don't use padding on outer container to avoid white gaps
+        padding: EdgeInsets.zero,
+        margin: EdgeInsets.zero, // Explicitly set margin to zero
+        decoration: BoxDecoration(
+          color: scaffoldColor, // Match scaffold background color
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: KeyboardListener(
+          focusNode: _keyboardFocusNode,
+          onKeyEvent: (KeyEvent event) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.enter &&
+                filteredCollections.isNotEmpty) {
+              widget.onCollectionChanged(filteredCollections.first['name']);
+              return;
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isOpen)
+                Container(
+                  height: 350,
+                  width: selectorWidth,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDarkMode 
+                          ? Colors.black.withOpacity(0.5) 
+                          : Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: TextField(
-                            controller: searchController,
-                            focusNode: _searchFocusNode,
-                            onChanged: filterCollections,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'CaskaydiaCove Nerd Font',
-                              fontStyle: FontStyle.normal,
-                              fontWeight: FontWeight.w300,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: 'Search collections...',
-                              hintStyle: TextStyle(
-                                color: Colors.white54,
-                                fontFamily: 'CaskaydiaCove Nerd Font',
-                                fontStyle: FontStyle.normal,
-                                fontWeight: FontWeight.w300,
-                              ),
-                              prefixIcon:
-                                  Icon(Icons.search, color: Colors.white54),
-                              border: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(8)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(8)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white),
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(8)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: ListView.builder(
-                            controller: _scrollController,
-                            itemCount: filteredCollections.length + 1,
-                            itemBuilder: (context, index) {
-                              if (index == filteredCollections.length) {
-                                return isLoadingMore
-                                    ? const Center(
-                                        child: CircularProgressIndicator())
-                                    : const SizedBox.shrink();
-                              }
-                              final item = filteredCollections[index];
-                              final int messageCount =
-                                  item['messageCount'] as int;
-                              final double percentage = maxMessageCount > 0
-                                  ? messageCount / maxMessageCount
-                                  : 0;
-                              return ListTile(
-                                title: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${item['name']}: ',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontFamily: 'CaskaydiaCove Nerd Font',
-                                          fontStyle: FontStyle.normal,
-                                          fontWeight: FontWeight.w300,
-                                        ),
-                                      ),
-                                    ),
-                                    const Icon(Icons.message,
-                                        color: Colors.white, size: 18),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      formatMessageCount(messageCount),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        fontFamily: 'CaskaydiaCove Nerd Font',
-                                        fontStyle: FontStyle.normal,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                subtitle: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: LinearProgressIndicator(
-                                    value: percentage,
-                                    backgroundColor: Colors.grey[800],
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                            Color(0xFFCBA6F7)),
-                                    minHeight: 8,
+                  child: isLoading
+                      ? Center(child: CircularProgressIndicator(
+                          color: theme.colorScheme.primary))
+                      : Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: TextField(
+                                controller: searchController,
+                                focusNode: _searchFocusNode,
+                                onChanged: filterCollections,
+                                style: theme.textTheme.bodyMedium,
+                                decoration: InputDecoration(
+                                  hintText: 'Search collections...',
+                                  hintStyle: TextStyle(
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                                   ),
+                                  prefixIcon: Icon(
+                                    Icons.search, 
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderSide: BorderSide(color: theme.dividerColor),
+                                    borderRadius:
+                                        const BorderRadius.all(Radius.circular(8)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: theme.dividerColor),
+                                    borderRadius:
+                                        const BorderRadius.all(Radius.circular(8)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                                    borderRadius:
+                                        const BorderRadius.all(Radius.circular(8)),
+                                  ),
+                                  fillColor: theme.inputDecorationTheme.fillColor,
+                                  filled: true,
                                 ),
-                                onTap: () => switchToCollection(item['name']),
-                              );
-                            },
-                          ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  itemCount: filteredCollections.length + 1,
+                                  itemBuilder: (context, index) {
+                                    if (index == filteredCollections.length) {
+                                      return isLoadingMore
+                                          ? Center(
+                                              child: CircularProgressIndicator(
+                                                color: theme.colorScheme.primary))
+                                          : const SizedBox.shrink();
+                                    }
+                                    final item = filteredCollections[index];
+                                    final int messageCount =
+                                        item['messageCount'] as int;
+                                    final double percentage = maxMessageCount > 0
+                                        ? messageCount / maxMessageCount
+                                        : 0;
+                                    return Card(
+                                      elevation: 0,
+                                      color: isDarkMode 
+                                        ? theme.inputDecorationTheme.fillColor
+                                        : theme.cardColor,
+                                      margin: const EdgeInsets.symmetric(vertical: 4),
+                                      child: ListTile(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '${item['name']}: ',
+                                                style: theme.textTheme.bodyMedium,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Icon(Icons.message,
+                                                color: theme.iconTheme.color, size: 18),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              formatMessageCount(messageCount),
+                                              style: theme.textTheme.bodyMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        subtitle: Padding(
+                                          padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: LinearProgressIndicator(
+                                              value: percentage,
+                                              backgroundColor: isDarkMode
+                                                ? theme.colorScheme.background.withOpacity(0.3)
+                                                : theme.colorScheme.surface.withOpacity(0.3),
+                                              valueColor: AlwaysStoppedAnimation<Color>(
+                                                  theme.colorScheme.primary),
+                                              minHeight: 8,
+                                            ),
+                                          ),
+                                        ),
+                                        onTap: () => switchToCollection(item['name']),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                ),
+              // Use a container with explicit background color for the "Select Collection:" text
+              Container(
+                width: selectorWidth,
+                padding: const EdgeInsets.all(8),
+                // Explicitly match the background color of parent
+                color: scaffoldColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Apply background color directly to the text widget too
+                    Container(
+                      color: scaffoldColor,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      width: double.infinity,
+                      child: Text(
+                        'Select Collection:',
+                        style: theme.textTheme.titleMedium,
+                      ),
                     ),
-            ),
-          const Text('Select Collection:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'CaskaydiaCove Nerd Font',
-                fontStyle: FontStyle.normal,
-              )),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: _toggleCollectionSelector,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2E).withValues(alpha: 204),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 25),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.selectedCollection ?? 'Select a collection',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontFamily: 'CaskaydiaCove Nerd Font',
-                      fontStyle: FontStyle.normal,
-                      fontWeight: FontWeight.w300,
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: _toggleCollectionSelector,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDarkMode 
+                                ? Colors.black.withOpacity(0.5) 
+                                : Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.selectedCollection ?? 'Select a collection',
+                                style: theme.textTheme.bodyMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                              color: theme.iconTheme.color,
+                              size: 28,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  Icon(
-                    isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -66,67 +66,241 @@ class ThemeManager {
 
   static ThemeData getLightTheme() {
     return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
       fontFamily: 'JetBrainsMono',
+      scaffoldBackgroundColor: Colors.white,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF4A90A4),
+        onPrimary: Colors.white,
+        secondary: Color(0xFF3A8C7E),
+        onSecondary: Colors.white,
+        surface: Colors.white,
+        onSurface: Colors.black87,
+        background: Colors.white,
+        onBackground: Colors.black87,
+        error: Color(0xFFCC3A30),
+        onError: Colors.white,
+      ),
+      canvasColor: Colors.white,
+      cardColor: Colors.white,
+      dialogBackgroundColor: Colors.white,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF4A90A4),
+        foregroundColor: Colors.white,
+        iconTheme: IconThemeData(color: Colors.white),
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontSize: 20,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       textTheme: const TextTheme(
+        displayLarge: TextStyle(color: Colors.black87),
+        displayMedium: TextStyle(color: Colors.black87),
+        displaySmall: TextStyle(color: Colors.black87),
+        headlineLarge: TextStyle(color: Colors.black87),
+        headlineMedium: TextStyle(color: Colors.black87),
+        headlineSmall: TextStyle(color: Colors.black87),
+        titleLarge: TextStyle(
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          color: Colors.black87,
+          fontStyle: FontStyle.normal,
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: TextStyle(
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          color: Colors.black87,
+          fontStyle: FontStyle.normal,
+          fontWeight: FontWeight.w400,
+        ),
+        titleSmall: TextStyle(
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          color: Colors.black87,
+          fontStyle: FontStyle.normal,
+          fontWeight: FontWeight.w400,
+        ),
         bodyLarge: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
+          color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
         ),
         bodyMedium: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
+          color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
         ),
-        titleLarge: TextStyle(
+        bodySmall: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
+          color: Colors.black54,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
         ),
-        titleMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
-          fontStyle: FontStyle.normal,
-          fontWeight: FontWeight.w300,
+        labelLarge: TextStyle(color: Colors.black87),
+        labelMedium: TextStyle(color: Colors.black87),
+        labelSmall: TextStyle(color: Colors.black87),
+      ),
+      iconTheme: const IconThemeData(
+        color: Color(0xFF4A90A4),
+      ),
+      bottomAppBarTheme: const BottomAppBarTheme(
+        color: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      dividerColor: Colors.grey[300],
+      cardTheme: CardTheme(
+        color: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        titleSmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
-          fontStyle: FontStyle.normal,
-          fontWeight: FontWeight.w300,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        fillColor: Colors.grey[100],
+        filled: true,
+        labelStyle: const TextStyle(color: Colors.black87),
+        hintStyle: TextStyle(color: Colors.grey[600]),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey[300]!),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF4A90A4), width: 2),
+        ),
+      ),
+      listTileTheme: const ListTileThemeData(
+        textColor: Colors.black87,
+        iconColor: Color(0xFF4A90A4),
       ),
     );
   }
 
   static ThemeData getDarkTheme() {
     return ThemeData(
+      useMaterial3: true,
       brightness: Brightness.dark,
       fontFamily: 'JetBrainsMono',
-      textTheme: const TextTheme(
+      scaffoldBackgroundColor: AppColors.background,
+      colorScheme: ColorScheme.dark(
+        primary: AppColors.blue,
+        onPrimary: Colors.white,
+        secondary: AppColors.mauve,
+        onSecondary: Colors.white,
+        surface: const Color(0xFF202020),
+        onSurface: AppColors.text,
+        background: AppColors.background,
+        onBackground: AppColors.text,
+        error: AppColors.red,
+        onError: Colors.white,
+      ),
+      canvasColor: AppColors.background,
+      cardColor: const Color(0xFF252525),
+      dialogBackgroundColor: AppColors.surface1,
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF181818),
+        foregroundColor: AppColors.text,
+        iconTheme: IconThemeData(color: AppColors.text),
+        elevation: 4.0,
+        titleTextStyle: TextStyle(
+          color: AppColors.text,
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontSize: 20,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      textTheme: TextTheme(
+        displayLarge: TextStyle(color: AppColors.text),
+        displayMedium: TextStyle(color: AppColors.text),
+        displaySmall: TextStyle(color: AppColors.text),
+        headlineLarge: TextStyle(color: AppColors.text),
+        headlineMedium: TextStyle(color: AppColors.text),
+        headlineSmall: TextStyle(color: AppColors.text),
+        titleLarge: TextStyle(
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          color: AppColors.text,
+          fontStyle: FontStyle.normal,
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: TextStyle(
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          color: AppColors.text,
+          fontStyle: FontStyle.normal,
+          fontWeight: FontWeight.w400,
+        ),
+        titleSmall: TextStyle(
+          fontFamily: 'CaskaydiaCove Nerd Font',
+          color: AppColors.text,
+          fontStyle: FontStyle.normal,
+          fontWeight: FontWeight.w400,
+        ),
         bodyLarge: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
+          color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
         ),
         bodyMedium: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
+          color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
         ),
-        titleLarge: TextStyle(
+        bodySmall: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
+          color: AppColors.subtext1,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
         ),
-        titleMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
-          fontStyle: FontStyle.normal,
-          fontWeight: FontWeight.w300,
+        labelLarge: TextStyle(color: AppColors.text),
+        labelMedium: TextStyle(color: AppColors.text),
+        labelSmall: TextStyle(color: AppColors.text),
+      ),
+      iconTheme: IconThemeData(
+        color: AppColors.text,
+      ),
+      bottomAppBarTheme: BottomAppBarTheme(
+        color: const Color(0xFF181818),
+        surfaceTintColor: const Color(0xFF181818),
+      ),
+      dividerColor: AppColors.surface2,
+      cardTheme: CardTheme(
+        color: const Color(0xFF252525),
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        titleSmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
-          fontStyle: FontStyle.normal,
-          fontWeight: FontWeight.w300,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        fillColor: const Color(0xFF222222),
+        filled: true,
+        labelStyle: TextStyle(color: AppColors.text),
+        hintStyle: TextStyle(color: AppColors.subtext1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.surface2),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.surface2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.blue, width: 2),
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        textColor: AppColors.text,
+        iconColor: AppColors.blue,
+        tileColor: const Color(0xFF222222),
       ),
     );
   }

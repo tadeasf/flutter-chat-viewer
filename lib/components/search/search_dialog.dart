@@ -52,9 +52,11 @@ class SearchDialogState extends State<SearchDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: theme.colorScheme.surface,
       child: Container(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -64,42 +66,35 @@ class SearchDialogState extends State<SearchDialog> {
               _isCrossCollection
                   ? 'Search All Collections'
                   : 'Search in ${widget.selectedCollection?.split('_').join(' ')}',
-              style: const TextStyle(
-                fontSize: 20,
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontFamily: 'CaskaydiaCove Nerd Font',
-                fontStyle: FontStyle.normal,
               ),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              style: const TextStyle(color: Colors.white),
+              style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
                 hintText: 'Enter search term...',
-                hintStyle: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'CaskaydiaCove Nerd Font',
-                  fontStyle: FontStyle.normal,
-                  fontWeight: FontWeight.w300,
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
                 ),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                prefixIcon: Icon(Icons.search, color: theme.iconTheme.color?.withOpacity(0.6)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white24),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white24),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white),
+                  borderSide: BorderSide(color: theme.colorScheme.primary),
                 ),
                 filled: true,
-                fillColor: const Color(0xFF313244),
+                fillColor: theme.colorScheme.surface.withOpacity(0.7),
               ),
               onSubmitted: (_) {
                 if (!_isCrossCollection) {
@@ -109,15 +104,12 @@ class SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Search across all collections',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'CaskaydiaCove Nerd Font',
-                    fontStyle: FontStyle.normal,
-                    fontWeight: FontWeight.w300,
-                  )),
+              title: Text(
+                'Search across all collections',
+                style: theme.textTheme.bodyMedium,
+              ),
               value: _isCrossCollection,
-              activeColor: const Color(0xFFCBA6F7),
+              activeColor: theme.colorScheme.secondary,
               onChanged: (bool value) {
                 setState(() {
                   _isCrossCollection = value;
@@ -130,13 +122,10 @@ class SearchDialogState extends State<SearchDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'CaskaydiaCove Nerd Font',
-                        fontStyle: FontStyle.normal,
-                        fontWeight: FontWeight.w300,
-                      )),
+                  child: Text(
+                    'Cancel',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
@@ -146,27 +135,27 @@ class SearchDialogState extends State<SearchDialog> {
                       horizontal: 24,
                       vertical: 12,
                     ),
-                    backgroundColor: const Color(0xFFCBA6F7),
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: _isSearching
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                theme.colorScheme.onPrimary),
                           ),
                         )
                       : Text(
                           _isCrossCollection ? 'Search All' : 'Search',
-                          style: const TextStyle(
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize: 16,
-                            color: Colors.black,
-                            fontFamily: 'CaskaydiaCove Nerd Font',
+                            color: theme.colorScheme.onPrimary,
                           ),
                         ),
                 ),

@@ -50,28 +50,6 @@ class MessageItemState extends State<MessageItem> {
   bool _isExpanded = false;
   final Map<String, AudioPlayer> _audioPlayers = {};
 
-  // Darker and less vibrant Catppuccin Mocha inspired colors
-  static const Color base = Color(0xFF0D0D0D);
-  static const Color surface0 = Color(0xFF1A1A1A);
-  static const Color surface1 = Color(0xFF262626);
-  static const Color surface2 = Color(0xFF333333);
-  static const Color blue = Color(0xFF4A90A4); // Adjusted blue
-  static const Color lavender = Color(0xFF6A6A75);
-  static const Color sapphire = Color(0xFF005B99);
-  static const Color sky = Color(0xFF4A90A4);
-  static const Color teal = Color(0xFF3A8C7E);
-  static const Color green = Color(0xFF2A8C59);
-  static const Color yellow = Color(0xFFCCAA00);
-  static const Color peach = Color(0xFFCC7A00);
-  static const Color maroon = Color(0xFFCC3A30);
-  static const Color red = Color(0xFFCC2D55);
-  static const Color mauve = Color(0xFF8A52CC);
-  static const Color pink = Color(0xFFCC2D55);
-  static const Color flamingo = Color(0xFFCC3A30);
-  static const Color rosewater = Color(0xFFCC2D55);
-  static const Color text = Color(0xFFE5E5EA);
-  static const Color subtext1 = Color(0xFF8E8E93);
-
   String _ensureDecoded(dynamic text) {
     if (text == null) return '';
     if (text is! String) return text.toString();
@@ -180,14 +158,15 @@ class MessageItemState extends State<MessageItem> {
   }
 
   Color getTextColor() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     if (widget.isHighlighted) {
-      return isDarkMode ? Colors.white : Colors.black;
+      return theme.colorScheme.onSurface;
     }
-    return isDarkMode ? text : Colors.black87;
+    return theme.colorScheme.onSurface;
   }
 
   Widget buildMessageContent() {
+    final theme = Theme.of(context);
     final List<Widget> mediaWidgets = [];
     const double displayWidth = 300.0;
 
@@ -201,8 +180,7 @@ class MessageItemState extends State<MessageItem> {
             constraints: const BoxConstraints(maxWidth: displayWidth),
             child: Text(
               _ensureDecoded(widget.message['content']),
-              style: TextStyle(
-                color: getTextColor(),
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: ThemeManager.fontSize,
               ),
             ),
@@ -231,15 +209,24 @@ class MessageItemState extends State<MessageItem> {
                   width: displayWidth,
                   fit: BoxFit.cover,
                   memCacheWidth: (displayWidth * 2).toInt(),
-                  placeholder: (context, url) => const SizedBox(
+                  placeholder: (context, url) => SizedBox(
                     width: displayWidth,
                     height: displayWidth,
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
                   ),
-                  errorWidget: (context, url, error) => const SizedBox(
+                  errorWidget: (context, url, error) => SizedBox(
                     width: displayWidth,
                     height: displayWidth,
-                    child: Center(child: Icon(Icons.error)),
+                    child: Center(
+                      child: Icon(
+                        Icons.error,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -268,7 +255,7 @@ class MessageItemState extends State<MessageItem> {
                 width: displayWidth,
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 25),
+                  color: theme.colorScheme.surface.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -294,17 +281,22 @@ class MessageItemState extends State<MessageItem> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 25),
+                        color: theme.colorScheme.background.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.play_arrow, color: Colors.white),
-                          SizedBox(width: 4),
+                          Icon(
+                            Icons.play_arrow,
+                            color: theme.colorScheme.onBackground,
+                          ),
+                          const SizedBox(width: 4),
                           Text(
                             'Play Video',
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: theme.colorScheme.onBackground,
+                            ),
                           ),
                         ],
                       ),
@@ -374,8 +366,10 @@ class MessageItemState extends State<MessageItem> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const Center(
-          child: CircularProgressIndicator(),
+        return Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.primary,
+          ),
         );
       },
     );
@@ -418,44 +412,48 @@ class MessageItemState extends State<MessageItem> {
     if (!mounted) return;
     navigator.pop(); // Remove loading dialog
     scaffoldMessenger.showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-            'Collection is still being prepared. Please try again in a moment.'),
+          'Collection is still being prepared. Please try again in a moment.',
+          style: TextStyle(color: Theme.of(context).colorScheme.onError),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.error,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     final isInstagram = widget.message.containsKey('is_geoblocked_for_viewer');
 
     Color getBubbleColor() {
       if (widget.isHighlighted) {
-        return isDarkMode
-            ? const Color(0xFFFFD700).withValues(alpha: 38)
-            : const Color(0xFFFFD700).withValues(alpha: 20);
+        return theme.colorScheme.primary.withOpacity(0.2);
       }
       if (isInstagram) {
+        // Instagram styling
         if (widget.isAuthor) {
           return isDarkMode
-              ? const Color(0xFF8A4F6D).withValues(alpha: 76)
-              : const Color(0xFF8A4F6D).withValues(alpha: 76);
+              ? theme.colorScheme.secondary.withOpacity(0.3)
+              : theme.colorScheme.secondary.withOpacity(0.3);
         } else {
           return isDarkMode
-              ? const Color(0xFF8A4F6D).withValues(alpha: 153)
-              : const Color(0xFF8A4F6D).withValues(alpha: 153);
+              ? theme.colorScheme.secondary.withOpacity(0.6)
+              : theme.colorScheme.secondary.withOpacity(0.6);
         }
-      }
-      // Facebook styling
-      if (widget.isAuthor) {
-        return isDarkMode
-            ? surface1.withValues(alpha: 76)
-            : surface1.withValues(alpha: 76);
       } else {
-        return isDarkMode
-            ? sapphire.withValues(alpha: 76)
-            : sapphire.withValues(alpha: 76);
+        // Facebook styling
+        if (widget.isAuthor) {
+          return isDarkMode
+              ? theme.colorScheme.surface.withOpacity(0.3)
+              : theme.colorScheme.surface.withOpacity(0.3);
+        } else {
+          return isDarkMode
+              ? theme.colorScheme.primary.withOpacity(0.3)
+              : theme.colorScheme.primary.withOpacity(0.3);
+        }
       }
     }
 
@@ -500,19 +498,15 @@ class MessageItemState extends State<MessageItem> {
                       Text(
                         _ensureDecoded(
                             widget.message['sender_name'] ?? 'Unknown sender'),
-                        style: TextStyle(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: isDarkMode ? subtext1 : Colors.grey[700],
                         ),
                       ),
                       if (widget.isCrossCollectionSearch)
                         Text(
                           ' (${_ensureDecoded(widget.message['collectionName'] ?? 'Unknown collection')})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDarkMode ? subtext1 : Colors.grey[500],
-                          ),
+                          style: theme.textTheme.bodySmall,
                         ),
                     ],
                   ),
@@ -530,7 +524,7 @@ class MessageItemState extends State<MessageItem> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 127),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 3,
                         offset: const Offset(0, 1),
                       ),
@@ -548,10 +542,7 @@ class MessageItemState extends State<MessageItem> {
                               widget.message['timestamp_ms'],
                             ),
                           ),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: getTextColor().withValues(alpha: 178),
-                          ),
+                          style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ],
