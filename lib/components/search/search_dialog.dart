@@ -53,7 +53,7 @@ class SearchDialogState extends State<SearchDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       backgroundColor: theme.colorScheme.surface,
@@ -80,7 +80,8 @@ class SearchDialogState extends State<SearchDialog> {
                 hintStyle: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.hintColor,
                 ),
-                prefixIcon: Icon(Icons.search, color: theme.iconTheme.color?.withOpacity(0.6)),
+                prefixIcon: Icon(Icons.search,
+                    color: theme.iconTheme.color?.withValues(alpha: 0.6)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: theme.dividerColor),
@@ -94,7 +95,7 @@ class SearchDialogState extends State<SearchDialog> {
                   borderSide: BorderSide(color: theme.colorScheme.primary),
                 ),
                 filled: true,
-                fillColor: theme.colorScheme.surface.withOpacity(0.7),
+                fillColor: theme.colorScheme.surface.withValues(alpha: 0.7),
               ),
               onSubmitted: (_) {
                 if (!_isCrossCollection) {

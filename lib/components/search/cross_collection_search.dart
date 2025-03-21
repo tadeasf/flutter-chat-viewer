@@ -65,7 +65,7 @@ class CrossCollectionSearchDialogState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       backgroundColor: theme.colorScheme.surface,
@@ -103,7 +103,7 @@ class CrossCollectionSearchDialogState
                   borderSide: BorderSide(color: theme.colorScheme.primary),
                 ),
                 filled: true,
-                fillColor: theme.colorScheme.surface.withOpacity(0.7),
+                fillColor: theme.colorScheme.surface.withValues(alpha: 0.7),
               ),
               onSubmitted: (_) => _performSearch(),
             ),

@@ -77,14 +77,16 @@ class ThemeManager {
         onSecondary: Colors.white,
         surface: Colors.white,
         onSurface: Colors.black87,
-        background: Colors.white,
-        onBackground: Colors.black87,
+        surfaceTint: Colors.white,
+        onSurfaceVariant: Colors.black87,
         error: Color(0xFFCC3A30),
         onError: Colors.white,
       ),
       canvasColor: Colors.white,
       cardColor: Colors.white,
-      dialogBackgroundColor: Colors.white,
+      dialogTheme: const DialogTheme(
+        backgroundColor: Colors.white,
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF4A90A4),
         foregroundColor: Colors.white,
@@ -196,14 +198,16 @@ class ThemeManager {
         onSecondary: Colors.white,
         surface: const Color(0xFF202020),
         onSurface: AppColors.text,
-        background: AppColors.background,
-        onBackground: AppColors.text,
+        surfaceTint: AppColors.background,
+        onSurfaceVariant: AppColors.text,
         error: AppColors.red,
         onError: Colors.white,
       ),
       canvasColor: AppColors.background,
       cardColor: const Color(0xFF252525),
-      dialogBackgroundColor: AppColors.surface1,
+      dialogTheme: DialogTheme(
+        backgroundColor: AppColors.surface1,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: const Color(0xFF181818),
         foregroundColor: AppColors.text,
@@ -274,7 +278,7 @@ class ThemeManager {
       cardTheme: CardTheme(
         color: const Color(0xFF252525),
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.4),
+        shadowColor: Colors.black.withValues(alpha: 0.4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),

@@ -255,7 +255,7 @@ class MessageItemState extends State<MessageItem> {
                 width: displayWidth,
                 height: 200,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surface.withOpacity(0.3),
+                  color: theme.colorScheme.surface.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -281,7 +281,7 @@ class MessageItemState extends State<MessageItem> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.background.withOpacity(0.6),
+                        color: theme.colorScheme.surface.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -289,13 +289,13 @@ class MessageItemState extends State<MessageItem> {
                         children: [
                           Icon(
                             Icons.play_arrow,
-                            color: theme.colorScheme.onBackground,
+                            color: theme.colorScheme.onSurface,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Play Video',
                             style: TextStyle(
-                              color: theme.colorScheme.onBackground,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -356,68 +356,89 @@ class MessageItemState extends State<MessageItem> {
     int maxAttempts = 3;
     int currentAttempt = 0;
 
-    // Store context before async gap
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
+    final errorColor = Theme.of(context).colorScheme.error;
+    final onErrorColor = Theme.of(context).colorScheme.onError;
 
-    // Show loading dialog
+    final navigatorState = Navigator.of(context);
+    final scaffoldMessengerState = ScaffoldMessenger.of(context);
+
     if (!mounted) return;
+
+    final loadingDialog = AlertDialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      content: Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Center(
-          child: CircularProgressIndicator(
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        );
-      },
-    );
+      builder: (BuildContext dialogContext) => loadingDialog,
+    ).then((_) {
+      // Dialog closed, nothing to do
+    });
 
-    while (!collectionReady && currentAttempt < maxAttempts) {
-      try {
-        final messages = await ApiService.fetchMessages(collectionName);
+    try {
+      while (!collectionReady && currentAttempt < maxAttempts) {
+        try {
+          final messages = await ApiService.fetchMessages(collectionName);
 
-        if (!mounted) return;
+          if (!mounted) return;
 
-        // Check if we got the "please wait" response
-        final messageContent =
-            messages[0]['content']?.toString().toLowerCase() ?? '';
-        if (messages.length == 1 &&
-            messageContent.contains('please try loading collection again')) {
-          await Future.delayed(const Duration(seconds: 5));
+          final messageContent =
+              messages[0]['content']?.toString().toLowerCase() ?? '';
+          if (messages.length == 1 &&
+              messageContent.contains('please try loading collection again')) {
+            await Future.delayed(const Duration(seconds: 5));
+            currentAttempt++;
+            continue;
+          }
+
+          collectionReady = true;
+          break;
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error switching to collection: $e');
+          }
           currentAttempt++;
-          continue;
         }
+      }
 
-        // If we get here, the collection is ready
-        collectionReady = true;
+      if (mounted) {
+        navigatorState.pop();
 
-        if (!mounted) return;
-        navigator.pop(); // Remove loading dialog
-        widget.onMessageTap(
-          collectionName,
-          widget.message['timestamp_ms'],
-        );
-        return;
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error switching to collection: $e');
+        if (collectionReady) {
+          widget.onMessageTap(
+            collectionName,
+            widget.message['timestamp_ms'],
+          );
+        } else {
+          _showErrorSnackbar(scaffoldMessengerState, errorColor, onErrorColor,
+              'Collection is still being prepared. Please try again in a moment.');
         }
-        currentAttempt++;
+      }
+    } catch (e) {
+      if (mounted) {
+        navigatorState.pop();
+        _showErrorSnackbar(scaffoldMessengerState, errorColor, onErrorColor,
+            'Error loading collection: $e');
       }
     }
+  }
 
-    // If we get here, all attempts failed
-    if (!mounted) return;
-    navigator.pop(); // Remove loading dialog
-    scaffoldMessenger.showSnackBar(
+  void _showErrorSnackbar(ScaffoldMessengerState messenger, Color errorColor,
+      Color onErrorColor, String message) {
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
-          'Collection is still being prepared. Please try again in a moment.',
-          style: TextStyle(color: Theme.of(context).colorScheme.onError),
+          message,
+          style: TextStyle(color: onErrorColor),
         ),
-        backgroundColor: Theme.of(context).colorScheme.error,
+        backgroundColor: errorColor,
       ),
     );
   }
@@ -430,29 +451,29 @@ class MessageItemState extends State<MessageItem> {
 
     Color getBubbleColor() {
       if (widget.isHighlighted) {
-        return theme.colorScheme.primary.withOpacity(0.2);
+        return theme.colorScheme.primary.withValues(alpha: 0.2);
       }
       if (isInstagram) {
         // Instagram styling
         if (widget.isAuthor) {
           return isDarkMode
-              ? theme.colorScheme.secondary.withOpacity(0.3)
-              : theme.colorScheme.secondary.withOpacity(0.3);
+              ? theme.colorScheme.secondary.withValues(alpha: 0.3)
+              : theme.colorScheme.secondary.withValues(alpha: 0.3);
         } else {
           return isDarkMode
-              ? theme.colorScheme.secondary.withOpacity(0.6)
-              : theme.colorScheme.secondary.withOpacity(0.6);
+              ? theme.colorScheme.secondary.withValues(alpha: 0.6)
+              : theme.colorScheme.secondary.withValues(alpha: 0.6);
         }
       } else {
         // Facebook styling
         if (widget.isAuthor) {
           return isDarkMode
-              ? theme.colorScheme.surface.withOpacity(0.3)
-              : theme.colorScheme.surface.withOpacity(0.3);
+              ? theme.colorScheme.surface.withValues(alpha: 0.3)
+              : theme.colorScheme.surface.withValues(alpha: 0.3);
         } else {
           return isDarkMode
-              ? theme.colorScheme.primary.withOpacity(0.3)
-              : theme.colorScheme.primary.withOpacity(0.3);
+              ? theme.colorScheme.primary.withValues(alpha: 0.3)
+              : theme.colorScheme.primary.withValues(alpha: 0.3);
         }
       }
     }
@@ -524,7 +545,7 @@ class MessageItemState extends State<MessageItem> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 3,
                         offset: const Offset(0, 1),
                       ),
