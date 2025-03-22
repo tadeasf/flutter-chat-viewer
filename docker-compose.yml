@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8554:8664"
+    restart: unless-stopped
