@@ -18,9 +18,7 @@ class ImageDownloader {
 
       final response = await http.get(
         Uri.parse(imageUrl),
-        headers: kIsWeb
-            ? {'x-api-key': ApiService.headers['x-api-key'] ?? ''}
-            : ApiService.headers,
+        headers: kIsWeb ? null : ApiService.headers,
       );
 
       if (response.statusCode != 200) {

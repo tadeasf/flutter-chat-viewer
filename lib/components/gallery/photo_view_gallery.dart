@@ -126,10 +126,10 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
             builder: (BuildContext context, int index) {
               final photo = widget.photos[index];
               return PhotoViewGalleryPageOptions(
-                imageProvider: NetworkImage(
-                  _getPhotoUrl(photo),
-                  headers: kIsWeb ? null : ApiService.headers,
-                ),
+                imageProvider: kIsWeb
+                    ? NetworkImage(_getPhotoUrl(photo))
+                    : NetworkImage(_getPhotoUrl(photo),
+                        headers: ApiService.headers),
                 initialScale: PhotoViewComputedScale.contained,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: PhotoViewComputedScale.covered * 2,

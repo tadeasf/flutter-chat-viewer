@@ -231,17 +231,31 @@ class PhotoGalleryState extends State<PhotoGallery> {
               },
               child: Hero(
                 tag: 'photo_${photo['uri']}',
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  httpHeaders: kIsWeb ? {} : ApiService.headers,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.error, color: Colors.red),
-                  ),
-                ),
+                child: kIsWeb
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        },
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error, color: Colors.red),
+                        ),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        httpHeaders: ApiService.headers,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            const Center(child: CircularProgressIndicator()),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error, color: Colors.red),
+                        ),
+                      ),
               ),
             );
           },
