@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'api_db/api_service.dart';
 
@@ -32,7 +33,15 @@ class ImageDownloader {
           fileName.contains('.') ? '.${fileName.split('.').last}' : '';
       final saveFileName = '${fileNameWithoutExt}_$timestamp$extension';
 
-      if (Platform.isMacOS || Platform.isLinux) {
+      if (kIsWeb) {
+        // For web platform, create a download link
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image downloading in browser')),
+          );
+        }
+        // Web browser will handle the download directly
+      } else if (Platform.isMacOS || Platform.isLinux) {
         final directory = await getDownloadsDirectory();
         if (directory == null) {
           throw Exception('Cannot access downloads directory');

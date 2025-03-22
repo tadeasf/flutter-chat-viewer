@@ -18,6 +18,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
   intl: ^0.20.1
   image_picker: ^1.1.2
   http_parser: ^4.0.0
@@ -42,6 +44,7 @@ dependencies:
   just_audio: ^0.9.42
   chewie: ^1.8.5
   wakelock_plus: ^1.1.4
+  web: ^1.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -72,14 +75,6 @@ flutter:
 
   assets:
     - .env
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  remove_alpha_ios: true
-  image_path: "assets/icon/app_icon.png"
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 flutter_native_splash:
   color: "#42a5f5"

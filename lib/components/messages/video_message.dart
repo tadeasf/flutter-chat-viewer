@@ -3,6 +3,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import '../../utils/api_db/api_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 
 class VideoMessage extends StatefulWidget {
@@ -43,22 +44,31 @@ class VideoMessageState extends State<VideoMessage> {
         widget.videoUri,
       );
 
-      // First fetch the video data
-      final videoData = await ApiService.fetchVideoData(videoUrl);
+      if (kIsWeb) {
+        // For web, use network source directly
+        _videoPlayerController = VideoPlayerController.networkUrl(
+          Uri.parse(videoUrl),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          httpHeaders: ApiService.headers,
+        );
+      } else {
+        // First fetch the video data
+        final videoData = await ApiService.fetchVideoData(videoUrl);
 
-      // Get temporary directory
-      final dir = await getTemporaryDirectory();
-      final file = File(
-          '${dir.path}/temp_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+        // Get temporary directory
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/temp_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
 
-      // Write video data to temporary file
-      await file.writeAsBytes(videoData);
+        // Write video data to temporary file
+        await file.writeAsBytes(videoData);
 
-      // Initialize video player with local file
-      _videoPlayerController = VideoPlayerController.file(
-        file,
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-      );
+        // Initialize video player with local file
+        _videoPlayerController = VideoPlayerController.file(
+          file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      }
 
       await _videoPlayerController.initialize();
 

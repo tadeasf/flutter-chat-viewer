@@ -6,12 +6,55 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // Add this import
 import 'components/messages/message_selector.dart';
 import 'components/ui_utils/theme_manager.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:logging/logging.dart';
+import 'utils/api_db/api_service.dart';
 
 void main() async {
-  await dotenv.load(fileName: ".env");
-  runApp(MyApp());
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize logging
+  Logger.root.level = Level.INFO;
+  Logger.root.onRecord.listen((record) {
+    // Use print in development, but in production this could be connected to
+    // a more sophisticated logging system
+    if (kDebugMode) {
+      print('${record.level.name}: ${record.time}: ${record.message}');
+    }
+    if (record.error != null) {
+      if (kDebugMode) {
+        print('Error: ${record.error}');
+      }
+    }
+    if (record.stackTrace != null) {
+      if (kDebugMode) {
+        print('Stack trace: ${record.stackTrace}');
+      }
+    }
+  });
+
+  // Load environment variables
+  if (kIsWeb) {
+    // For web, we'll set a dummy value initially
+    // The API key will be injected by the Dockerfile into window.FLUTTER_ENV
+    // and ApiService will read it directly from the HTML when needed
+    dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
+    if (kDebugMode) {
+      print(
+          "Web environment: API key will be read from window.FLUTTER_ENV at runtime");
+    }
+  } else {
+    // Load from .env file for native platforms
+    await dotenv.load(fileName: ".env");
+    if (kDebugMode) {
+      print("Native environment: Loaded API key from .env file");
+    }
+  }
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -32,7 +75,7 @@ class _MyAppState extends State<MyApp> {
         _themeMode = mode;
       });
     });
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       _requestPermissions();
     }
   }
@@ -194,6 +237,7 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
           ClipOval(
             child: CachedNetworkImage(
               imageUrl: _imageUrl ?? '',
+              httpHeaders: ApiService.headers,
               width: widget.size,
               height: widget.size,
               fit: BoxFit.cover,
