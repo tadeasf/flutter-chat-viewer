@@ -10,6 +10,7 @@ import '../search/search_type.dart';
 import '../messages/message_index_manager.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../utils/web_image_viewer.dart';
 
 class PhotoGallery extends StatefulWidget {
   final String collectionName;
@@ -232,15 +233,12 @@ class PhotoGalleryState extends State<PhotoGallery> {
               child: Hero(
                 tag: 'photo_${photo['uri']}',
                 child: kIsWeb
-                    ? Image.network(
-                        imageUrl,
+                    ? WebImageViewer(
+                        imageUrl: imageUrl,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        },
-                        errorBuilder: (context, error, stackTrace) => Container(
+                        loadingWidget:
+                            const Center(child: CircularProgressIndicator()),
+                        errorWidget: Container(
                           color: Colors.grey[300],
                           child: const Icon(Icons.error, color: Colors.red),
                         ),

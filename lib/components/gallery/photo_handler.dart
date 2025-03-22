@@ -5,6 +5,7 @@ import 'photo_gallery.dart';
 import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PhotoHandler {
   static final Logger _logger = Logger('PhotoHandler');
@@ -96,16 +97,60 @@ class PhotoHandler {
     if (selectedCollection == null) return;
 
     try {
-      final response = await ApiService.get(
-        '/messages/${Uri.encodeComponent(selectedCollection)}/photo',
-        headers: {'x-api-key': ApiService.apiKey},
-      );
-      final isAvailable = json.decode(response.body)['isPhotoAvailable'];
-      setState(() {
-        isPhotoAvailable = isAvailable;
-      });
+      // Use standard API for native platforms, direct URL for web
+      if (kIsWeb) {
+        try {
+          final url = ApiService.getProfilePhotoUrl(selectedCollection);
+          final imageStream =
+              NetworkImage(url).resolve(const ImageConfiguration());
+          bool hasError = false;
+
+          final imageStreamListener = ImageStreamListener(
+            (ImageInfo info, bool _) {
+              setState(() {
+                isPhotoAvailable = true;
+              });
+            },
+            onError: (dynamic error, StackTrace? stackTrace) {
+              hasError = true;
+              setState(() {
+                isPhotoAvailable = false;
+              });
+            },
+          );
+
+          imageStream.addListener(imageStreamListener);
+
+          // Wait for 3 seconds for the image to load or fail
+          await Future.delayed(const Duration(seconds: 3));
+          imageStream.removeListener(imageStreamListener);
+
+          if (!hasError) {
+            setState(() {
+              isPhotoAvailable = true;
+            });
+          }
+        } catch (e) {
+          _logger.warning('Error checking photo availability on web: $e');
+          setState(() {
+            isPhotoAvailable = false;
+          });
+        }
+      } else {
+        final response = await ApiService.get(
+          '/messages/${Uri.encodeComponent(selectedCollection)}/photo',
+          headers: {'x-api-key': ApiService.apiKey},
+        );
+        final isAvailable = json.decode(response.body)['isPhotoAvailable'];
+        setState(() {
+          isPhotoAvailable = isAvailable;
+        });
+      }
     } catch (e) {
       _logger.warning('Error checking photo availability: $e');
+      setState(() {
+        isPhotoAvailable = false;
+      });
     }
   }
 
