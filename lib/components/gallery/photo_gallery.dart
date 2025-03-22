@@ -236,6 +236,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
                     ? WebImageViewer(
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
+                        useCorsProxy: true,
                         loadingWidget:
                             const Center(child: CircularProgressIndicator()),
                         errorWidget: Container(

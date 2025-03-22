@@ -7,15 +7,37 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import '../../utils/api_db/api_service.dart';
 
-class PhotoViewScreen extends StatelessWidget {
+class PhotoViewScreen extends StatefulWidget {
   final String imageUrl;
-  final String collectionName;
+  final String? heroTag;
+  final String? messageId;
+  final String? conversationId;
 
   const PhotoViewScreen({
     super.key,
     required this.imageUrl,
-    required this.collectionName,
+    this.heroTag,
+    this.messageId,
+    this.conversationId,
   });
+
+  @override
+  State<PhotoViewScreen> createState() => PhotoViewScreenState();
+}
+
+class PhotoViewScreenState extends State<PhotoViewScreen> {
+  late String imageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    imageUrl = widget.imageUrl;
+
+    // Use CORS proxy for web
+    if (kIsWeb) {
+      imageUrl = 'https://corsproxy.io/?${Uri.encodeComponent(imageUrl)}';
+    }
+  }
 
   Future<void> _downloadImage(BuildContext context) async {
     try {
@@ -80,7 +102,8 @@ class PhotoViewScreen extends StatelessWidget {
         children: [
           PhotoView(
             imageProvider: kIsWeb
-                ? NetworkImage(imageUrl)
+                ? NetworkImage(
+                    'https://corsproxy.io/?${Uri.encodeComponent(imageUrl)}')
                 : NetworkImage(imageUrl, headers: ApiService.headers),
             minScale: PhotoViewComputedScale.contained * 0.8,
             maxScale: PhotoViewComputedScale.covered * 2,

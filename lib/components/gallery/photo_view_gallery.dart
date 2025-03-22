@@ -1,10 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../../utils/api_db/api_service.dart';
 import '../../utils/image_downloader.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
@@ -76,7 +76,13 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     if (uri.startsWith('messages/inbox/')) {
       final collectionName = uri.split('/')[2];
       final filename = uri.split('/').last;
-      return ApiService.getPhotoUrl(collectionName, filename);
+      final directUrl = ApiService.getPhotoUrl(collectionName, filename);
+
+      // Use CORS proxy for web platform
+      if (kIsWeb) {
+        return 'https://corsproxy.io/?${Uri.encodeComponent(directUrl)}';
+      }
+      return directUrl;
     }
 
     return ApiService.getPhotoUrl(widget.collectionName, uri);
