@@ -113,6 +113,7 @@ void main() async {
     StoreProvider(
       profilePhotoStore: Stores.profilePhotoStore,
       collectionStore: Stores.collectionStore,
+      messageStore: Stores.messageStore,
       child: const MyApp(),
     ),
   );
