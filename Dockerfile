@@ -15,5 +15,5 @@ COPY build/web /app/build/web
 # Expose port for the web server
 EXPOSE 8664
 
-# Run dhttpd server
-CMD ["dhttpd", "--path", "build/web", "--port", "8664"]
+# Run dhttpd server, binding to all interfaces
+CMD ["dhttpd", "--path", "build/web", "--port", "8664", "--host", "0.0.0.0"]
