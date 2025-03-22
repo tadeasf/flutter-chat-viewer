@@ -7,6 +7,7 @@ import '../../utils/image_downloader.dart';
 import 'package:flutter/services.dart';
 // Conditionally import dart:js only for web
 import '../../utils/js_util.dart';
+import '../../utils/web_image_viewer.dart';
 
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
@@ -48,6 +49,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
   @override
   void dispose() {
     _focusNode.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -115,41 +117,71 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                             widget.onJumpToGallery?.call(_currentIndex),
                         tooltip: 'Jump to Gallery',
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.download),
-                      onPressed: () => _downloadCurrentImage(),
-                      tooltip: 'Download Image',
-                    ),
+                    if (kIsWeb)
+                      IconButton(
+                        icon: const Icon(Icons.download),
+                        onPressed: () => _downloadCurrentImage(),
+                        tooltip: 'Download Image',
+                      ),
                   ],
                 )
               : null,
-          body: PhotoViewGallery.builder(
-            scrollPhysics: const BouncingScrollPhysics(),
-            builder: (BuildContext context, int index) {
-              final photo = widget.photos[index];
-              return PhotoViewGalleryPageOptions(
-                imageProvider: NetworkImage(_getPhotoUrl(photo),
-                    headers: ApiService.headers),
-                initialScale: PhotoViewComputedScale.contained,
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: PhotoViewComputedScale.covered * 2,
-                heroAttributes:
-                    PhotoViewHeroAttributes(tag: 'photo_${photo['uri']}'),
-              );
-            },
-            itemCount: widget.photos.length,
-            loadingBuilder: (context, event) => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            pageController: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-          ),
+          body: kIsWeb
+              ? _buildWebGallery()
+              : PhotoViewGallery.builder(
+                  scrollPhysics: const BouncingScrollPhysics(),
+                  builder: (BuildContext context, int index) {
+                    final photo = widget.photos[index];
+                    return PhotoViewGalleryPageOptions(
+                      imageProvider: NetworkImage(_getPhotoUrl(photo),
+                          headers: ApiService.headers),
+                      initialScale: PhotoViewComputedScale.contained,
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: PhotoViewComputedScale.covered * 2,
+                      heroAttributes:
+                          PhotoViewHeroAttributes(tag: 'photo_${photo['uri']}'),
+                    );
+                  },
+                  itemCount: widget.photos.length,
+                  loadingBuilder: (context, event) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  pageController: _pageController,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _currentIndex = index;
+                    });
+                  },
+                ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWebGallery() {
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: widget.photos.length,
+      onPageChanged: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      itemBuilder: (context, index) {
+        final photo = widget.photos[index];
+        final imageUrl = _getPhotoUrl(photo);
+        return Center(
+          child: Hero(
+            tag: 'photo_${photo['uri']}',
+            child: WebImageViewer(
+              imageUrl: imageUrl,
+              fit: BoxFit.contain,
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height,
+            ),
+          ),
+        );
+      },
     );
   }
 

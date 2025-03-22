@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../gallery/photo_handler.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import 'profile_photo_manager.dart';
 import 'package:logging/logging.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
+import '../../utils/web_image_viewer.dart';
 
 class ProfilePhoto extends StatefulWidget {
   final String collectionName;
@@ -142,23 +144,30 @@ class ProfilePhotoState extends State<ProfilePhoto> {
               )
             else
               ClipOval(
-                child: CachedNetworkImage(
-                  imageUrl: _imageUrl!,
-                  httpHeaders: ApiService.headers,
-                  width: widget.size,
-                  height: widget.size,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, error, stackTrace) {
-                    _logger.warning('Error loading image: $error');
-                    return Icon(
-                      Icons.account_circle,
-                      size: widget.size,
-                      color: Colors.grey,
-                    );
-                  },
-                ),
+                child: kIsWeb
+                    ? WebImageViewer(
+                        imageUrl: _imageUrl!,
+                        width: widget.size,
+                        height: widget.size,
+                        fit: BoxFit.cover,
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: _imageUrl!,
+                        httpHeaders: ApiService.headers,
+                        width: widget.size,
+                        height: widget.size,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            const Center(child: CircularProgressIndicator()),
+                        errorWidget: (context, error, stackTrace) {
+                          _logger.warning('Error loading image: $error');
+                          return Icon(
+                            Icons.account_circle,
+                            size: widget.size,
+                            color: Colors.grey,
+                          );
+                        },
+                      ),
               ),
             if (widget.isOnline)
               Positioned(
