@@ -101,8 +101,8 @@ class PhotoHandler {
       if (kIsWeb) {
         try {
           final url = ApiService.getProfilePhotoUrl(selectedCollection);
-          final imageStream =
-              NetworkImage(url).resolve(const ImageConfiguration());
+          final imageStream = NetworkImage(url, headers: ApiService.headers)
+              .resolve(const ImageConfiguration());
           bool hasError = false;
 
           final imageStreamListener = ImageStreamListener(

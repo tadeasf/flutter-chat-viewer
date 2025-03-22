@@ -1,8 +1,9 @@
 // This file is only used in web builds
 // ignore_for_file: avoid_web_libraries_in_flutter
 
-import 'package:web/web.dart' as web;
 import 'package:logging/logging.dart';
+import 'api_db/api_service.dart';
+import 'package:web/web.dart';
 
 /// Web implementation of file downloads using package:web
 ///
@@ -23,24 +24,47 @@ class WebDownloaderImpl {
 /// This function is called from js_util.dart and replaces the stub implementation
 void webDownload(String url, String filename) {
   try {
-    // Create an anchor element using package:web
-    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
-      ..href = url
-      ..setAttribute('download', filename)
-      ..target = '_blank'
-      ..style.display = 'none';
-
-    // Add to the DOM
-    web.document.body!.appendChild(anchor);
-
-    // Trigger the download
-    anchor.click();
-
-    // Clean up
-    anchor.remove();
-
     final logger = Logger('WebDownloader');
-    logger.info('Download initiated for $filename');
+
+    // Create an XMLHttpRequest to fetch with headers
+    final xhr = XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'blob';
+    xhr.setRequestHeader('x-api-key', ApiService.apiKey);
+
+    xhr.onLoad.listen((event) {
+      if (xhr.status == 200) {
+        final blob = xhr.response as Blob;
+        final blobUrl = URL.createObjectURL(blob);
+
+        // Create an anchor element using package:web
+        final anchor = document.createElement('a') as HTMLAnchorElement
+          ..href = blobUrl
+          ..download = filename
+          ..target = '_blank'
+          ..style.display = 'none';
+
+        // Add to the DOM
+        document.body!.appendChild(anchor);
+
+        // Trigger the download
+        anchor.click();
+
+        // Clean up
+        anchor.remove();
+        URL.revokeObjectURL(blobUrl);
+
+        logger.info('Download initiated for $filename');
+      } else {
+        logger.warning('Failed to download file: HTTP ${xhr.status}');
+      }
+    });
+
+    xhr.onError.listen((event) {
+      logger.warning('XHR error during download: $event');
+    });
+
+    xhr.send();
   } catch (e) {
     final logger = Logger('WebDownloader');
     logger.warning('Failed to download file: $e');

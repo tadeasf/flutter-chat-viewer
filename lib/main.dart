@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logging/logging.dart';
+import 'utils/api_db/api_service.dart';
 
 void main() async {
   // Initialize logging
@@ -223,6 +224,7 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
           ClipOval(
             child: CachedNetworkImage(
               imageUrl: _imageUrl ?? '',
+              httpHeaders: ApiService.headers,
               width: widget.size,
               height: widget.size,
               fit: BoxFit.cover,
