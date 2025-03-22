@@ -4,10 +4,11 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:typed_data';
 import 'url_formatter.dart';
 import 'web_http_client.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
-  static const String apiKey = '0tXEQJs2QUHK';
+  static String get apiKey => dotenv.env['X_API_KEY'] ?? '';
   static final Map<String, String> _profilePhotoUrls = {};
 
   static Map<String, String> get headers {
@@ -38,6 +39,13 @@ class ApiService {
 
   static Future<List<Map<String, dynamic>>> fetchCollections() async {
     final url = Uri.parse('$baseUrl/collections');
+
+    if (kDebugMode) {
+      print('Fetch Collections Request:');
+      print('URL: $url');
+      print('Headers: $headers');
+      print('x-api-key: $apiKey');
+    }
 
     http.Response response;
     if (kIsWeb) {
