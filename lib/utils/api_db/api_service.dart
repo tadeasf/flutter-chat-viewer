@@ -4,10 +4,26 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:typed_data';
 import 'url_formatter.dart';
 import 'web_http_client.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../js_util.dart';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
-  static const String apiKey = '0tXEQJs2QUHK';
+
+  // API key getter that checks for web environment to use window.FLUTTER_ENV
+  static String get apiKey {
+    if (kIsWeb) {
+      // Try to get the API key from window.FLUTTER_ENV in web mode
+      final webApiKey = getApiKey();
+      if (webApiKey != null && webApiKey.isNotEmpty) {
+        return webApiKey;
+      }
+    }
+
+    // Fallback to dotenv for native platforms or if web API key not available
+    return dotenv.env['X_API_KEY'] ?? '';
+  }
+
   static final Map<String, String> _profilePhotoUrls = {};
 
   static Map<String, String> get headers {
@@ -38,6 +54,13 @@ class ApiService {
 
   static Future<List<Map<String, dynamic>>> fetchCollections() async {
     final url = Uri.parse('$baseUrl/collections');
+
+    if (kDebugMode) {
+      print('Fetch Collections Request:');
+      print('URL: $url');
+      print('Headers: $headers');
+      print('x-api-key: $apiKey');
+    }
 
     http.Response response;
     if (kIsWeb) {
@@ -459,5 +482,11 @@ class ApiService {
     } catch (e) {
       throw Exception('Failed to load video: $e');
     }
+  }
+
+  /// Returns a direct image URL for web downloads
+  /// This URL can be used to open in a new tab for direct downloads
+  static String getWebDownloadUrl(String collectionName, String filename) {
+    return '$baseUrl/inbox/${Uri.encodeComponent(collectionName)}/photos/$filename';
   }
 }

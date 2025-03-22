@@ -5,7 +5,6 @@ import 'package:photo_view/photo_view_gallery.dart';
 import '../../utils/api_db/api_service.dart';
 import '../../utils/image_downloader.dart';
 import 'package:flutter/services.dart';
-// Conditionally import dart:js only for web
 import '../../utils/js_util.dart';
 import '../../utils/web_image_viewer.dart';
 
@@ -84,6 +83,12 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     }
 
     return ApiService.getPhotoUrl(widget.collectionName, uri);
+  }
+
+  /// Extract filename from URI path
+  String _getFilename(Map<String, dynamic> photo) {
+    final uri = photo['uri'] as String;
+    return uri.split('/').last;
   }
 
   @override
@@ -190,6 +195,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
 
     final photo = widget.photos[_currentIndex];
     final imageUrl = _getPhotoUrl(photo);
+    final filename = _getFilename(photo);
 
     // Show a confirmation dialog
     final shouldDownload = await showDialog<bool>(
@@ -214,22 +220,40 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
 
     if (shouldDownload == true && mounted) {
       if (kIsWeb) {
-        _downloadImageWithJS(imageUrl);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Starting download...')),
-        );
+        _downloadForWeb(filename);
       } else {
         await ImageDownloader.downloadImage(context, imageUrl);
       }
     }
   }
 
-  // Use JavaScript to download the image in web browsers
-  void _downloadImageWithJS(String url) {
-    if (kIsWeb) {
-      final filename = url.split('/').last;
-      downloadWithJS(url, filename);
+  void _downloadForWeb(String filename) {
+    try {
+      if (kIsWeb) {
+        final currentPhoto = widget.photos[_currentIndex];
+        final uri = currentPhoto['uri'] as String;
+
+        // Try to extract collection name from the URI if available
+        String collectionName = widget.collectionName;
+        if (uri.startsWith('messages/inbox/')) {
+          collectionName = uri.split('/')[2];
+        }
+
+        // Get a direct URL that works without API key
+        final directUrl =
+            ApiService.getWebDownloadUrl(collectionName, filename);
+
+        // Open in new tab using the utility function
+        openInNewTab(directUrl);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image opened in new tab')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to open image: $e')),
+      );
     }
   }
 }

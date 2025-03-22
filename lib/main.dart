@@ -13,6 +13,9 @@ import 'package:logging/logging.dart';
 import 'utils/api_db/api_service.dart';
 
 void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize logging
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen((record) {
@@ -35,13 +38,23 @@ void main() async {
 
   // Load environment variables
   if (kIsWeb) {
-    // Web environment variables are loaded from the window.FLUTTER_ENV object in index.html
-    dotenv.load(); // Just initialize without a file for web
+    // For web, we'll set a dummy value initially
+    // The API key will be injected by the Dockerfile into window.FLUTTER_ENV
+    // and ApiService will read it directly from the HTML when needed
+    dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
+    if (kDebugMode) {
+      print(
+          "Web environment: API key will be read from window.FLUTTER_ENV at runtime");
+    }
   } else {
     // Load from .env file for native platforms
     await dotenv.load(fileName: ".env");
+    if (kDebugMode) {
+      print("Native environment: Loaded API key from .env file");
+    }
   }
-  runApp(MyApp());
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
