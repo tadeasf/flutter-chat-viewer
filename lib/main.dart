@@ -11,6 +11,12 @@ import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logging/logging.dart';
 import 'utils/api_db/api_service.dart';
+import 'package:flutter/services.dart';
+// Use JsBridge for JS interactions
+import 'utils/js_bridge.dart';
+// Import web initialization
+import 'utils/web_init.dart' if (dart.library.io) 'utils/web_init_stub.dart';
+import 'stores/store_provider.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -36,6 +42,55 @@ void main() async {
     }
   });
 
+  // Initialize JavaScript bridge for web
+  if (kIsWeb) {
+    // We use dynamic imports to avoid including web-specific code in native builds
+    try {
+      // Initialize web-specific features
+      initializeForWeb();
+
+      if (kDebugMode) {
+        print('Web initialization complete');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error initializing web features: $e');
+      }
+    }
+  }
+
+  // Set up method channel for web JavaScript interop
+  if (kIsWeb) {
+    const platform = MethodChannel('app.meta_elysia/js_interop');
+    platform.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'getApiKey':
+          try {
+            // Access the API key from window.FLUTTER_ENV
+            final apiKey = JsBridge.getWindowProperty('FLUTTER_ENV.X_API_KEY');
+            return apiKey?.toString() ?? '';
+          } catch (e) {
+            Logger('JSInterop').warning('Error accessing API key: $e');
+            return '';
+          }
+        case 'openInNewTab':
+          try {
+            final url = call.arguments['url'] as String;
+            JsBridge.openInNewTab(url);
+            return true;
+          } catch (e) {
+            Logger('JSInterop').warning('Error opening URL: $e');
+            return false;
+          }
+        default:
+          throw PlatformException(
+            code: 'UNSUPPORTED_METHOD',
+            message: 'Method ${call.method} not supported',
+          );
+      }
+    });
+  }
+
   // Load environment variables
   if (kIsWeb) {
     // For web, we'll set a dummy value initially
@@ -54,7 +109,13 @@ void main() async {
     }
   }
 
-  runApp(const MyApp());
+  runApp(
+    StoreProvider(
+      profilePhotoStore: Stores.profilePhotoStore,
+      collectionStore: Stores.collectionStore,
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {

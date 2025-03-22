@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' show max;
-import '../../utils/api_db/load_collections.dart';
 import '../../utils/api_db/api_service.dart';
+import '../../stores/store_provider.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
 
 class CollectionSelector extends StatefulWidget {
   final String? selectedCollection;
@@ -22,22 +23,18 @@ class CollectionSelector extends StatefulWidget {
 
 class CollectionSelectorState extends State<CollectionSelector> {
   bool isOpen = false;
-  late List<Map<String, dynamic>> collections;
-  late List<Map<String, dynamic>> filteredCollections;
   final TextEditingController searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
-  bool isLoading = true;
   final FocusNode _keyboardFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    collections = [];
-    filteredCollections = [];
     _scrollController.addListener(_scrollListener);
-    _loadInitialCollections();
+    // Refresh collections when opened initially
+    _refreshCollections();
   }
 
   @override
@@ -58,62 +55,20 @@ class CollectionSelectorState extends State<CollectionSelector> {
   }
 
   Future<void> _loadMoreCollections() async {
-    if (!isLoadingMore) {
-      setState(() {
-        isLoadingMore = true;
-      });
-
-      final newCollections = await loadMoreCollections();
-
-      setState(() {
-        collections.addAll(newCollections);
-        filteredCollections = collections;
-        isLoadingMore = false;
-      });
+    final store = StoreProvider.of(context).collectionStore;
+    if (!store.isLoading) {
+      await store.loadMoreCollections();
     }
   }
 
-  Future<void> _loadInitialCollections() async {
-    setState(() {
-      isLoading = true;
-    });
-    await loadCollections((loadedCollections) {
-      setState(() {
-        collections = loadedCollections
-            .where((collection) => collection['name'] != 'unified_collection')
-            .toList();
-        filteredCollections = collections;
-        isLoading = false;
-      });
-    });
+  Future<void> _refreshCollections() async {
+    final store = StoreProvider.of(context).collectionStore;
+    await store.refreshCollections();
   }
 
-  Future<void> refreshCollections() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    await loadCollections((loadedCollections) {
-      setState(() {
-        collections = loadedCollections
-            .where((collection) => collection['name'] != 'unified_collection')
-            .toList()
-          ..sort((a, b) => (b['hits'] ?? 0)
-              .compareTo(a['hits'] ?? 0)); // Sort by hits descending
-        filteredCollections = collections;
-        isLoading = false;
-      });
-    });
-  }
-
-  void filterCollections(String query) {
-    setState(() {
-      filteredCollections = collections
-          .where((collection) =>
-              collection['name'].toLowerCase().contains(query.toLowerCase()) &&
-              collection['name'] != 'unified_collection')
-          .toList();
-    });
+  void _applyFilter(String query) {
+    final store = StoreProvider.of(context).collectionStore;
+    store.setFilterQuery(query);
   }
 
   String formatMessageCount(int count) {
@@ -128,9 +83,11 @@ class CollectionSelectorState extends State<CollectionSelector> {
   Future<void> switchToCollection(String collectionName) async {
     if (!mounted) return;
 
+    final store = StoreProvider.of(context).collectionStore;
+
     // Show loading state
     setState(() {
-      isLoading = true;
+      isOpen = false; // Close the selector
     });
 
     bool collectionReady = false;
@@ -157,14 +114,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
         // If we get here, the collection is ready
         collectionReady = true;
         widget.onCollectionChanged(collectionName);
-        await refreshCollections();
-
-        if (!mounted) return;
-
-        setState(() {
-          isLoading = false;
-          isOpen = false;
-        });
+        await store.refreshCollections();
         return;
       } catch (e) {
         currentAttempt++;
@@ -174,12 +124,6 @@ class CollectionSelectorState extends State<CollectionSelector> {
     if (!mounted) return;
 
     // If we get here, all attempts failed
-    setState(() {
-      isLoading = false;
-    });
-
-    if (!mounted) return;
-
     final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -197,7 +141,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
       isOpen = !isOpen;
     });
     if (isOpen) {
-      refreshCollections();
+      _refreshCollections();
       Future.delayed(const Duration(milliseconds: 100), () {
         _searchFocusNode.requestFocus();
       });
@@ -208,17 +152,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
+    final store = StoreProvider.of(context).collectionStore;
 
     // Get screen width to make selector wider
     final screenWidth = MediaQuery.of(context).size.width;
     // Use 90% of screen width for the selector
     final selectorWidth = screenWidth * 0.9;
-
-    int maxMessageCount = filteredCollections.isNotEmpty
-        ? filteredCollections
-            .map((c) => c['messageCount'] as int)
-            .reduce((a, b) => max(a, b))
-        : 1;
 
     // Get the scaffold background color directly from theme to ensure consistency
     final scaffoldColor = theme.scaffoldBackgroundColor;
@@ -244,9 +183,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
           focusNode: _keyboardFocusNode,
           onKeyEvent: (KeyEvent event) {
             if (event is KeyDownEvent &&
-                event.logicalKey == LogicalKeyboardKey.enter &&
-                filteredCollections.isNotEmpty) {
-              widget.onCollectionChanged(filteredCollections.first['name']);
+                event.logicalKey == LogicalKeyboardKey.enter) {
+              // Using Observer to listen to filteredCollections
+              final filteredCollections = store.filteredCollections;
+              if (filteredCollections.isNotEmpty) {
+                widget.onCollectionChanged(filteredCollections.first['name']);
+              }
               return;
             }
           },
@@ -272,144 +214,167 @@ class CollectionSelectorState extends State<CollectionSelector> {
                       ),
                     ],
                   ),
-                  child: isLoading
-                      ? Center(
-                          child: CircularProgressIndicator(
-                              color: theme.colorScheme.primary))
-                      : Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: TextField(
-                                controller: searchController,
-                                focusNode: _searchFocusNode,
-                                onChanged: filterCollections,
-                                style: theme.textTheme.bodyMedium,
-                                decoration: InputDecoration(
-                                  hintText: 'Search collections...',
-                                  hintStyle: TextStyle(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
+                  child: Observer(
+                    builder: (_) {
+                      final isLoading = store.isLoading;
+                      final filteredCollections = store.filteredCollections;
+                      // Calculate max message count for progress bar
+                      int maxMessageCount = filteredCollections.isNotEmpty
+                          ? filteredCollections
+                              .map((c) => c['messageCount'] as int)
+                              .reduce((a, b) => max(a, b))
+                          : 1;
+
+                      return isLoading && filteredCollections.isEmpty
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                  color: theme.colorScheme.primary))
+                          : Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: TextField(
+                                    controller: searchController,
+                                    focusNode: _searchFocusNode,
+                                    onChanged: _applyFilter,
+                                    style: theme.textTheme.bodyMedium,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search collections...',
+                                      hintStyle: TextStyle(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                            color: theme.dividerColor),
+                                        borderRadius: const BorderRadius.all(
+                                            Radius.circular(8)),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                            color: theme.dividerColor),
+                                        borderRadius: const BorderRadius.all(
+                                            Radius.circular(8)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(
+                                            color: theme.colorScheme.primary),
+                                        borderRadius: const BorderRadius.all(
+                                            Radius.circular(8)),
+                                      ),
+                                      fillColor:
+                                          theme.inputDecorationTheme.fillColor,
+                                      filled: true,
+                                    ),
                                   ),
-                                  prefixIcon: Icon(
-                                    Icons.search,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderSide:
-                                        BorderSide(color: theme.dividerColor),
-                                    borderRadius: const BorderRadius.all(
-                                        Radius.circular(8)),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide:
-                                        BorderSide(color: theme.dividerColor),
-                                    borderRadius: const BorderRadius.all(
-                                        Radius.circular(8)),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                        color: theme.colorScheme.primary),
-                                    borderRadius: const BorderRadius.all(
-                                        Radius.circular(8)),
-                                  ),
-                                  fillColor:
-                                      theme.inputDecorationTheme.fillColor,
-                                  filled: true,
                                 ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: ListView.builder(
-                                  controller: _scrollController,
-                                  itemCount: filteredCollections.length + 1,
-                                  itemBuilder: (context, index) {
-                                    if (index == filteredCollections.length) {
-                                      return isLoadingMore
-                                          ? Center(
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8.0),
+                                    child: ListView.builder(
+                                      controller: _scrollController,
+                                      itemCount: filteredCollections.length +
+                                          (store.isLoading ? 1 : 0),
+                                      itemBuilder: (context, index) {
+                                        if (index ==
+                                            filteredCollections.length) {
+                                          return Center(
                                               child: CircularProgressIndicator(
                                                   color: theme
-                                                      .colorScheme.primary))
-                                          : const SizedBox.shrink();
-                                    }
-                                    final item = filteredCollections[index];
-                                    final int messageCount =
-                                        item['messageCount'] as int;
-                                    final double percentage =
-                                        maxMessageCount > 0
-                                            ? messageCount / maxMessageCount
-                                            : 0;
-                                    return Card(
-                                      elevation: 0,
-                                      color: isDarkMode
-                                          ? theme.inputDecorationTheme.fillColor
-                                          : theme.cardColor,
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: ListTile(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        title: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                '${item['name']}: ',
-                                                style:
-                                                    theme.textTheme.bodyMedium,
-                                                overflow: TextOverflow.ellipsis,
+                                                      .colorScheme.primary));
+                                        }
+                                        final item = filteredCollections[index];
+                                        final int messageCount =
+                                            item['messageCount'] as int;
+                                        final double percentage =
+                                            maxMessageCount > 0
+                                                ? messageCount / maxMessageCount
+                                                : 0;
+                                        return Card(
+                                          elevation: 0,
+                                          color: isDarkMode
+                                              ? theme.inputDecorationTheme
+                                                  .fillColor
+                                              : theme.cardColor,
+                                          margin: const EdgeInsets.symmetric(
+                                              vertical: 4),
+                                          child: ListTile(
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            title: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    '${item['name']}: ',
+                                                    style: theme
+                                                        .textTheme.bodyMedium,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                Icon(Icons.message,
+                                                    color:
+                                                        theme.iconTheme.color,
+                                                    size: 18),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  formatMessageCount(
+                                                      messageCount),
+                                                  style: theme
+                                                      .textTheme.bodyMedium
+                                                      ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            subtitle: Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 4.0, bottom: 8.0),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: LinearProgressIndicator(
+                                                  value: percentage,
+                                                  backgroundColor: isDarkMode
+                                                      ? theme
+                                                          .colorScheme.surface
+                                                          .withValues(
+                                                              alpha: 0.3)
+                                                      : theme
+                                                          .colorScheme.surface
+                                                          .withValues(
+                                                              alpha: 0.3),
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                              Color>(
+                                                          theme.colorScheme
+                                                              .primary),
+                                                  minHeight: 8,
+                                                ),
                                               ),
                                             ),
-                                            Icon(Icons.message,
-                                                color: theme.iconTheme.color,
-                                                size: 18),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              formatMessageCount(messageCount),
-                                              style: theme.textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        subtitle: Padding(
-                                          padding: const EdgeInsets.only(
-                                              top: 4.0, bottom: 8.0),
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            child: LinearProgressIndicator(
-                                              value: percentage,
-                                              backgroundColor: isDarkMode
-                                                  ? theme.colorScheme.surface
-                                                      .withValues(alpha: 0.3)
-                                                  : theme.colorScheme.surface
-                                                      .withValues(alpha: 0.3),
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                      theme
-                                                          .colorScheme.primary),
-                                              minHeight: 8,
-                                            ),
+                                            onTap: () => switchToCollection(
+                                                item['name']),
                                           ),
-                                        ),
-                                        onTap: () =>
-                                            switchToCollection(item['name']),
-                                      ),
-                                    );
-                                  },
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
+                              ],
+                            );
+                    },
+                  ),
                 ),
               // Use a container with explicit background color for the "Select Collection:" text
               Container(

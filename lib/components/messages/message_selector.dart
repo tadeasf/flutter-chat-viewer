@@ -20,6 +20,8 @@ import '../search/search_type.dart';
 import '../ui_utils/visibility_state.dart';
 import '../search/search_dialog.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import '../../stores/store_provider.dart';
 
 final searchKeySet = LogicalKeySet(
   LogicalKeyboardKey.meta, // Use control on Windows
@@ -177,22 +179,8 @@ class MessageSelectorState extends State<MessageSelector> {
   @override
   void initState() {
     super.initState();
-    loadCollections((loadedCollections) {
-      setState(() {
-        collections = loadedCollections;
-        filteredCollections = loadedCollections;
-        isCollectionSelectorVisible = selectedCollection == null;
-      });
-    });
-  }
-
-  void filterCollections(String query) {
-    setState(() {
-      filteredCollections = collections
-          .where((collection) =>
-              collection['name'].toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
+    // Get collections from the CollectionStore instead of loading directly
+    // The store will automatically load collections when it's initialized
   }
 
   @override
@@ -331,12 +319,9 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void refreshCollections() {
-    loadCollections((loadedCollections) {
-      setState(() {
-        collections = loadedCollections;
-        filteredCollections = loadedCollections;
-      });
-    });
+    // Update to use the CollectionStore
+    final store = StoreProvider.of(context).collectionStore;
+    store.refreshCollections();
   }
 
   void _handleCrossCollectionSearch(List<dynamic> results) {
@@ -494,100 +479,102 @@ class MessageSelectorState extends State<MessageSelector> {
           children: [
             RefreshIndicator(
               onRefresh: () async {
-                await loadCollections((loadedCollections) {
-                  setState(() {
-                    collections = loadedCollections;
-                    filteredCollections = loadedCollections;
-                  });
-                });
+                final store = StoreProvider.of(context).collectionStore;
+                await store.refreshCollections();
               },
-              child: collections.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 200),
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 16),
-                              Text(
-                                'Pull down to refresh collections',
-                                style: TextStyle(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            'Meta Elysia',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
-                                  fontSize: 12,
-                                ),
-                          ),
-                        ),
-                        Expanded(
-                          child: isLoading || isCrossCollectionLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : MessageList(
-                                  messages: isCrossCollectionSearch
-                                      ? crossCollectionMessages
-                                      : messages,
-                                  searchResults: searchResults,
-                                  currentSearchIndex: currentSearchIndex,
-                                  itemScrollController: itemScrollController,
-                                  itemPositionsListener: itemPositionsListener,
-                                  isSearchActive: isSearchVisible,
-                                  selectedCollectionName:
-                                      selectedCollection ?? '',
-                                  profilePhotoUrl: profilePhotoUrl,
-                                  isCrossCollectionSearch:
-                                      isCrossCollectionSearch,
-                                  onMessageTap:
-                                      _handleCrossCollectionMessageTap,
-                                ),
-                        ),
-                        if (isCollectionSelectorVisible ||
-                            selectedCollection == null)
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: CollectionSelector(
-                              selectedCollection: selectedCollection,
-                              initialCollections: filteredCollections,
-                              onCollectionChanged: _changeCollection,
-                            ),
-                          ),
-                        if (isPhotoAvailable && selectedCollection != null)
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Image.network(
-                              'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
-                              height: 100,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Text(
-                                  'Failed to load image',
+              child: Observer(builder: (_) {
+                final store = StoreProvider.of(context).collectionStore;
+
+                return store.collections.isEmpty
+                    ? ListView(
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Pull down to refresh collections',
                                   style: TextStyle(
                                     fontFamily: 'CaskaydiaCove Nerd Font',
                                     fontSize: 12,
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'Meta Elysia',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontFamily: 'CaskaydiaCove Nerd Font',
+                                    fontSize: 12,
+                                  ),
+                            ),
+                          ),
+                          Expanded(
+                            child: isLoading || isCrossCollectionLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator())
+                                : MessageList(
+                                    messages: isCrossCollectionSearch
+                                        ? crossCollectionMessages
+                                        : messages,
+                                    searchResults: searchResults,
+                                    currentSearchIndex: currentSearchIndex,
+                                    itemScrollController: itemScrollController,
+                                    itemPositionsListener:
+                                        itemPositionsListener,
+                                    isSearchActive: isSearchVisible,
+                                    selectedCollectionName:
+                                        selectedCollection ?? '',
+                                    profilePhotoUrl: profilePhotoUrl,
+                                    isCrossCollectionSearch:
+                                        isCrossCollectionSearch,
+                                    onMessageTap:
+                                        _handleCrossCollectionMessageTap,
+                                  ),
+                          ),
+                          if (isCollectionSelectorVisible ||
+                              selectedCollection == null)
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: CollectionSelector(
+                                selectedCollection: selectedCollection,
+                                initialCollections: filteredCollections,
+                                onCollectionChanged: _changeCollection,
+                              ),
+                            ),
+                          if (isPhotoAvailable && selectedCollection != null)
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Image.network(
+                                'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                                height: 100,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Text(
+                                    'Failed to load image',
+                                    style: TextStyle(
+                                      fontFamily: 'CaskaydiaCove Nerd Font',
+                                      fontSize: 12,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                      );
+              }),
             ),
             if (_currentVisibility == VisibilityState.collectionSelector)
               _buildCollectionSelectorOverlay(),
@@ -794,6 +781,8 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   Widget _buildCollectionSelectorOverlay() {
+    final store = StoreProvider.of(context).collectionStore;
+
     return Positioned(
       left: 0,
       right: 0,
@@ -801,46 +790,15 @@ class MessageSelectorState extends State<MessageSelector> {
       child: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
         padding: const EdgeInsets.all(16.0),
-        child: CollectionSelector(
-          selectedCollection: selectedCollection,
-          initialCollections: filteredCollections,
-          onCollectionChanged: _changeCollection,
-        ),
+        child: Observer(builder: (_) {
+          return CollectionSelector(
+            selectedCollection: selectedCollection,
+            initialCollections: store.filteredCollections.toList(),
+            onCollectionChanged: _changeCollection,
+          );
+        }),
       ),
     );
-  }
-
-  Future<void> loadCollections(
-      Function(List<Map<String, dynamic>>) callback) async {
-    int maxRetries = 3;
-    int currentTry = 0;
-
-    while (currentTry < maxRetries) {
-      try {
-        final loadedCollections = await ApiService.fetchCollections();
-        if (loadedCollections.isNotEmpty) {
-          callback(loadedCollections);
-          return;
-        }
-
-        currentTry++;
-        if (currentTry < maxRetries) {
-          await Future.delayed(Duration(seconds: 2 * currentTry));
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error loading collections (attempt $currentTry): $e');
-        }
-
-        currentTry++;
-        if (currentTry < maxRetries) {
-          await Future.delayed(Duration(seconds: 2 * currentTry));
-        }
-      }
-    }
-
-    // If we get here, all retries failed
-    callback([]); // Return empty list to trigger empty state UI
   }
 
   void _handleSearchRequest(String query, bool isCrossCollection) {
