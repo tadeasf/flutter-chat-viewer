@@ -5,6 +5,8 @@ import 'package:photo_view/photo_view_gallery.dart';
 import '../../utils/api_db/api_service.dart';
 import '../../utils/image_downloader.dart';
 import 'package:flutter/services.dart';
+// Conditionally import dart:js only for web
+import '../../utils/js_util.dart';
 
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
@@ -181,7 +183,23 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     );
 
     if (shouldDownload == true && mounted) {
-      await ImageDownloader.downloadImage(context, imageUrl);
+      if (kIsWeb) {
+        _downloadImageWithJS(imageUrl);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Starting download...')),
+        );
+      } else {
+        await ImageDownloader.downloadImage(context, imageUrl);
+      }
+    }
+  }
+
+  // Use JavaScript to download the image in web browsers
+  void _downloadImageWithJS(String url) {
+    if (kIsWeb) {
+      final filename = url.split('/').last;
+      downloadWithJS(url, filename);
     }
   }
 }

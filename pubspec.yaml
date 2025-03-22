@@ -18,6 +18,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
   intl: ^0.20.1
   image_picker: ^1.1.2
   http_parser: ^4.0.0

@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import '../../utils/api_db/api_service.dart';
+// Conditionally import dart:js only for web
+import '../../utils/js_util.dart';
 
 class PhotoViewScreen extends StatefulWidget {
   final String imageUrl;
@@ -36,44 +38,49 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
 
   Future<void> _downloadImage(BuildContext context) async {
     try {
-      final response = await http.get(Uri.parse(imageUrl),
-          headers: kIsWeb ? <String, String>{} : ApiService.headers);
-
       if (kIsWeb) {
-        // For web platform, browser will handle the download
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image downloading in browser')),
-          );
-        }
-      } else if (Platform.isMacOS) {
-        final directory = await getDownloadsDirectory();
-        final fileName =
-            "downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg";
-        final filePath = '${directory?.path}/$fileName';
-
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
+        // For web, trigger browser's download dialog using JS interop
+        _downloadImageWithJS(imageUrl);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Image saved to $filePath')),
+            const SnackBar(content: Text('Starting download...')),
           );
         }
       } else {
-        final result = await ImageGallerySaverPlus.saveImage(
-          response.bodyBytes,
-          quality: 100,
-          name: "downloaded_image_${DateTime.now().millisecondsSinceEpoch}",
-        );
+        // For native platforms, download using platform-specific methods
+        final response =
+            await http.get(Uri.parse(imageUrl), headers: ApiService.headers);
 
-        if (context.mounted) {
-          if (result['isSuccess']) {
+        if (Platform.isMacOS) {
+          final directory = await getDownloadsDirectory();
+          final fileName =
+              "downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg";
+          final filePath = '${directory?.path}/$fileName';
+
+          final file = File(filePath);
+          await file.writeAsBytes(response.bodyBytes);
+
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Image saved to gallery')),
+              SnackBar(content: Text('Image saved to $filePath')),
             );
-          } else {
-            throw Exception('Failed to save image');
+          }
+        } else {
+          final result = await ImageGallerySaverPlus.saveImage(
+            response.bodyBytes,
+            quality: 100,
+            name: "downloaded_image_${DateTime.now().millisecondsSinceEpoch}",
+          );
+
+          if (context.mounted) {
+            if (result['isSuccess']) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Image saved to gallery')),
+              );
+            } else {
+              throw Exception('Failed to save image');
+            }
           }
         }
       }
@@ -83,6 +90,14 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
           SnackBar(content: Text('Failed to save image: ${e.toString()}')),
         );
       }
+    }
+  }
+
+  // Use JavaScript to download the image in web browsers
+  void _downloadImageWithJS(String url) {
+    if (kIsWeb) {
+      final filename = url.split('/').last;
+      downloadWithJS(url, filename);
     }
   }
 
