@@ -3,6 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      env_file:
+        - .env
+      args:
+        - X_API_KEY=${X_API_KEY}
     ports:
       - "8664:8664"
     restart: unless-stopped
+    environment:
+      - X_API_KEY=${X_API_KEY}

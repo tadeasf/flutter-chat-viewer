@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import '../../utils/api_db/api_service.dart';
-// Conditionally import dart:js only for web
+// For web platform
 import '../../utils/js_util.dart';
 
 class PhotoViewScreen extends StatefulWidget {
@@ -14,6 +14,8 @@ class PhotoViewScreen extends StatefulWidget {
   final String? heroTag;
   final String? messageId;
   final String? conversationId;
+  final String? collectionName;
+  final String? filename;
 
   const PhotoViewScreen({
     super.key,
@@ -21,6 +23,8 @@ class PhotoViewScreen extends StatefulWidget {
     this.heroTag,
     this.messageId,
     this.conversationId,
+    this.collectionName,
+    this.filename,
   });
 
   @override
@@ -39,50 +43,9 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
   Future<void> _downloadImage(BuildContext context) async {
     try {
       if (kIsWeb) {
-        // For web, trigger browser's download dialog using JS interop
-        _downloadImageWithJS(imageUrl);
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Starting download...')),
-          );
-        }
+        _downloadForWeb();
       } else {
-        // For native platforms, download using platform-specific methods
-        final response =
-            await http.get(Uri.parse(imageUrl), headers: ApiService.headers);
-
-        if (Platform.isMacOS) {
-          final directory = await getDownloadsDirectory();
-          final fileName =
-              "downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg";
-          final filePath = '${directory?.path}/$fileName';
-
-          final file = File(filePath);
-          await file.writeAsBytes(response.bodyBytes);
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Image saved to $filePath')),
-            );
-          }
-        } else {
-          final result = await ImageGallerySaverPlus.saveImage(
-            response.bodyBytes,
-            quality: 100,
-            name: "downloaded_image_${DateTime.now().millisecondsSinceEpoch}",
-          );
-
-          if (context.mounted) {
-            if (result['isSuccess']) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Image saved to gallery')),
-              );
-            } else {
-              throw Exception('Failed to save image');
-            }
-          }
-        }
+        _downloadForNative(context);
       }
     } catch (e) {
       if (context.mounted) {
@@ -93,11 +56,64 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
     }
   }
 
-  // Use JavaScript to download the image in web browsers
-  void _downloadImageWithJS(String url) {
-    if (kIsWeb) {
-      final filename = url.split('/').last;
-      downloadWithJS(url, filename);
+  void _downloadForWeb() {
+    if (widget.collectionName != null && widget.filename != null) {
+      // Use the direct URL method for web
+      final directUrl = ApiService.getWebDownloadUrl(
+          widget.collectionName!, widget.filename!);
+
+      // Open in new tab for web using the utility function
+      openInNewTab(directUrl);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image opened in new tab')),
+      );
+    } else {
+      // Fallback to using js_util approach with the current URL
+      final filename = imageUrl.split('/').last;
+      downloadWithJS(imageUrl, filename);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Starting download...')),
+      );
+    }
+  }
+
+  Future<void> _downloadForNative(BuildContext context) async {
+    // For native platforms, download using platform-specific methods
+    final response =
+        await http.get(Uri.parse(imageUrl), headers: ApiService.headers);
+
+    if (Platform.isMacOS) {
+      final directory = await getDownloadsDirectory();
+      final fileName =
+          "downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg";
+      final filePath = '${directory?.path}/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsBytes(response.bodyBytes);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Image saved to $filePath')),
+        );
+      }
+    } else {
+      final result = await ImageGallerySaverPlus.saveImage(
+        response.bodyBytes,
+        quality: 100,
+        name: "downloaded_image_${DateTime.now().millisecondsSinceEpoch}",
+      );
+
+      if (context.mounted) {
+        if (result['isSuccess']) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image saved to gallery')),
+          );
+        } else {
+          throw Exception('Failed to save image');
+        }
+      }
     }
   }
 

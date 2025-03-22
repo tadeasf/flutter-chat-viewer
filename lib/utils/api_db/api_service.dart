@@ -5,10 +5,25 @@ import 'dart:typed_data';
 import 'url_formatter.dart';
 import 'web_http_client.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../js_util.dart';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
-  static String get apiKey => dotenv.env['X_API_KEY'] ?? '';
+
+  // API key getter that checks for web environment to use window.FLUTTER_ENV
+  static String get apiKey {
+    if (kIsWeb) {
+      // Try to get the API key from window.FLUTTER_ENV in web mode
+      final webApiKey = getApiKey();
+      if (webApiKey != null && webApiKey.isNotEmpty) {
+        return webApiKey;
+      }
+    }
+
+    // Fallback to dotenv for native platforms or if web API key not available
+    return dotenv.env['X_API_KEY'] ?? '';
+  }
+
   static final Map<String, String> _profilePhotoUrls = {};
 
   static Map<String, String> get headers {
@@ -467,5 +482,11 @@ class ApiService {
     } catch (e) {
       throw Exception('Failed to load video: $e');
     }
+  }
+
+  /// Returns a direct image URL for web downloads
+  /// This URL can be used to open in a new tab for direct downloads
+  static String getWebDownloadUrl(String collectionName, String filename) {
+    return '$baseUrl/inbox/${Uri.encodeComponent(collectionName)}/photos/$filename';
   }
 }

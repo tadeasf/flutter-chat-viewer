@@ -20,7 +20,14 @@ ENV X_API_KEY=$X_API_KEY
 # Create an index.html with the environment variable
 RUN mkdir -p web && \
     if [ -f web/index.html ]; then \
-      sed -i '/<\/head>/i \  <script>\n    window.FLUTTER_ENV = {\n      "X_API_KEY": "'$X_API_KEY'"\n    }\n  </script>' web/index.html; \
+      sed -i '/<\/head>/i \  <script>\n    window.FLUTTER_ENV = {\n      "X_API_KEY": "'$X_API_KEY'"\n    }\n  </script>' web/index.html && \
+      sed -i 's/<meta name="apple-mobile-web-app-capable" content="yes">/<meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="mobile-web-app-capable" content="yes">/' web/index.html; \
+    fi
+
+# Fix manifest.json colors if it exists
+RUN if [ -f web/manifest.json ]; then \
+      sed -i 's/"theme_color": "#hexcode"/"theme_color": "#42a5f5"/g' web/manifest.json && \
+      sed -i 's/"background_color": "#hexcode"/"background_color": "#42a5f5"/g' web/manifest.json; \
     fi
 
 # Get dependencies and build
