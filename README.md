@@ -2,44 +2,32 @@
 
 A Flutter application for viewing and searching through Facebook Messenger chat history with advanced features.
 
-## Building Locally
+## Building the Application
+
+### Important Build Instructions
+
+- **Android APK**:
+  ```bash
+  flutter build apk --release
+  ```
+
+- **Linux (Arch)**:
+  ```bash
+  flutter build linux --release
+  sudo ./install.sh  # Important: Kill any running instances first or it will error out
+  ```
+
+- **Web**:
+  ```bash
+  X_API_KEY={api_key} docker compose up -d --build
+  ```
+  **Note**: Use Modheader extension and include x-api-key header to get image access (without it you'll only get messages)
 
 ### Prerequisites
 
 - Flutter SDK
 - Java 17.0.13 (mise recommended for version management)
-- macOS for building the macOS app
-
-### Debug Build
-
-```bash
-./scripts/build-debug.sh
-```
-
-This will:
-
-1. Clean the project
-2. Get & upgrade dependencies
-3. Build debug APK and macOS app
-4. Copy builds to Desktop with versioning
-
-### Release Build
-
-```bash
-./scripts/build-release.sh
-```
-
-This will:
-
-1. Clean the project
-2. Get & upgrade dependencies
-3. Build release APK and macOS app
-4. Copy builds to Desktop with versioning
-
-Build outputs will be saved to:
-
-- APK: `~/Desktop/meta-chat-viewer_{debug|release}_latest.apk`
-- macOS: `~/Desktop/Meta Elysia_{debug|release}_latest.app`
+- For web build: Docker and Docker Compose
 
 ## Features
 
@@ -52,48 +40,15 @@ Build outputs will be saved to:
 
 ## Setup
 
-1. Create a `.env` file in the root directory:
+Create a `.env` file in the root directory:
 
-    ```env
-    X_API_KEY=your_api_key_here
-    ```
-
-2. Install dependencies:
-
-    ```bash
-    flutter pub get
-    ```
-
-3. Run the app:
-
-    ```bash
-    flutter run
-    ```
+```env
+X_API_KEY=your_api_key_here
+```
 
 ## Architecture
 
-The app uses:
-
-- Flutter for the UI
-- HTTP for API communication
-- GitHub Actions for CI/CD
-- Shared Preferences for local storage
-
-## API Integration
-
-The app communicates with a backend server at `backend.jevrej.cz` for:
-
-- Fetching message collections
-- Cross-collection search
-- Media handling (photos, videos, audio)
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+The app uses Flutter for the UI, HTTP for API communication, and communicates with a backend server at `backend.jevrej.cz` for fetching message collections, cross-collection search, and media handling.
 
 ## License
 
