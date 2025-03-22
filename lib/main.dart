@@ -6,11 +6,32 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // Add this import
 import 'components/messages/message_selector.dart';
 import 'components/ui_utils/theme_manager.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:logging/logging.dart';
 
 void main() async {
+  // Initialize logging
+  Logger.root.level = Level.INFO;
+  Logger.root.onRecord.listen((record) {
+    // Use print in development, but in production this could be connected to
+    // a more sophisticated logging system
+    if (kDebugMode) {
+      print('${record.level.name}: ${record.time}: ${record.message}');
+    }
+    if (record.error != null) {
+      if (kDebugMode) {
+        print('Error: ${record.error}');
+      }
+    }
+    if (record.stackTrace != null) {
+      if (kDebugMode) {
+        print('Stack trace: ${record.stackTrace}');
+      }
+    }
+  });
+
   // Load environment variables
   if (kIsWeb) {
     // Web environment variables are loaded from the window.FLUTTER_ENV object in index.html

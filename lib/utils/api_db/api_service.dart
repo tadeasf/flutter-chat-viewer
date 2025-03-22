@@ -1,34 +1,79 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:typed_data';
 import 'url_formatter.dart';
+import 'web_http_client.dart';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
   static const String apiKey = '0tXEQJs2QUHK';
   static final Map<String, String> _profilePhotoUrls = {};
 
-  static Map<String, String> get headers => {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      };
+  static Map<String, String> get headers {
+    final Map<String, String> baseHeaders = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    };
 
-  static Map<String, String> get headersWithMetrics => {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'metrics': 'true',
-      };
+    if (kIsWeb) {
+      // Add CORS-specific headers for web
+      baseHeaders['Access-Control-Allow-Origin'] = '*';
+      baseHeaders['Access-Control-Allow-Methods'] =
+          'GET, POST, DELETE, OPTIONS';
+      baseHeaders['Access-Control-Allow-Headers'] = 'Content-Type, x-api-key';
+    }
 
-  static Map<String, String> get videoHeaders => {
-        'x-api-key': apiKey,
-        'Accept': 'video/mp4,*/*',
-        'Connection': 'keep-alive',
-      };
+    return baseHeaders;
+  }
+
+  static Map<String, String> get headersWithMetrics {
+    final Map<String, String> baseHeaders = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'metrics': 'true',
+    };
+
+    if (kIsWeb) {
+      // Add CORS-specific headers for web
+      baseHeaders['Access-Control-Allow-Origin'] = '*';
+      baseHeaders['Access-Control-Allow-Methods'] =
+          'GET, POST, DELETE, OPTIONS';
+      baseHeaders['Access-Control-Allow-Headers'] =
+          'Content-Type, x-api-key, metrics';
+    }
+
+    return baseHeaders;
+  }
+
+  static Map<String, String> get videoHeaders {
+    final Map<String, String> baseHeaders = {
+      'x-api-key': apiKey,
+      'Accept': 'video/mp4,*/*',
+      'Connection': 'keep-alive',
+    };
+
+    if (kIsWeb) {
+      // Add CORS-specific headers for web
+      baseHeaders['Access-Control-Allow-Origin'] = '*';
+      baseHeaders['Access-Control-Allow-Methods'] =
+          'GET, POST, DELETE, OPTIONS';
+      baseHeaders['Access-Control-Allow-Headers'] =
+          'Content-Type, x-api-key, Accept, Connection';
+    }
+
+    return baseHeaders;
+  }
 
   static Future<List<Map<String, dynamic>>> fetchCollections() async {
-    final response =
-        await http.get(Uri.parse('$baseUrl/collections'), headers: headers);
+    final url = Uri.parse('$baseUrl/collections');
+
+    http.Response response;
+    if (kIsWeb) {
+      response = await WebHttpClient.get(url, headers: headers);
+    } else {
+      response = await http.get(url, headers: headers);
+    }
 
     if (kDebugMode) {
       print('Fetch Collections Response:');
@@ -79,12 +124,22 @@ class ApiService {
   static Future<http.Response> get(String endpoint,
       {required Map<String, String> headers}) async {
     final url = Uri.parse('$baseUrl$endpoint');
+
+    if (kIsWeb) {
+      return WebHttpClient.get(url, headers: headers);
+    }
+
     return await http.get(url, headers: headers);
   }
 
   static Future<http.Response> post(String endpoint,
       {Object? body, required Map<String, String> headers}) async {
     final url = Uri.parse('$baseUrl$endpoint');
+
+    if (kIsWeb) {
+      return WebHttpClient.post(url, headers: headers, body: jsonEncode(body));
+    }
+
     return await http.post(url, headers: headers, body: jsonEncode(body));
   }
 
@@ -102,8 +157,13 @@ class ApiService {
       print('Fetching messages with headers: $headersWithMetrics');
     }
 
-    final response =
-        await http.get(Uri.parse(url), headers: headersWithMetrics);
+    http.Response response;
+    if (kIsWeb) {
+      response =
+          await WebHttpClient.get(Uri.parse(url), headers: headersWithMetrics);
+    } else {
+      response = await http.get(Uri.parse(url), headers: headersWithMetrics);
+    }
 
     if (kDebugMode) {
       print('Response status: ${response.statusCode}');
@@ -219,11 +279,21 @@ class ApiService {
   static Future<Map<String, dynamic>> deletePhoto(String collectionName) async {
     final url = Uri.parse(
         '$baseUrl/delete/photo/${Uri.encodeComponent(collectionName)}');
-    final response = await http.delete(
-      url,
-      headers: headers,
-      body: '{}', // Send an empty JSON object as the body
-    );
+
+    http.Response response;
+    if (kIsWeb) {
+      response = await WebHttpClient.delete(
+        url,
+        headers: headers,
+        body: '{}', // Send an empty JSON object as the body
+      );
+    } else {
+      response = await http.delete(
+        url,
+        headers: headers,
+        body: '{}', // Send an empty JSON object as the body
+      );
+    }
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -262,6 +332,11 @@ class ApiService {
   static Future<http.Response> delete(String endpoint,
       {required Map<String, String> headers}) async {
     final url = Uri.parse('$baseUrl$endpoint');
+
+    if (kIsWeb) {
+      return WebHttpClient.delete(url, headers: headers);
+    }
+
     return await http.delete(url, headers: headers);
   }
 
@@ -341,10 +416,18 @@ class ApiService {
 
   static Future<Uint8List> fetchAudioData(String url) async {
     try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
+      http.Response response;
+      if (kIsWeb) {
+        response = await WebHttpClient.get(
+          Uri.parse(url),
+          headers: headers,
+        );
+      } else {
+        response = await http.get(
+          Uri.parse(url),
+          headers: headers,
+        );
+      }
 
       if (response.statusCode == 200) {
         return response.bodyBytes;
@@ -360,23 +443,42 @@ class ApiService {
   static Future<Uint8List> fetchVideoData(String url) async {
     try {
       // Try first without Range header
-      final response = await http.get(
-        Uri.parse(url),
-        headers: videoHeaders,
-      );
+      http.Response response;
+      if (kIsWeb) {
+        response = await WebHttpClient.get(
+          Uri.parse(url),
+          headers: videoHeaders,
+        );
+      } else {
+        response = await http.get(
+          Uri.parse(url),
+          headers: videoHeaders,
+        );
+      }
 
       if (response.statusCode == 200) {
         return response.bodyBytes;
       }
 
       // If that fails, try with a simple GET request with basic headers
-      final fallbackResponse = await http.get(
-        Uri.parse(url),
-        headers: {
-          'x-api-key': apiKey,
-          'Accept': '*/*',
-        },
-      );
+      http.Response fallbackResponse;
+      if (kIsWeb) {
+        fallbackResponse = await WebHttpClient.get(
+          Uri.parse(url),
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': '*/*',
+          },
+        );
+      } else {
+        fallbackResponse = await http.get(
+          Uri.parse(url),
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': '*/*',
+          },
+        );
+      }
 
       if (fallbackResponse.statusCode == 200) {
         return fallbackResponse.bodyBytes;
