@@ -119,35 +119,12 @@
       <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
   
-  
   <!-- Create an empty .env file for web builds -->
   <script>
     // Set up any environment variables required for web
     window.FLUTTER_ENV = {
       X_API_KEY: '', // Default empty, will be set at runtime
     };
-  </script>
-  
-  <!-- Add CORS headers configuration -->
-  <script>
-    // Add CORS support for fetch API
-    (function() {
-      const originalFetch = window.fetch;
-      window.fetch = function(resource, init) {
-        if (init === undefined) {
-          init = {};
-        }
-        if (init.headers === undefined) {
-          init.headers = {};
-        }
-        
-        // Add mode: 'cors' to all fetch requests
-        init.mode = 'cors';
-        init.credentials = 'same-origin';
-        
-        return originalFetch.call(this, resource, init);
-      };
-    })();
   </script>
   
   <script src="flutter_bootstrap.js" async=""></script>

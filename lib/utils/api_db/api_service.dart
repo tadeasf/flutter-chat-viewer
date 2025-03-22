@@ -15,15 +15,6 @@ class ApiService {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
     };
-
-    if (kIsWeb) {
-      // Add CORS-specific headers for web
-      baseHeaders['Access-Control-Allow-Origin'] = '*';
-      baseHeaders['Access-Control-Allow-Methods'] =
-          'GET, POST, DELETE, OPTIONS';
-      baseHeaders['Access-Control-Allow-Headers'] = 'Content-Type, x-api-key';
-    }
-
     return baseHeaders;
   }
 
@@ -33,16 +24,6 @@ class ApiService {
       'x-api-key': apiKey,
       'metrics': 'true',
     };
-
-    if (kIsWeb) {
-      // Add CORS-specific headers for web
-      baseHeaders['Access-Control-Allow-Origin'] = '*';
-      baseHeaders['Access-Control-Allow-Methods'] =
-          'GET, POST, DELETE, OPTIONS';
-      baseHeaders['Access-Control-Allow-Headers'] =
-          'Content-Type, x-api-key, metrics';
-    }
-
     return baseHeaders;
   }
 
@@ -52,16 +33,6 @@ class ApiService {
       'Accept': 'video/mp4,*/*',
       'Connection': 'keep-alive',
     };
-
-    if (kIsWeb) {
-      // Add CORS-specific headers for web
-      baseHeaders['Access-Control-Allow-Origin'] = '*';
-      baseHeaders['Access-Control-Allow-Methods'] =
-          'GET, POST, DELETE, OPTIONS';
-      baseHeaders['Access-Control-Allow-Headers'] =
-          'Content-Type, x-api-key, Accept, Connection';
-    }
-
     return baseHeaders;
   }
 

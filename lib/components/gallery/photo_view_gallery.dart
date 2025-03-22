@@ -76,13 +76,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     if (uri.startsWith('messages/inbox/')) {
       final collectionName = uri.split('/')[2];
       final filename = uri.split('/').last;
-      final directUrl = ApiService.getPhotoUrl(collectionName, filename);
-
-      // Use CORS proxy for web platform
-      if (kIsWeb) {
-        return 'https://corsproxy.io/?${Uri.encodeComponent(directUrl)}';
-      }
-      return directUrl;
+      return ApiService.getPhotoUrl(collectionName, filename);
     }
 
     return ApiService.getPhotoUrl(widget.collectionName, uri);
