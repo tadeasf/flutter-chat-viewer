@@ -9,6 +9,7 @@ import '../search/scroll_to_highlighted_message.dart';
 import '../search/search_type.dart';
 import '../messages/message_index_manager.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PhotoGallery extends StatefulWidget {
   final String collectionName;
@@ -232,7 +233,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
                 tag: 'photo_${photo['uri']}',
                 child: CachedNetworkImage(
                   imageUrl: imageUrl,
-                  httpHeaders: ApiService.headers,
+                  httpHeaders: kIsWeb ? {} : ApiService.headers,
                   fit: BoxFit.cover,
                   placeholder: (context, url) =>
                       const Center(child: CircularProgressIndicator()),

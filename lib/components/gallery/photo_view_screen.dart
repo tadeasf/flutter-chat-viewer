@@ -79,7 +79,8 @@ class PhotoViewScreen extends StatelessWidget {
       body: Stack(
         children: [
           PhotoView(
-            imageProvider: NetworkImage(imageUrl, headers: ApiService.headers),
+            imageProvider: NetworkImage(imageUrl,
+                headers: kIsWeb ? null : ApiService.headers),
             minScale: PhotoViewComputedScale.contained * 0.8,
             maxScale: PhotoViewComputedScale.covered * 2,
             backgroundDecoration: const BoxDecoration(

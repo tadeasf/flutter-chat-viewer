@@ -4,6 +4,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import '../../utils/api_db/api_service.dart';
 import '../../utils/image_downloader.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
@@ -127,7 +128,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
               return PhotoViewGalleryPageOptions(
                 imageProvider: NetworkImage(
                   _getPhotoUrl(photo),
-                  headers: ApiService.headers,
+                  headers: kIsWeb ? null : ApiService.headers,
                 ),
                 initialScale: PhotoViewComputedScale.contained,
                 minScale: PhotoViewComputedScale.contained,

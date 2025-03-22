@@ -7,16 +7,49 @@ import 'package:logging/logging.dart';
 class WebHttpClient {
   static final Logger _logger = Logger('WebHttpClient');
 
+  // Helper method to determine if a URL is an image URL
+  static bool _isImageUrl(String url) {
+    final lowerCaseUrl = url.toLowerCase();
+    return lowerCaseUrl.endsWith('.jpg') ||
+        lowerCaseUrl.endsWith('.jpeg') ||
+        lowerCaseUrl.endsWith('.png') ||
+        lowerCaseUrl.endsWith('.gif') ||
+        lowerCaseUrl.endsWith('.webp');
+  }
+
+  // Helper method to modify headers for image requests
+  static Map<String, String> _getHeadersForUrl(
+      Uri url, Map<String, String>? originalHeaders) {
+    if (!kIsWeb) return originalHeaders ?? {};
+
+    // For image URLs in web context, use minimal headers to avoid CORS issues
+    if (_isImageUrl(url.toString())) {
+      final modifiedHeaders = <String, String>{};
+      // Only keep essential headers
+      if (originalHeaders != null) {
+        if (originalHeaders.containsKey('x-api-key')) {
+          modifiedHeaders['x-api-key'] = originalHeaders['x-api-key']!;
+        }
+      }
+      return modifiedHeaders;
+    }
+
+    return originalHeaders ?? {};
+  }
+
   static Future<http.Response> get(Uri url,
       {Map<String, String>? headers}) async {
     if (!kIsWeb) {
       return http.get(url, headers: headers);
     }
 
+    // Modify headers for image requests
+    final modifiedHeaders = _getHeadersForUrl(url, headers);
+
     // Web-specific implementation
     try {
       // First try with regular HTTP
-      final response = await http.get(url, headers: headers);
+      final response = await http.get(url, headers: modifiedHeaders);
 
       // If successful, return the response
       if (response.statusCode != 0) {
@@ -34,10 +67,10 @@ class WebHttpClient {
           queryParameters: {...url.queryParameters, 'cors_bypass': 'true'});
 
       // Try again with modified headers
-      final modifiedHeaders = {...?headers};
-      modifiedHeaders['Accept'] = '*/*';
+      final fallbackHeaders = {...modifiedHeaders};
+      fallbackHeaders['Accept'] = '*/*';
 
-      return http.get(modifiedUrl, headers: modifiedHeaders);
+      return http.get(modifiedUrl, headers: fallbackHeaders);
     }
   }
 
