@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import '../../utils/api_db/api_service.dart';
+import '../../utils/web_image_viewer.dart';
 
 class PhotoViewScreen extends StatefulWidget {
   final String imageUrl;
@@ -27,22 +28,27 @@ class PhotoViewScreen extends StatefulWidget {
 
 class PhotoViewScreenState extends State<PhotoViewScreen> {
   late String imageUrl;
+  late String originalUrl;
 
   @override
   void initState() {
     super.initState();
+    originalUrl = widget.imageUrl;
     imageUrl = widget.imageUrl;
 
     // Use CORS proxy for web
     if (kIsWeb) {
-      imageUrl = 'https://corsproxy.io/?${Uri.encodeComponent(imageUrl)}';
+      imageUrl = 'https://corsproxy.io/?${Uri.encodeComponent(originalUrl)}';
     }
   }
 
   Future<void> _downloadImage(BuildContext context) async {
     try {
-      final response =
-          await http.get(Uri.parse(imageUrl), headers: ApiService.headers);
+      // Use proper URL based on platform
+      final downloadUrl = kIsWeb ? imageUrl : originalUrl;
+      final headers = kIsWeb ? <String, String>{} : ApiService.headers;
+
+      final response = await http.get(Uri.parse(downloadUrl), headers: headers);
 
       if (kIsWeb) {
         // For web platform, browser will handle the download
@@ -85,7 +91,7 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save image')),
+          SnackBar(content: Text('Failed to save image: ${e.toString()}')),
         );
       }
     }
@@ -100,37 +106,44 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
       ),
       body: Stack(
         children: [
-          PhotoView(
-            imageProvider: kIsWeb
-                ? NetworkImage(
-                    'https://corsproxy.io/?${Uri.encodeComponent(imageUrl)}')
-                : NetworkImage(imageUrl, headers: ApiService.headers),
-            minScale: PhotoViewComputedScale.contained * 0.8,
-            maxScale: PhotoViewComputedScale.covered * 2,
-            backgroundDecoration: const BoxDecoration(
-              color: Colors.black,
-            ),
-            loadingBuilder: (context, event) => Center(
-              child: CircularProgressIndicator(
-                value: event == null
-                    ? 0
-                    : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-              ),
-            ),
-            errorBuilder: (context, error, stackTrace) {
-              return const Center(
-                child: Text(
-                  'Failed to load image',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'CaskaydiaCove Nerd Font',
-                    fontStyle: FontStyle.normal,
-                    fontWeight: FontWeight.w300,
+          kIsWeb
+              ? WebImageViewer(
+                  imageUrl: originalUrl,
+                  useCorsProxy: true,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
+                  fit: BoxFit.contain,
+                )
+              : PhotoView(
+                  imageProvider:
+                      NetworkImage(imageUrl, headers: ApiService.headers),
+                  minScale: PhotoViewComputedScale.contained * 0.8,
+                  maxScale: PhotoViewComputedScale.covered * 2,
+                  backgroundDecoration: const BoxDecoration(
+                    color: Colors.black,
                   ),
+                  loadingBuilder: (context, event) => Center(
+                    child: CircularProgressIndicator(
+                      value: event == null
+                          ? 0
+                          : event.cumulativeBytesLoaded /
+                              event.expectedTotalBytes!,
+                    ),
+                  ),
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Text(
+                        'Failed to load image',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'CaskaydiaCove Nerd Font',
+                          fontStyle: FontStyle.normal,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
           Positioned(
             bottom: 20,
             right: 20,
