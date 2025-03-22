@@ -6,11 +6,19 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // Add this import
 import 'components/messages/message_selector.dart';
 import 'components/ui_utils/theme_manager.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
-  await dotenv.load(fileName: ".env");
+  // Load environment variables
+  if (kIsWeb) {
+    // Web environment variables are loaded from the window.FLUTTER_ENV object in index.html
+    dotenv.load(); // Just initialize without a file for web
+  } else {
+    // Load from .env file for native platforms
+    await dotenv.load(fileName: ".env");
+  }
   runApp(MyApp());
 }
 
@@ -32,7 +40,7 @@ class _MyAppState extends State<MyApp> {
         _themeMode = mode;
       });
     });
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       _requestPermissions();
     }
   }

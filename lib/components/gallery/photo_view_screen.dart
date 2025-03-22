@@ -3,6 +3,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import '../../utils/api_db/api_service.dart';
 
@@ -21,7 +22,14 @@ class PhotoViewScreen extends StatelessWidget {
       final response =
           await http.get(Uri.parse(imageUrl), headers: ApiService.headers);
 
-      if (Platform.isMacOS) {
+      if (kIsWeb) {
+        // For web platform, browser will handle the download
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image downloading in browser')),
+          );
+        }
+      } else if (Platform.isMacOS) {
         final directory = await getDownloadsDirectory();
         final fileName =
             "downloaded_image_${DateTime.now().millisecondsSinceEpoch}.jpg";

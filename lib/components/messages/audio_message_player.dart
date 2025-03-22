@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../utils/api_db/api_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 
 class AudioMessagePlayer extends StatefulWidget {
@@ -41,19 +42,27 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       _audioPlayer = AudioPlayer();
       widget.onPlayerCreated(widget.audioUrl, _audioPlayer!);
 
-      // Fetch the audio data
-      final bytes = await ApiService.fetchAudioData(widget.audioUrl);
+      if (kIsWeb) {
+        // For web, use URL directly
+        await _audioPlayer!.setUrl(
+          widget.audioUrl,
+          headers: ApiService.headers,
+        );
+      } else {
+        // Fetch the audio data
+        final bytes = await ApiService.fetchAudioData(widget.audioUrl);
 
-      // Get temporary directory
-      final dir = await getTemporaryDirectory();
-      final file = File(
-          '${dir.path}/temp_audio_${DateTime.now().millisecondsSinceEpoch}.aac');
+        // Get temporary directory
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/temp_audio_${DateTime.now().millisecondsSinceEpoch}.aac');
 
-      // Write the bytes to a temporary file
-      await file.writeAsBytes(bytes);
+        // Write the bytes to a temporary file
+        await file.writeAsBytes(bytes);
 
-      // Set the audio source from the file
-      await _audioPlayer!.setFilePath(file.path);
+        // Set the audio source from the file
+        await _audioPlayer!.setFilePath(file.path);
+      }
 
       _audioPlayer!.durationStream.listen((duration) {
         if (mounted) {
