@@ -9,13 +9,6 @@ part of 'message_store.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$MessageStore on MessageStoreBase, Store {
-  Computed<bool>? _$needsMessageRefreshComputed;
-
-  @override
-  bool get needsMessageRefresh => (_$needsMessageRefreshComputed ??=
-          Computed<bool>(() => super.needsMessageRefresh,
-              name: 'MessageStoreBase.needsMessageRefresh'))
-      .value;
   Computed<bool>? _$hasDateFilterComputed;
 
   @override
@@ -234,6 +227,22 @@ mixin _$MessageStore on MessageStoreBase, Store {
     });
   }
 
+  late final _$searchIndexAtom =
+      Atom(name: 'MessageStoreBase.searchIndex', context: context);
+
+  @override
+  ObservableMap<String, Map<String, List<int>>> get searchIndex {
+    _$searchIndexAtom.reportRead();
+    return super.searchIndex;
+  }
+
+  @override
+  set searchIndex(ObservableMap<String, Map<String, List<int>>> value) {
+    _$searchIndexAtom.reportWrite(value, super.searchIndex, () {
+      super.searchIndex = value;
+    });
+  }
+
   late final _$setCollectionAsyncAction =
       AsyncAction('MessageStoreBase.setCollection', context: context);
 
@@ -310,7 +319,7 @@ isSearchActive: ${isSearchActive},
 searchQuery: ${searchQuery},
 isCrossCollectionSearching: ${isCrossCollectionSearching},
 crossCollectionResults: ${crossCollectionResults},
-needsMessageRefresh: ${needsMessageRefresh},
+searchIndex: ${searchIndex},
 hasDateFilter: ${hasDateFilter}
     ''';
   }

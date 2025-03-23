@@ -46,22 +46,28 @@ abstract class MessageIndexStoreBase with Store {
   @action
   void updateMessagesFromRaw(List<dynamic> rawMessages) {
     try {
+      // Convert to List<MessageModel>
       final List<MessageModel> messages = rawMessages
-          .map((m) => MessageModel.fromJson(m as Map<String, dynamic>))
+          .map((m) => MessageModel.fromJson(Map<String, dynamic>.from(m)))
           .toList();
 
+      // Sort messages by timestamp (oldest first)
+      messages.sort((a, b) => a.timestampMs.compareTo(b.timestampMs));
+
+      // Extract photos from messages
       final List<PhotoModel> photos = [];
       for (var message in rawMessages) {
         if (message['photos'] != null &&
             (message['photos'] as List).isNotEmpty) {
           for (var photo in message['photos']) {
             photos.add(PhotoModel.fromMessageJson(
-                message as Map<String, dynamic>,
-                photo as Map<String, dynamic>));
+                Map<String, dynamic>.from(message),
+                Map<String, dynamic>.from(photo)));
           }
         }
       }
 
+      // Update with the sorted messages
       updateMessages(messages, photos);
     } catch (e) {
       _log.warning('Error updating messages from raw data: $e');

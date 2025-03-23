@@ -198,16 +198,23 @@ class MessageSelectorState extends State<MessageSelector> {
     store.setMessageLoading(value);
   }
 
-  void setMessages(List<dynamic> loadedMessages) {
-    // Use MessageStore instead of setState
+  void setMessages(List<dynamic> rawMessages) {
+    if (rawMessages.isEmpty) return;
+
+    // Get the MessageStore instance
     final messageStore = StoreProvider.of(context).messageStore;
 
-    final processedMessages = loadedMessages
-        .expand((message) => message is List ? message : [message])
-        .map((message) => Map<String, dynamic>.from(message))
-        .toList();
+    // Process the loaded messages
+    final processedMessages = rawMessages.map((message) {
+      if (message is! Map) return <String, dynamic>{};
+      return Map<String, dynamic>.from(message);
+    }).toList();
 
-    // Update the messages in the store
+    // Sort messages by timestamp in ascending order (oldest first)
+    processedMessages.sort((a, b) => (a['timestamp_ms'] as int? ?? 0)
+        .compareTo(b['timestamp_ms'] as int? ?? 0));
+
+    // Clear existing messages and add all at once
     messageStore.messages.clear();
     messageStore.messages.addAll(processedMessages);
   }

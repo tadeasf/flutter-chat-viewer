@@ -16,7 +16,8 @@ import 'stores/theme_store.dart';
 import 'utils/js_bridge.dart';
 // Import web initialization
 import 'utils/web_init.dart' if (dart.library.io) 'utils/web_init_stub.dart';
-// Use the imported AppColors from ThemeStore
+// Import the geometric background
+import 'components/ui_utils/geometric_background.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -165,27 +166,33 @@ class _MyAppState extends State<MyApp> {
         theme: AppColors.getLightTheme(themeStore.fontSize),
         darkTheme: AppColors.getDarkTheme(themeStore.fontSize),
         themeMode: themeStore.themeMode,
-        home: FocusScope(
-          autofocus: true,
-          child: MessageSelectorShortcuts(
-            onSearchTriggered: () {
-              // Global handler
-            },
-            onPreviousResult: () {
-              // Global handler
-            },
-            onNextResult: () {
-              // Global handler
-            },
-            onGalleryOpen: () {
-              // Global handler
-            },
-            onCollectionSelectorToggle: () {
-              // Global handler
-            },
-            child: MessageSelector(
-              setThemeMode: (ThemeMode mode) => themeStore.setThemeMode(mode),
-              themeMode: themeStore.themeMode,
+        home: GeometricBackground(
+          backgroundColor: AppColors.background,
+          patternColor: AppColors.surface1,
+          patternOpacity: 0.15,
+          patternDensity: 12,
+          child: FocusScope(
+            autofocus: true,
+            child: MessageSelectorShortcuts(
+              onSearchTriggered: () {
+                // Global handler
+              },
+              onPreviousResult: () {
+                // Global handler
+              },
+              onNextResult: () {
+                // Global handler
+              },
+              onGalleryOpen: () {
+                // Global handler
+              },
+              onCollectionSelectorToggle: () {
+                // Global handler
+              },
+              child: MessageSelector(
+                setThemeMode: (ThemeMode mode) => themeStore.setThemeMode(mode),
+                themeMode: themeStore.themeMode,
+              ),
             ),
           ),
         ),

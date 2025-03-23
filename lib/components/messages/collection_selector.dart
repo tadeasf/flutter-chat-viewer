@@ -166,7 +166,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
         margin: EdgeInsets.zero, // Explicitly set margin to zero
         decoration: BoxDecoration(
           color: scaffoldColor, // Match scaffold background color
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: KeyboardListener(
           focusNode: _keyboardFocusNode,
@@ -193,7 +193,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: cardColor,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
                         color: isDarkMode
@@ -229,10 +229,13 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                     controller: searchController,
                                     focusNode: _searchFocusNode,
                                     onChanged: _applyFilter,
-                                    style: theme.textTheme.bodyMedium,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontFamily: 'JetBrains Mono',
+                                    ),
                                     decoration: InputDecoration(
                                       hintText: 'Search collections...',
                                       hintStyle: TextStyle(
+                                        fontFamily: 'JetBrains Mono',
                                         color: theme.colorScheme.onSurface
                                             .withValues(alpha: 0.6),
                                       ),
@@ -245,19 +248,19 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                         borderSide: BorderSide(
                                             color: theme.dividerColor),
                                         borderRadius: const BorderRadius.all(
-                                            Radius.circular(8)),
+                                            Radius.circular(16)),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderSide: BorderSide(
                                             color: theme.dividerColor),
                                         borderRadius: const BorderRadius.all(
-                                            Radius.circular(8)),
+                                            Radius.circular(16)),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderSide: BorderSide(
                                             color: theme.colorScheme.primary),
                                         borderRadius: const BorderRadius.all(
-                                            Radius.circular(8)),
+                                            Radius.circular(16)),
                                       ),
                                       fillColor:
                                           theme.inputDecorationTheme.fillColor,
@@ -296,10 +299,14 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                               : theme.cardColor,
                                           margin: const EdgeInsets.symmetric(
                                               vertical: 4),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
                                           child: ListTile(
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
-                                                  BorderRadius.circular(8),
+                                                  BorderRadius.circular(16),
                                             ),
                                             title: Row(
                                               children: [
@@ -307,7 +314,11 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                   child: Text(
                                                     '${item['name']}: ',
                                                     style: theme
-                                                        .textTheme.bodyMedium,
+                                                        .textTheme.bodyMedium
+                                                        ?.copyWith(
+                                                      fontFamily:
+                                                          'JetBrains Mono',
+                                                    ),
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                   ),
@@ -323,6 +334,8 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                   style: theme
                                                       .textTheme.bodyMedium
                                                       ?.copyWith(
+                                                    fontFamily:
+                                                        'JetBrains Mono',
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 16,
                                                   ),
@@ -334,7 +347,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                   top: 4.0, bottom: 8.0),
                                               child: ClipRRect(
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(16),
                                                 child: LinearProgressIndicator(
                                                   value: percentage,
                                                   backgroundColor: isDarkMode
@@ -375,7 +388,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                 width: selectorWidth,
                 decoration: BoxDecoration(
                   color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: theme.dividerColor,
                     width: 1,
@@ -383,7 +396,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                 ),
                 child: InkWell(
                   onTap: _toggleCollectionSelector,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -408,8 +421,9 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                 child: Text(
                                   widget.selectedCollection ??
                                       'Select Collection',
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w500),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                      fontFamily: 'JetBrains Mono',
+                                      fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),

@@ -15,9 +15,6 @@ class MessageStore = MessageStoreBase with _$MessageStore;
 abstract class MessageStoreBase with Store {
   final Logger _logger = Logger('MessageStore');
 
-  // Cache time for messages (10 minutes)
-  final Duration _messageCacheTime = const Duration(minutes: 10);
-
   // Observable lists for messages
   @observable
   ObservableList<Map<String, dynamic>> messages =
@@ -78,21 +75,6 @@ abstract class MessageStoreBase with Store {
   ObservableMap<String, Map<String, List<int>>> searchIndex =
       ObservableMap<String, Map<String, List<int>>>();
 
-  // Pagination parameters
-  @observable
-  int messagePageSize = 100;
-
-  @observable
-  bool hasMoreMessages = true;
-
-  @observable
-  int totalMessagesLoaded = 0;
-
-  // Computed property to check if message cache needs refresh
-  @computed
-  bool get needsMessageRefresh =>
-      DateTime.now().difference(lastMessageFetch) > _messageCacheTime;
-
   // Computed property for active date filtering
   @computed
   bool get hasDateFilter => fromDate != null || toDate != null;
@@ -100,10 +82,8 @@ abstract class MessageStoreBase with Store {
   // Action to change collection and load messages
   @action
   Future<void> setCollection(String? collectionName) async {
-    if (collectionName == currentCollection &&
-        messages.isNotEmpty &&
-        !needsMessageRefresh) {
-      return; // No need to reload if collection hasn't changed and cache is valid
+    if (collectionName == currentCollection && messages.isNotEmpty) {
+      return; // No need to reload if collection hasn't changed and we have messages
     }
 
     // Clear current messages and set loading state
@@ -127,18 +107,16 @@ abstract class MessageStoreBase with Store {
       final cachedMessages = await _loadFromCache(collectionName);
 
       if (cachedMessages.isNotEmpty) {
+        // Ensure messages are sorted by timestamp (ascending)
+        cachedMessages.sort((a, b) =>
+            (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
+
         messages.addAll(cachedMessages);
         filteredMessages.addAll(cachedMessages);
 
         // Build search index for faster searches
         _buildSearchIndex(collectionName);
-
-        // If cache is old, refresh in background
-        if (needsMessageRefresh) {
-          _fetchMessages(collectionName, updateUI: false);
-        } else {
-          isLoading = false;
-        }
+        isLoading = false;
       } else {
         // No cache, fetch directly
         await _fetchMessages(collectionName);
@@ -157,8 +135,6 @@ abstract class MessageStoreBase with Store {
 
     isLoading = true;
     errorMessage = null;
-    hasMoreMessages = true;
-    totalMessagesLoaded = 0;
 
     try {
       await _fetchMessages(currentCollection!, forceRefresh: true);
@@ -281,138 +257,14 @@ abstract class MessageStoreBase with Store {
     isSearchActive = false;
   }
 
-  // Action to load more messages (pagination)
-  @action
-  Future<void> loadMoreMessages() async {
-    if (isLoading || currentCollection == null || !hasMoreMessages) return;
-
-    _logger.info('Loading more messages, current count: ${messages.length}');
-    isLoading = true;
-
-    try {
-      final loadedMessages = await ApiService.fetchMessages(
-        currentCollection!,
-        offset: messages.length,
-        limit: messagePageSize,
-      );
-
-      // Check if we've reached the end
-      if (loadedMessages.isEmpty || loadedMessages.length < messagePageSize) {
-        hasMoreMessages = false;
-        _logger.info('No more messages to load');
-      }
-
-      if (loadedMessages.isNotEmpty) {
-        // Process and convert messages
-        final processedMessages = loadedMessages.map((message) {
-          if (message is! Map) return <String, dynamic>{};
-          return Map<String, dynamic>.from(message);
-        }).toList();
-
-        // Add to current messages
-        messages.addAll(processedMessages);
-        totalMessagesLoaded = messages.length;
-
-        // Update search index with new messages
-        _updateSearchIndexWithNewMessages(
-            currentCollection!, processedMessages);
-
-        // Apply date filters if active
-        _applyDateFilter();
-
-        _logger.info(
-            'Loaded ${processedMessages.length} more messages. Total: ${messages.length}');
-      }
-
-      isLoading = false;
-    } catch (e) {
-      _logger.warning('Error loading more messages: $e');
-      errorMessage = 'Failed to load more messages: $e';
-      isLoading = false;
-    }
-  }
-
-  // Update search index with new messages without rebuilding the entire index
-  void _updateSearchIndexWithNewMessages(
-      String collectionName, List<Map<String, dynamic>> newMessages) {
-    if (newMessages.isEmpty || !searchIndex.containsKey(collectionName)) return;
-
-    final index = searchIndex[collectionName]!;
-    final baseIndex = messages.length - newMessages.length;
-
-    for (int i = 0; i < newMessages.length; i++) {
-      final messageIndex = baseIndex + i;
-      final message = newMessages[i];
-
-      // Index content text
-      if (message['content'] != null) {
-        final content =
-            removeDiacritics(message['content'].toString().toLowerCase());
-        final words = content
-            .split(RegExp(r'[^\w]+'))
-            .where((word) => word.length > 2)
-            .toSet();
-
-        for (final word in words) {
-          if (!index.containsKey(word)) {
-            index[word] = <int>[];
-          }
-          index[word]!.add(messageIndex);
-        }
-      }
-
-      // Index sender name
-      if (message['sender_name'] != null) {
-        final sender =
-            removeDiacritics(message['sender_name'].toString().toLowerCase());
-        final senderWords = sender
-            .split(RegExp(r'[^\w]+'))
-            .where((word) => word.length > 2)
-            .toSet();
-
-        for (final word in senderWords) {
-          if (!index.containsKey(word)) {
-            index[word] = <int>[];
-          }
-          index[word]!.add(messageIndex);
-        }
-      }
-
-      // Index media types
-      if (message['photos'] != null && (message['photos'] as List).isNotEmpty) {
-        index['photo']!.add(messageIndex);
-      }
-
-      if (message['videos'] != null && (message['videos'] as List).isNotEmpty) {
-        index['video']!.add(messageIndex);
-      }
-
-      if (message['audio_files'] != null &&
-          (message['audio_files'] as List).isNotEmpty) {
-        index['audio']!.add(messageIndex);
-      }
-    }
-
-    // Update the index in the store
-    searchIndex[collectionName] = index;
-  }
-
   // Private method to fetch messages from API
   Future<void> _fetchMessages(String? collectionName,
-      {bool updateUI = true,
-      bool forceRefresh = false,
-      int offset = 0,
-      int limit = 0}) async {
+      {bool forceRefresh = false}) async {
     if (collectionName == null) return;
 
     try {
-      // Use pagination parameters if provided
-      final useLimit = limit > 0 ? limit : messagePageSize;
-      final loadedMessages = await ApiService.fetchMessages(
-        collectionName,
-        offset: offset,
-        limit: useLimit,
-      );
+      // Fetch all messages at once without pagination
+      final loadedMessages = await ApiService.fetchMessages(collectionName);
 
       // Process and convert messages
       final processedMessages = loadedMessages.map((message) {
@@ -420,56 +272,42 @@ abstract class MessageStoreBase with Store {
         return Map<String, dynamic>.from(message);
       }).toList();
 
+      // Sort messages by timestamp (ascending)
+      processedMessages.sort((a, b) =>
+          (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
+
       // Update cache
       await _saveToCache(collectionName, processedMessages);
 
-      // Update UI if needed
-      if (updateUI) {
-        if (offset == 0) {
-          // Clear current messages if this is the first page
-          messages.clear();
-          hasMoreMessages = true;
-        }
+      // Update UI
+      messages.clear();
+      messages.addAll(processedMessages);
 
-        messages.addAll(processedMessages);
-        totalMessagesLoaded = messages.length;
+      // Build search index
+      _buildSearchIndex(collectionName);
 
-        // Check if we've reached the end
-        if (processedMessages.length < useLimit) {
-          hasMoreMessages = false;
-        }
+      // Apply date filters if active
+      _applyDateFilter();
 
-        // Build or update search index
-        if (offset == 0) {
-          _buildSearchIndex(collectionName);
-        } else {
-          _updateSearchIndexWithNewMessages(collectionName, processedMessages);
-        }
+      lastMessageFetch = DateTime.now();
+      isLoading = false;
 
-        // Apply date filters if active
-        _applyDateFilter();
-
-        lastMessageFetch = DateTime.now();
-        isLoading = false;
-      }
+      _logger.info(
+          'Loaded ${processedMessages.length} messages for $collectionName');
     } catch (e) {
       _logger.warning('Error fetching messages: $e');
+      errorMessage = 'Failed to load messages: $e';
+      isLoading = false;
 
-      if (updateUI) {
-        errorMessage = 'Failed to load messages: $e';
-        isLoading = false;
-
-        // Try loading from cache as fallback
-        if (messages.isEmpty) {
-          final cachedMessages = await _loadFromCache(collectionName);
-          if (cachedMessages.isNotEmpty) {
-            messages.addAll(cachedMessages);
-            totalMessagesLoaded = messages.length;
-            // Build search index
-            _buildSearchIndex(collectionName);
-            // Apply date filters to cached messages too
-            _applyDateFilter();
-          }
+      // Try loading from cache as fallback
+      if (messages.isEmpty) {
+        final cachedMessages = await _loadFromCache(collectionName);
+        if (cachedMessages.isNotEmpty) {
+          messages.addAll(cachedMessages);
+          // Build search index
+          _buildSearchIndex(collectionName);
+          // Apply date filters to cached messages too
+          _applyDateFilter();
         }
       }
     }
@@ -522,9 +360,12 @@ abstract class MessageStoreBase with Store {
       // Store messages as JSON string
       await prefs.setString(cacheKey, json.encode(messagesList));
 
-      // Store timestamp
+      // Store timestamp for cache metadata
       await prefs.setInt(
           '${cacheKey}_timestamp', DateTime.now().millisecondsSinceEpoch);
+
+      _logger.info(
+          'Saved ${messagesList.length} messages to cache for $collectionName');
     } catch (e) {
       _logger.warning('Error saving messages to cache: $e');
     }
@@ -546,6 +387,9 @@ abstract class MessageStoreBase with Store {
       if (cachedData != null) {
         // Update last fetch time based on cache timestamp
         lastMessageFetch = DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+        _logger.info(
+            'Loaded messages from cache for $collectionName (cached on ${DateTime.fromMillisecondsSinceEpoch(timestamp)})');
 
         // Decode and return messages
         return List<Map<String, dynamic>>.from(

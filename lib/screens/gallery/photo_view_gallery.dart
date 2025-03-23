@@ -109,16 +109,11 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                       ),
                     if (widget.onJumpToGallery != null)
                       IconButton(
-                        icon: const Icon(Icons.grid_view),
+                        icon: const Icon(Icons.photo_library),
                         onPressed: () =>
                             widget.onJumpToGallery?.call(_currentIndex),
-                        tooltip: 'Jump to Gallery',
+                        tooltip: 'View in Gallery',
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.download),
-                      onPressed: () => _downloadCurrentImage(),
-                      tooltip: 'Download Image',
-                    ),
                   ],
                 )
               : null,
@@ -157,7 +152,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                 ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _downloadCurrentImage(),
-            backgroundColor: Colors.black.withValues(alpha: 178),
+            backgroundColor: Colors.black.withAlpha(178),
             child: const Icon(Icons.download, color: Colors.white),
           ),
         ),
@@ -203,7 +198,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
             right: 20,
             child: FloatingActionButton(
               onPressed: () => _downloadCurrentImage(),
-              backgroundColor: Colors.black.withValues(alpha: 178),
+              backgroundColor: Colors.black.withAlpha(178),
               child: const Icon(Icons.download, color: Colors.white),
             ),
           ),
