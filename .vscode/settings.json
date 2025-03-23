@@ -9,5 +9,6 @@
         "titleBar.inactiveBackground": "#2d6d5a99",
         "titleBar.inactiveForeground": "#e7e7e799"
     },
-    "peacock.color": "#2d6d5a"
+    "peacock.color": "#2d6d5a",
+    "editor.fontFamily": "CaskaydiaCove Nerd Font Mono"
 }

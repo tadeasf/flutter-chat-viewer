@@ -1,19 +1,21 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:logging/logging.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 // Add this import
 import 'components/messages/message_selector.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
-import 'dart:io' show Platform;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:logging/logging.dart';
-import 'package:flutter/services.dart';
+import 'stores/store_provider.dart';
+import 'stores/theme_store.dart';
 // Use JsBridge for JS interactions
 import 'utils/js_bridge.dart';
 // Import web initialization
 import 'utils/web_init.dart' if (dart.library.io) 'utils/web_init_stub.dart';
-import 'stores/store_provider.dart';
-import 'stores/theme_store.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
 // Use the imported AppColors from ThemeStore
 
 void main() async {
@@ -94,7 +96,11 @@ void main() async {
     // For web, we'll set a dummy value initially
     // The API key will be injected by the Dockerfile into window.FLUTTER_ENV
     // and ApiService will read it directly from the HTML when needed
-    dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
+    dotenv.testLoad(
+        fileInput:
+            "X_API_KEY=4lFAmnt2FuHLDSKrka9cdI5loz0D90pyidtXKsR2hYuYcG5EHnUX5TV0H6Y3y");
+
+    // dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
     if (kDebugMode) {
       print(
           "Web environment: API key will be read from window.FLUTTER_ENV at runtime");
@@ -104,6 +110,8 @@ void main() async {
     await dotenv.load(fileName: ".env");
     if (kDebugMode) {
       print("Native environment: Loaded API key from .env file");
+      // Log the API key to verify it loaded correctly
+      print("API Key from .env: ${dotenv.env['X_API_KEY'] ?? 'Not found'}");
     }
   }
 
@@ -114,6 +122,10 @@ void main() async {
       messageStore: Stores.messageStore,
       themeStore: Stores.themeStore,
       fileStore: Stores.fileStore,
+      photoStore: Stores.photoStore,
+      galleryStore: Stores.galleryStore,
+      messageIndexStore: Stores.messageIndexStore,
+      navigationStore: Stores.navigationStore,
       child: const MyApp(),
     ),
   );

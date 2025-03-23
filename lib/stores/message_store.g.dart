@@ -16,6 +16,13 @@ mixin _$MessageStore on MessageStoreBase, Store {
           Computed<bool>(() => super.needsMessageRefresh,
               name: 'MessageStoreBase.needsMessageRefresh'))
       .value;
+  Computed<bool>? _$hasDateFilterComputed;
+
+  @override
+  bool get hasDateFilter =>
+      (_$hasDateFilterComputed ??= Computed<bool>(() => super.hasDateFilter,
+              name: 'MessageStoreBase.hasDateFilter'))
+          .value;
 
   late final _$messagesAtom =
       Atom(name: 'MessageStoreBase.messages', context: context);
@@ -30,6 +37,22 @@ mixin _$MessageStore on MessageStoreBase, Store {
   set messages(ObservableList<Map<String, dynamic>> value) {
     _$messagesAtom.reportWrite(value, super.messages, () {
       super.messages = value;
+    });
+  }
+
+  late final _$filteredMessagesAtom =
+      Atom(name: 'MessageStoreBase.filteredMessages', context: context);
+
+  @override
+  ObservableList<Map<String, dynamic>> get filteredMessages {
+    _$filteredMessagesAtom.reportRead();
+    return super.filteredMessages;
+  }
+
+  @override
+  set filteredMessages(ObservableList<Map<String, dynamic>> value) {
+    _$filteredMessagesAtom.reportWrite(value, super.filteredMessages, () {
+      super.filteredMessages = value;
     });
   }
 
@@ -97,6 +120,38 @@ mixin _$MessageStore on MessageStoreBase, Store {
     });
   }
 
+  late final _$fromDateAtom =
+      Atom(name: 'MessageStoreBase.fromDate', context: context);
+
+  @override
+  DateTime? get fromDate {
+    _$fromDateAtom.reportRead();
+    return super.fromDate;
+  }
+
+  @override
+  set fromDate(DateTime? value) {
+    _$fromDateAtom.reportWrite(value, super.fromDate, () {
+      super.fromDate = value;
+    });
+  }
+
+  late final _$toDateAtom =
+      Atom(name: 'MessageStoreBase.toDate', context: context);
+
+  @override
+  DateTime? get toDate {
+    _$toDateAtom.reportRead();
+    return super.toDate;
+  }
+
+  @override
+  set toDate(DateTime? value) {
+    _$toDateAtom.reportWrite(value, super.toDate, () {
+      super.toDate = value;
+    });
+  }
+
   late final _$searchResultsAtom =
       Atom(name: 'MessageStoreBase.searchResults', context: context);
 
@@ -145,6 +200,40 @@ mixin _$MessageStore on MessageStoreBase, Store {
     });
   }
 
+  late final _$isCrossCollectionSearchingAtom = Atom(
+      name: 'MessageStoreBase.isCrossCollectionSearching', context: context);
+
+  @override
+  bool get isCrossCollectionSearching {
+    _$isCrossCollectionSearchingAtom.reportRead();
+    return super.isCrossCollectionSearching;
+  }
+
+  @override
+  set isCrossCollectionSearching(bool value) {
+    _$isCrossCollectionSearchingAtom
+        .reportWrite(value, super.isCrossCollectionSearching, () {
+      super.isCrossCollectionSearching = value;
+    });
+  }
+
+  late final _$crossCollectionResultsAtom =
+      Atom(name: 'MessageStoreBase.crossCollectionResults', context: context);
+
+  @override
+  ObservableList<Map<String, dynamic>> get crossCollectionResults {
+    _$crossCollectionResultsAtom.reportRead();
+    return super.crossCollectionResults;
+  }
+
+  @override
+  set crossCollectionResults(ObservableList<Map<String, dynamic>> value) {
+    _$crossCollectionResultsAtom
+        .reportWrite(value, super.crossCollectionResults, () {
+      super.crossCollectionResults = value;
+    });
+  }
+
   late final _$setCollectionAsyncAction =
       AsyncAction('MessageStoreBase.setCollection', context: context);
 
@@ -162,6 +251,17 @@ mixin _$MessageStore on MessageStoreBase, Store {
     return _$refreshMessagesAsyncAction.run(() => super.refreshMessages());
   }
 
+  late final _$fetchMessagesForDateRangeAsyncAction = AsyncAction(
+      'MessageStoreBase.fetchMessagesForDateRange',
+      context: context);
+
+  @override
+  Future<void> fetchMessagesForDateRange(
+      String collectionName, DateTime? from, DateTime? to) {
+    return _$fetchMessagesForDateRangeAsyncAction
+        .run(() => super.fetchMessagesForDateRange(collectionName, from, to));
+  }
+
   late final _$searchMessagesAsyncAction =
       AsyncAction('MessageStoreBase.searchMessages', context: context);
 
@@ -169,6 +269,15 @@ mixin _$MessageStore on MessageStoreBase, Store {
   Future<void> searchMessages(String query, {bool isCrossCollection = false}) {
     return _$searchMessagesAsyncAction.run(() =>
         super.searchMessages(query, isCrossCollection: isCrossCollection));
+  }
+
+  late final _$searchAcrossCollectionsAsyncAction =
+      AsyncAction('MessageStoreBase.searchAcrossCollections', context: context);
+
+  @override
+  Future<void> searchAcrossCollections(String query) {
+    return _$searchAcrossCollectionsAsyncAction
+        .run(() => super.searchAcrossCollections(query));
   }
 
   late final _$MessageStoreBaseActionController =
@@ -189,14 +298,20 @@ mixin _$MessageStore on MessageStoreBase, Store {
   String toString() {
     return '''
 messages: ${messages},
+filteredMessages: ${filteredMessages},
 currentCollection: ${currentCollection},
 lastMessageFetch: ${lastMessageFetch},
 isLoading: ${isLoading},
 errorMessage: ${errorMessage},
+fromDate: ${fromDate},
+toDate: ${toDate},
 searchResults: ${searchResults},
 isSearchActive: ${isSearchActive},
 searchQuery: ${searchQuery},
-needsMessageRefresh: ${needsMessageRefresh}
+isCrossCollectionSearching: ${isCrossCollectionSearching},
+crossCollectionResults: ${crossCollectionResults},
+needsMessageRefresh: ${needsMessageRefresh},
+hasDateFilter: ${hasDateFilter}
     ''';
   }
 }

@@ -22,6 +22,11 @@ abstract class MessageStoreBase with Store {
   ObservableList<Map<String, dynamic>> messages =
       ObservableList<Map<String, dynamic>>();
 
+  // Observable list for filtered messages by date
+  @observable
+  ObservableList<Map<String, dynamic>> filteredMessages =
+      ObservableList<Map<String, dynamic>>();
+
   // Current collection name
   @observable
   String? currentCollection;
@@ -38,6 +43,13 @@ abstract class MessageStoreBase with Store {
   @observable
   String? errorMessage;
 
+  // Date range filters
+  @observable
+  DateTime? fromDate;
+
+  @observable
+  DateTime? toDate;
+
   // Cross-collection search results
   @observable
   ObservableList<Map<String, dynamic>> searchResults =
@@ -51,10 +63,23 @@ abstract class MessageStoreBase with Store {
   @observable
   String? searchQuery;
 
+  // Observable for cross-collection search
+  @observable
+  bool isCrossCollectionSearching = false;
+
+  // Observable for cross-collection search results
+  @observable
+  ObservableList<Map<String, dynamic>> crossCollectionResults =
+      ObservableList<Map<String, dynamic>>();
+
   // Computed property to check if message cache needs refresh
   @computed
   bool get needsMessageRefresh =>
       DateTime.now().difference(lastMessageFetch) > _messageCacheTime;
+
+  // Computed property for active date filtering
+  @computed
+  bool get hasDateFilter => fromDate != null || toDate != null;
 
   // Action to change collection and load messages
   @action
@@ -67,9 +92,14 @@ abstract class MessageStoreBase with Store {
 
     // Clear current messages and set loading state
     messages.clear();
+    filteredMessages.clear();
     errorMessage = null;
     isLoading = true;
     currentCollection = collectionName;
+
+    // Reset date filters
+    fromDate = null;
+    toDate = null;
 
     if (collectionName == null) {
       isLoading = false;
@@ -82,6 +112,7 @@ abstract class MessageStoreBase with Store {
 
       if (cachedMessages.isNotEmpty) {
         messages.addAll(cachedMessages);
+        filteredMessages.addAll(cachedMessages);
 
         // If cache is old, refresh in background
         if (needsMessageRefresh) {
@@ -117,6 +148,64 @@ abstract class MessageStoreBase with Store {
     }
   }
 
+  // Action to fetch messages with date range filtering
+  @action
+  Future<void> fetchMessagesForDateRange(
+      String collectionName, DateTime? from, DateTime? to) async {
+    isLoading = true;
+    errorMessage = null;
+    fromDate = from;
+    toDate = to;
+
+    // If collection has changed, clear and load new collection
+    if (collectionName != currentCollection) {
+      await setCollection(collectionName);
+    }
+
+    // Apply date filters to existing messages
+    _applyDateFilter();
+    isLoading = false;
+  }
+
+  // Private method to apply date filters to messages
+  void _applyDateFilter() {
+    filteredMessages.clear();
+
+    if (!hasDateFilter) {
+      // If no date filters, use all messages
+      filteredMessages.addAll(messages);
+      return;
+    }
+
+    // Filter messages by date range
+    final filtered = messages.where((message) {
+      final timestamp = message['timestamp_ms'] as int? ?? 0;
+      final messageDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+      // Apply from date filter
+      if (fromDate != null) {
+        final fromStart =
+            DateTime(fromDate!.year, fromDate!.month, fromDate!.day);
+        if (messageDate.isBefore(fromStart)) {
+          return false;
+        }
+      }
+
+      // Apply to date filter
+      if (toDate != null) {
+        final toEnd =
+            DateTime(toDate!.year, toDate!.month, toDate!.day, 23, 59, 59);
+        if (messageDate.isAfter(toEnd)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+
+    filteredMessages.addAll(filtered);
+  }
+
   // Action to search messages
   @action
   Future<void> searchMessages(String query,
@@ -134,10 +223,10 @@ abstract class MessageStoreBase with Store {
         errorMessage = 'Search failed: $e';
       }
     } else {
-      // Local search in current messages
-      if (messages.isEmpty || currentCollection == null) return;
+      // Local search in current filtered messages
+      if (filteredMessages.isEmpty || currentCollection == null) return;
 
-      searchResults.addAll(messages.where((message) {
+      searchResults.addAll(filteredMessages.where((message) {
         final content = message['content']?.toString().toLowerCase() ?? '';
         final sender = message['sender_name']?.toString().toLowerCase() ?? '';
         return content.contains(query.toLowerCase()) ||
@@ -175,6 +264,10 @@ abstract class MessageStoreBase with Store {
       if (updateUI) {
         messages.clear();
         messages.addAll(processedMessages);
+
+        // Apply date filters if active
+        _applyDateFilter();
+
         lastMessageFetch = DateTime.now();
         isLoading = false;
       }
@@ -190,6 +283,8 @@ abstract class MessageStoreBase with Store {
           final cachedMessages = await _loadFromCache(collectionName);
           if (cachedMessages.isNotEmpty) {
             messages.addAll(cachedMessages);
+            // Apply date filters to cached messages too
+            _applyDateFilter();
           }
         }
       }
@@ -221,7 +316,7 @@ abstract class MessageStoreBase with Store {
     searchResults.addAll(processed);
   }
 
-  // Helper to decode UTF-8 content if needed
+  // Helper method to decode text if needed
   String _decodeIfNeeded(dynamic text) {
     if (text == null) return '';
     try {
@@ -277,5 +372,48 @@ abstract class MessageStoreBase with Store {
     }
 
     return [];
+  }
+
+  // Action to search across all collections
+  @action
+  Future<void> searchAcrossCollections(String query) async {
+    if (query.isEmpty) {
+      crossCollectionResults.clear();
+      return;
+    }
+
+    isCrossCollectionSearching = true;
+    crossCollectionResults.clear();
+
+    try {
+      final results = await ApiService.searchAcrossCollections(query);
+
+      // Process search results
+      final processedResults = results.map<Map<String, dynamic>>((result) {
+        if (result is! Map) return <String, dynamic>{};
+
+        // Check if this is an Instagram message
+        final isInstagramMessage =
+            result.containsKey('is_geoblocked_for_viewer');
+
+        return Map<String, dynamic>.from({
+          'content': _decodeIfNeeded(result['content']),
+          'sender_name': _decodeIfNeeded(result['sender_name']),
+          'collectionName': _decodeIfNeeded(result['collectionName']),
+          'timestamp_ms': result['timestamp_ms'] ?? 0,
+          'photos': result['photos'] ?? [],
+          'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
+          'is_online': result['is_online'] ?? false,
+          'is_instagram': isInstagramMessage,
+        });
+      }).toList();
+
+      crossCollectionResults.addAll(processedResults);
+      isCrossCollectionSearching = false;
+    } catch (e) {
+      _logger.warning('Error searching across collections: $e');
+      isCrossCollectionSearching = false;
+      errorMessage = 'Failed to search across collections: ${e.toString()}';
+    }
   }
 }

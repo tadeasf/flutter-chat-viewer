@@ -1,9 +1,8 @@
 import 'package:mobx/mobx.dart';
-import '../utils/api_db/api_service.dart';
 import 'package:logging/logging.dart';
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show compute;
-
+import 'file_store.dart';
+import '../utils/api_db/api_service.dart';
+import 'package:http/http.dart' as http;
 // Include the generated file
 part 'profile_photo_store.g.dart';
 
@@ -13,6 +12,12 @@ class ProfilePhotoStore = ProfilePhotoStoreBase with _$ProfilePhotoStore;
 // The store class
 abstract class ProfilePhotoStoreBase with Store {
   final Logger _logger = Logger('ProfilePhotoStore');
+  final FileStore fileStore;
+  final String baseUrl = 'https://backend.jevrej.cz';
+
+  ProfilePhotoStoreBase({
+    required this.fileStore,
+  });
 
   // Observable map to store URLs by collection name
   @observable
@@ -30,55 +35,64 @@ abstract class ProfilePhotoStoreBase with Store {
   // Action to fetch profile photo
   @action
   Future<String?> getProfilePhotoUrl(String collectionName) async {
-    // Return from cache if available
+    // Check if we have the URL cached
     if (profilePhotoUrls.containsKey(collectionName)) {
       return profilePhotoUrls[collectionName];
     }
 
-    // Set loading state
-    loadingStates[collectionName] = true;
-    errorStates[collectionName] = false;
-
     try {
-      final response = await ApiService.get(
-        '/messages/${Uri.encodeComponent(collectionName)}/photo',
+      final encodedName = Uri.encodeComponent(collectionName);
+      final url = '$baseUrl/serve/photo/$encodedName';
+
+      // Set loading state
+      loadingStates[collectionName] = true;
+      errorStates[collectionName] = false;
+
+      // Use GET request instead of HEAD to properly fetch the photo
+      final response = await http.get(
+        Uri.parse(url),
         headers: ApiService.headers,
       );
 
-      if (response.statusCode == 200) {
-        final jsonData = response.bodyBytes;
+      // Reset loading state
+      loadingStates[collectionName] = false;
 
-        // Parse the response
-        final Map<String, dynamic> parsedData =
-            await compute(_jsonDecodeIsolate, jsonData);
-
-        if (parsedData['isPhotoAvailable'] == true) {
-          final String url = ApiService.getProfilePhotoUrl(collectionName);
-
-          // Update the store
-          profilePhotoUrls[collectionName] = url;
-          loadingStates[collectionName] = false;
-
-          return url;
-        } else {
-          // No photo available
-          profilePhotoUrls[collectionName] = null;
-          loadingStates[collectionName] = false;
-          return null;
-        }
-      } else {
-        // Error occurred
-        _logger
-            .warning('Failed to fetch profile photo: ${response.statusCode}');
+      if (response.statusCode != 200) {
         errorStates[collectionName] = true;
-        loadingStates[collectionName] = false;
         return null;
       }
+
+      // Store in cache
+      profilePhotoUrls[collectionName] = url;
+      return url;
     } catch (e) {
-      _logger.warning('Error fetching profile photo URL: $e');
-      errorStates[collectionName] = true;
-      loadingStates[collectionName] = false;
+      _logger.warning('Error getting profile photo URL: $e');
       return null;
+    }
+  }
+
+  // Method to delete a profile photo
+  @action
+  Future<bool> deleteProfilePhoto(String collectionName) async {
+    try {
+      final photoUrl = await getProfilePhotoUrl(collectionName);
+      if (photoUrl == null) {
+        _logger.warning('No profile photo URL found for $collectionName');
+        return false;
+      }
+
+      // Use the FileStore deleteMedia method
+      final result = await fileStore.deleteMedia(photoUrl, MediaType.image);
+      if (result) {
+        profilePhotoUrls[collectionName] = null;
+        return true;
+      } else {
+        _logger.warning('Failed to delete profile photo for $collectionName');
+        return false;
+      }
+    } catch (e) {
+      _logger.warning('Error deleting profile photo: $e');
+      return false;
     }
   }
 
@@ -110,6 +124,3 @@ abstract class ProfilePhotoStoreBase with Store {
 }
 
 // Helper function to run JSON decode in an isolate
-Map<String, dynamic> _jsonDecodeIsolate(List<int> bodyBytes) {
-  return json.decode(utf8.decode(bodyBytes));
-}

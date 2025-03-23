@@ -1,5 +1,5 @@
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import 'search_type.dart';
+import '../../utils/search/search_type.dart';
 
 void navigateSearch(
     int direction,

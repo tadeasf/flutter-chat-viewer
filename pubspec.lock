@@ -606,7 +606,7 @@ packages:
     source: hosted
     version: "4.4.0"
   just_audio_web:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: just_audio_web
       sha256: "58915be64509a7683c44bf11cd1a23c15a48de104927bee116e3c63c8eeea0d4"
@@ -1211,7 +1211,7 @@ packages:
     source: hosted
     version: "6.3.0"
   video_player_web:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: video_player_web
       sha256: "3ef40ea6d72434edbfdba4624b90fd3a80a0740d260667d91e7ecd2d79e13476"

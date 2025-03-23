@@ -4,19 +4,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import 'fetch_messages.dart';
-import '../gallery/photo_handler.dart';
 import 'message_list.dart';
 import '../../utils/api_db/api_service.dart';
-import '../profile_photo/profile_photo_manager.dart';
+// ignore: unused_import
 import '../search/navigate_search.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
 import '../navbar.dart';
-import '../search/scroll_to_highlighted_message.dart';
+import '../../utils/search/scroll_to_highlighted_message.dart';
 import '../search/search_messages.dart';
-import 'message_index_manager.dart';
-import '../search/search_type.dart';
+import '../../utils/search/search_type.dart';
 import '../ui_utils/visibility_state.dart';
 import '../search/search_dialog.dart';
 import 'package:flutter/services.dart';
@@ -235,6 +232,13 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void _navigateSearch(int direction) {
+    // Create a wrapper that returns the expected type
+    dynamic scrollWrapper(int index, List<int> indices,
+        ItemScrollController controller, SearchType type) {
+      scrollToHighlightedMessage(index, indices, controller, type);
+      return true; // Return any non-null value
+    }
+
     navigateSearch(
       direction,
       searchResults,
@@ -244,7 +248,7 @@ class MessageSelectorState extends State<MessageSelector> {
           currentSearchIndex = index;
         });
       },
-      scrollToHighlightedMessage,
+      scrollWrapper,
       itemScrollController,
     );
   }
@@ -252,6 +256,7 @@ class MessageSelectorState extends State<MessageSelector> {
   Future<void> _changeCollection(String? newValue) async {
     // Use MessageStore for collection change and message loading
     final messageStore = StoreProvider.of(context).messageStore;
+    final photoStore = StoreProvider.of(context).photoStore;
 
     setState(() {
       selectedCollection = newValue;
@@ -274,13 +279,18 @@ class MessageSelectorState extends State<MessageSelector> {
       if (!mounted) return;
 
       // Check photo availability after collection is set
-      await PhotoHandler.checkPhotoAvailability(selectedCollection, setState);
+      final isAvailable =
+          await photoStore.checkPhotoAvailability(selectedCollection);
+      setState(() {
+        isPhotoAvailable = isAvailable;
+      });
 
       if (!mounted) return;
 
       // Get profile photo URL
-      profilePhotoUrl =
-          await ProfilePhotoManager.getProfilePhotoUrl(selectedCollection!);
+      profilePhotoUrl = await StoreProvider.of(context)
+          .profilePhotoStore
+          .getProfilePhotoUrl(selectedCollection!);
 
       // Update messages from store to local state for rendering
       setState(() {
@@ -400,46 +410,49 @@ class MessageSelectorState extends State<MessageSelector> {
       });
 
       try {
-        // Store a local reference to selectedCollection to avoid context access after async gap
-        final currentCollection = selectedCollection;
+        // Get stores from context
+        final messageStore = StoreProvider.of(context).messageStore;
+        final collectionStore = StoreProvider.of(context).collectionStore;
 
-        // Load messages for the new collection
-        await fetchMessages(
-          currentCollection,
-          fromDate,
-          toDate,
-          setState,
-          (List<dynamic> newMessages) async {
-            if (!mounted) return;
+        // Set message loading to true
+        collectionStore.setMessageLoading(true);
 
-            final processedMessages = List<Map<dynamic, dynamic>>.from(
-                newMessages.map((m) => Map<dynamic, dynamic>.from(m)));
+        // Fetch messages directly using MessageStore
+        await messageStore.fetchMessagesForDateRange(
+            collectionName, fromDate, toDate);
 
-            setState(() {
-              messages = processedMessages;
-            });
+        if (!mounted) return;
 
-            // Important: Wait for the next frame to ensure messages are rendered
-            await Future.delayed(const Duration(milliseconds: 100));
+        // Process messages
+        final processedMessages = List<Map<dynamic, dynamic>>.from(messageStore
+            .filteredMessages
+            .map((m) => Map<dynamic, dynamic>.from(m)));
 
-            if (!mounted) return;
+        setState(() {
+          messages = processedMessages;
+        });
 
-            // Now scroll to the target message
-            final manager = MessageIndexManager();
-            manager.updateMessages(messages);
-            final index = manager.getIndexForTimestamp(timestamp);
+        // Set message loading to false
+        collectionStore.setMessageLoading(false);
 
-            if (index != null) {
-              scrollToHighlightedMessage(
-                index,
-                [index],
-                itemScrollController,
-                SearchType.crossCollection,
-              );
-            }
-          },
-          context: context,
-        );
+        // Important: Wait for the next frame to ensure messages are rendered
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        if (!mounted) return;
+
+        // Now scroll to the target message
+        final messageIndexStore = StoreProvider.of(context).messageIndexStore;
+        messageIndexStore.updateMessagesFromRaw(messages);
+        final index = messageIndexStore.getIndexForTimestampRaw(timestamp);
+
+        if (index != null) {
+          scrollToHighlightedMessage(
+            index,
+            [index],
+            itemScrollController,
+            SearchType.crossCollection,
+          );
+        }
       } catch (e) {
         if (kDebugMode) {
           print('Error handling message tap: $e');
@@ -480,7 +493,8 @@ class MessageSelectorState extends State<MessageSelector> {
       },
       onGalleryOpen: () {
         if (selectedCollection != null && messages.isNotEmpty) {
-          PhotoHandler.handleShowAllPhotos(
+          final photoStore = StoreProvider.of(context).photoStore;
+          photoStore.showAllPhotos(
             context,
             selectedCollection,
             messages: messages,
@@ -497,16 +511,9 @@ class MessageSelectorState extends State<MessageSelector> {
           fromDate: fromDate,
           toDate: toDate,
           profilePhotoUrl: profilePhotoUrl,
-          refreshCollections: refreshCollections,
-          setState: setState,
-          fetchMessages: fetchMessages,
-          setThemeMode: widget.setThemeMode,
-          themeMode: widget.themeMode,
-          picker: picker,
-          onCrossCollectionSearch: _handleCrossCollectionSearch,
-          onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
           messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
           itemScrollController: itemScrollController,
+          onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
           onFontSizeChanged: () {
             setState(() {
               // This will trigger a rebuild with the new font size
@@ -993,16 +1000,33 @@ class MessageSelectorState extends State<MessageSelector> {
       currentSearchIndex = -1;
     });
 
+    // Store selected timestamp before collection change
+    final targetTimestamp = timestamp;
+
     // Switch collection and scroll to message
     await _changeCollection(collectionName);
     if (!mounted) return;
 
+    // Wait for messages to be loaded and UI to update
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
     // Find the message index and scroll to it without triggering search UI
-    final messageIndex = MessageIndexManager().getIndexForTimestamp(timestamp);
+    final messageIndexStore = StoreProvider.of(context).messageIndexStore;
+    messageIndexStore.updateMessagesFromRaw(messages);
+    final messageIndex =
+        messageIndexStore.getIndexForTimestampRaw(targetTimestamp);
     if (messageIndex != null) {
+      // Use searchResults with single item to allow proper highlighting
+      setState(() {
+        searchResults = [messageIndex];
+        currentSearchIndex = 0;
+      });
+
       scrollToHighlightedMessage(
         messageIndex,
-        [], // Empty search results since we don't want search UI
+        searchResults,
         itemScrollController,
         SearchType.crossCollection,
       );

@@ -1,54 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import './gallery/photo_handler.dart';
 import '../stores/store_provider.dart';
 import './profile_photo/profile_photo.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   final String? selectedCollection;
   final bool isPhotoAvailable;
   final bool isProfilePhotoVisible;
   final DateTime? fromDate;
   final DateTime? toDate;
-  final String? profilePhotoUrl;
-  final Function refreshCollections;
-  final Function setState;
-  final Function fetchMessages;
-  final void Function(ThemeMode) setThemeMode;
-  final ThemeMode themeMode;
-  final ImagePicker picker;
-  final Function(List<dynamic>) onCrossCollectionSearch;
-  final VoidCallback onDrawerClosed;
   final List<Map<dynamic, dynamic>> messages;
   final ItemScrollController itemScrollController;
+  final VoidCallback onDrawerClosed;
   final VoidCallback onFontSizeChanged;
+  final String? profilePhotoUrl;
 
   const AppDrawer({
     super.key,
-    required this.selectedCollection,
-    required this.isPhotoAvailable,
-    required this.isProfilePhotoVisible,
-    required this.fromDate,
-    required this.toDate,
-    required this.profilePhotoUrl,
-    required this.refreshCollections,
-    required this.setState,
-    required this.fetchMessages,
-    required this.setThemeMode,
-    required this.themeMode,
-    required this.picker,
-    required this.onCrossCollectionSearch,
-    required this.onDrawerClosed,
+    this.selectedCollection,
+    this.isPhotoAvailable = false,
+    this.isProfilePhotoVisible = true,
+    this.fromDate,
+    this.toDate,
     required this.messages,
     required this.itemScrollController,
+    required this.onDrawerClosed,
     required this.onFontSizeChanged,
+    this.profilePhotoUrl,
   });
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  String? get selectedCollection => widget.selectedCollection;
+  bool get isPhotoAvailable => widget.isPhotoAvailable;
+  bool get isProfilePhotoVisible => widget.isProfilePhotoVisible;
+  List<Map<dynamic, dynamic>> get messages => widget.messages;
+  ItemScrollController get itemScrollController => widget.itemScrollController;
+  VoidCallback get onDrawerClosed => widget.onDrawerClosed;
+  VoidCallback get onFontSizeChanged => widget.onFontSizeChanged;
+  String? get profilePhotoUrl => widget.profilePhotoUrl;
 
   @override
   Widget build(BuildContext context) {
     final themeStore = StoreProvider.of(context).themeStore;
+    final photoStore = StoreProvider.of(context).photoStore;
 
     return Drawer(
       child: SafeArea(
@@ -81,7 +80,7 @@ class AppDrawer extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: ProfilePhoto(
-                      key: ValueKey(profilePhotoUrl), // Add this line
+                      key: ValueKey(profilePhotoUrl),
                       collectionName: selectedCollection!,
                       size: 120.0,
                       isOnline: true,
@@ -103,12 +102,15 @@ class AppDrawer extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium),
                   onTap: () {
                     Navigator.pop(context);
-                    PhotoHandler.handleShowAllPhotos(
-                      context,
-                      selectedCollection,
-                      messages: messages,
-                      itemScrollController: itemScrollController,
-                    );
+                    // Use the PhotoStore to handle gallery navigation
+                    if (selectedCollection != null) {
+                      photoStore.showAllPhotos(
+                        context,
+                        selectedCollection,
+                        messages: messages,
+                        itemScrollController: itemScrollController,
+                      );
+                    }
                   },
                 ),
                 const Divider(),

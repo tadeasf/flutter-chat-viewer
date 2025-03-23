@@ -4,18 +4,15 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
-import '../gallery/photo_view_gallery.dart';
-import '../search/search_type.dart';
-import '../search/scroll_to_highlighted_message.dart';
+import '../../screens/gallery/photo_view_gallery.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import '../messages/message_index_manager.dart';
-import '../gallery/photo_gallery.dart';
 import 'package:just_audio/just_audio.dart';
 import 'audio_message_player.dart';
 import '../media/video_player_screen.dart';
 import 'package:intl/intl.dart';
 import '../../stores/store_provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import '../../stores/file_store.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -65,74 +62,35 @@ class MessageItemState extends State<MessageItem> {
     // If it's already a full URL, return it
     if (uri.startsWith('http')) return uri;
 
-    // The URI from the API response is in format: messages/inbox/collectionName/photos/filename
-    // We need to extract just the collection name and filename
-    final parts = uri.split('/');
-    String collectionName;
-    String filename;
+    // Get the collection name from message or selected collection
+    final collectionName = widget.isCrossCollectionSearch
+        ? widget.message['collectionName'] ?? widget.selectedCollectionName
+        : widget.selectedCollectionName;
 
-    if (parts.length >= 5) {
-      // Extract from full path
-      collectionName = parts[2];
-      filename = parts.last;
-    } else {
-      // Fallback to the current collection
-      collectionName = widget.isCrossCollectionSearch
-          ? widget.message['collectionName'] ?? widget.selectedCollectionName
-          : widget.selectedCollectionName;
-      filename = uri.split('/').last;
-    }
+    // Get FileStore from provider
+    final fileStore = StoreProvider.of(context).fileStore;
 
-    return '${ApiService.baseUrl}/inbox/$collectionName/photos/$filename';
+    // Use FileStore to format the photo URL
+    return fileStore.formatMediaUrl(
+      uri: uri,
+      type: MediaType.image,
+      collectionName: collectionName,
+    );
   }
 
   void _handlePhotoTap(BuildContext context, int index, List<dynamic> photos) {
-    final manager = MessageIndexManager();
-    manager.updateMessages(widget.messages);
-
-    final allPhotos = manager.allPhotos;
-    final startingPhoto = photos[index];
-    final startingIndex = allPhotos.indexWhere((photo) =>
-        photo['uri'] == startingPhoto['uri'] &&
-        photo['timestamp_ms'] == widget.message['timestamp_ms']);
+    // Cast to Map<String, dynamic> to avoid type issues
+    final photosAsMaps = List<Map<String, dynamic>>.from(
+        photos.map((photo) => Map<String, dynamic>.from(photo)));
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => PhotoViewGalleryScreen(
-          photos: allPhotos,
-          initialIndex: startingIndex >= 0 ? startingIndex : 0,
-          onLongPress: (currentPhoto) {
-            Navigator.pop(context);
-            final messageIndex = manager.getIndexForTimestamp(
-              currentPhoto['timestamp_ms'] as int,
-              isPhotoTimestamp: true,
-            );
-
-            if (messageIndex != null) {
-              scrollToHighlightedMessage(
-                messageIndex,
-                [messageIndex],
-                widget.itemScrollController,
-                SearchType.photoView,
-              );
-            }
-          },
-          onJumpToGallery: (currentIndex) {
-            Navigator.pop(context);
-            final currentPhoto = allPhotos[currentIndex];
-            PhotoGalleryState.navigateToGalleryAndScroll(
-              context,
-              widget.isCrossCollectionSearch
-                  ? widget.message['collectionName']
-                  : widget.selectedCollectionName,
-              currentPhoto,
-              widget.messages,
-              widget.itemScrollController,
-            );
-          },
+          photos: photosAsMaps,
+          initialIndex: index,
           collectionName: widget.isCrossCollectionSearch
-              ? widget.message['collectionName']
+              ? widget.message['collectionName'] ?? ''
               : widget.selectedCollectionName,
           showAppBar: true,
         ),
@@ -140,7 +98,21 @@ class MessageItemState extends State<MessageItem> {
     );
   }
 
-  void _handleVideoTap(BuildContext context, String videoUrl) {
+  void _handleVideoTap(BuildContext context, String videoUri) {
+    final collectionName = widget.isCrossCollectionSearch
+        ? widget.message['collectionName'] ?? widget.selectedCollectionName
+        : widget.selectedCollectionName;
+
+    // Get FileStore from provider
+    final fileStore = StoreProvider.of(context).fileStore;
+
+    // Use FileStore and MediaType enum to format the video URL
+    final videoUrl = fileStore.formatMediaUrl(
+      uri: videoUri,
+      type: MediaType.video,
+      collectionName: collectionName,
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -149,10 +121,45 @@ class MessageItemState extends State<MessageItem> {
     );
   }
 
+  void _handleAudioTap(Map<String, dynamic> audio) {
+    final collectionName = widget.isCrossCollectionSearch
+        ? widget.message['collectionName'] ?? widget.selectedCollectionName
+        : widget.selectedCollectionName;
+
+    final audioUri = audio['uri'] as String;
+
+    // Get FileStore from provider
+    final fileStore = StoreProvider.of(context).fileStore;
+
+    // Use FileStore to get audio URL
+    final audioUrl = fileStore.formatMediaUrl(
+      uri: audioUri,
+      type: MediaType.audio,
+      collectionName: collectionName,
+    );
+
+    // Check if this audio player exists
+    if (!_audioPlayers.containsKey(audioUri)) {
+      _audioPlayers[audioUri] = AudioPlayer();
+    }
+
+    // Get the audio player
+    final player = _audioPlayers[audioUri]!;
+
+    if (player.playing) {
+      player.pause();
+    } else {
+      // Load and play the audio
+      player.setUrl(audioUrl).then((_) {
+        player.play();
+      });
+    }
+  }
+
   @override
   void dispose() {
     // Dispose all audio players
-    for (var player in _audioPlayers.values) {
+    for (final player in _audioPlayers.values) {
       player.dispose();
     }
     super.dispose();
@@ -249,12 +256,9 @@ class MessageItemState extends State<MessageItem> {
           spacing: 4,
           runSpacing: 4,
           children: videos.map<Widget>((video) {
-            final videoUrl = ApiService.getVideoUrl(
-              widget.selectedCollectionName,
-              video['uri'],
-            );
+            final videoUri = video['uri'] as String;
             return GestureDetector(
-              onTap: () => _handleVideoTap(context, videoUrl),
+              onTap: () => _handleVideoTap(context, videoUri),
               child: Container(
                 width: displayWidth,
                 height: 200,
@@ -269,10 +273,7 @@ class MessageItemState extends State<MessageItem> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: CachedNetworkImage(
-                          imageUrl: ApiService.getPhotoUrl(
-                            widget.selectedCollectionName,
-                            video['thumbnail_url'],
-                          ),
+                          imageUrl: _generateFullUri(video['thumbnail_url']),
                           httpHeaders: ApiService.headers,
                           width: displayWidth,
                           height: 200,
@@ -323,20 +324,21 @@ class MessageItemState extends State<MessageItem> {
           spacing: 4,
           runSpacing: 4,
           children: audioFiles.map<Widget>((audio) {
-            final audioUrl = ApiService.getAudioUrl(
-              widget.selectedCollectionName,
-              audio['uri'],
-            );
-
-            return AudioMessagePlayer(
-              key: ValueKey(audio['uri']),
-              audioUrl: audioUrl,
-              onPlayerCreated: (String uri, AudioPlayer player) {
-                _audioPlayers[uri] = player;
-              },
-              onPlayerDisposed: (String uri) {
-                _audioPlayers.remove(uri);
-              },
+            return GestureDetector(
+              onTap: () => _handleAudioTap(Map<String, dynamic>.from(audio)),
+              child: AudioMessagePlayer(
+                key: ValueKey(audio['uri']),
+                audioUrl: audio['uri'],
+                collectionName: widget.isCrossCollectionSearch
+                    ? widget.message['collectionName']
+                    : widget.selectedCollectionName,
+                onPlayerCreated: (String uri, AudioPlayer player) {
+                  _audioPlayers[uri] = player;
+                },
+                onPlayerDisposed: (String uri) {
+                  _audioPlayers.remove(uri);
+                },
+              ),
             );
           }).toList(),
         ),

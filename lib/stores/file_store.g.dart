@@ -89,12 +89,75 @@ mixin _$FileStore on FileStoreBase, Store {
     });
   }
 
+  late final _$isLoadingAtom =
+      Atom(name: 'FileStoreBase.isLoading', context: context);
+
+  @override
+  bool get isLoading {
+    _$isLoadingAtom.reportRead();
+    return super.isLoading;
+  }
+
+  @override
+  set isLoading(bool value) {
+    _$isLoadingAtom.reportWrite(value, super.isLoading, () {
+      super.isLoading = value;
+    });
+  }
+
+  late final _$cacheAtom = Atom(name: 'FileStoreBase.cache', context: context);
+
+  @override
+  ObservableMap<String, dynamic> get cache {
+    _$cacheAtom.reportRead();
+    return super.cache;
+  }
+
+  @override
+  set cache(ObservableMap<String, dynamic> value) {
+    _$cacheAtom.reportWrite(value, super.cache, () {
+      super.cache = value;
+    });
+  }
+
   late final _$getFileAsyncAction =
       AsyncAction('FileStoreBase.getFile', context: context);
 
   @override
-  Future<String?> getFile(String url, MediaType type) {
-    return _$getFileAsyncAction.run(() => super.getFile(url, type));
+  Future<String?> getFile(String uri, MediaType type,
+      {String? collectionName,
+      url_formatter.MediaSource source = url_formatter.MediaSource.message}) {
+    return _$getFileAsyncAction.run(() => super
+        .getFile(uri, type, collectionName: collectionName, source: source));
+  }
+
+  late final _$downloadMediaFromMessageAsyncAction =
+      AsyncAction('FileStoreBase.downloadMediaFromMessage', context: context);
+
+  @override
+  Future<bool> downloadMediaFromMessage(BuildContext context,
+      Map<String, dynamic> message, String mediaUri, MediaType type) {
+    return _$downloadMediaFromMessageAsyncAction.run(
+        () => super.downloadMediaFromMessage(context, message, mediaUri, type));
+  }
+
+  late final _$downloadPhotoAsyncAction =
+      AsyncAction('FileStoreBase.downloadPhoto', context: context);
+
+  @override
+  Future<bool> downloadPhoto(
+      BuildContext context, Map<String, dynamic> photo, String collectionName) {
+    return _$downloadPhotoAsyncAction
+        .run(() => super.downloadPhoto(context, photo, collectionName));
+  }
+
+  late final _$downloadFileAsyncAction =
+      AsyncAction('FileStoreBase.downloadFile', context: context);
+
+  @override
+  Future<bool> downloadFile(BuildContext context, String url, MediaType type) {
+    return _$downloadFileAsyncAction
+        .run(() => super.downloadFile(context, url, type));
   }
 
   late final _$clearCacheAsyncAction =
@@ -150,7 +213,9 @@ imagePaths: ${imagePaths},
 videoPaths: ${videoPaths},
 audioPaths: ${audioPaths},
 loadingStates: ${loadingStates},
-errorStates: ${errorStates}
+errorStates: ${errorStates},
+isLoading: ${isLoading},
+cache: ${cache}
     ''';
   }
 }

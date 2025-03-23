@@ -66,6 +66,15 @@ mixin _$ProfilePhotoStore on ProfilePhotoStoreBase, Store {
         .run(() => super.getProfilePhotoUrl(collectionName));
   }
 
+  late final _$deleteProfilePhotoAsyncAction =
+      AsyncAction('ProfilePhotoStoreBase.deleteProfilePhoto', context: context);
+
+  @override
+  Future<bool> deleteProfilePhoto(String collectionName) {
+    return _$deleteProfilePhotoAsyncAction
+        .run(() => super.deleteProfilePhoto(collectionName));
+  }
+
   late final _$ProfilePhotoStoreBaseActionController =
       ActionController(name: 'ProfilePhotoStoreBase', context: context);
 
