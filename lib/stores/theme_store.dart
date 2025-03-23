@@ -153,33 +153,33 @@ abstract class ThemeStoreBase with Store {
 
 // Helper class for app colors
 class AppColors {
-  // Background color - Tokyo Night dark blue
-  static const Color background = Color(0xFF1F2335);
+  // Background color - Darker than current Tokyo Night
+  static const Color background = Color(0xFF121214);
 
   // Message bubbles
-  static const Color authorBubble = Color(0xFF292E42);
-  static const Color senderBubble = Color(0xFF3B4261);
+  static const Color authorBubble = Color(0xFF1E1E24);
+  static const Color senderBubble = Color(0xFF2D2D3A);
 
-  // Tokyo Night palette
-  static const Color surface0 = Color(0xFF24283B);
-  static const Color surface1 = Color(0xFF394B70);
-  static const Color surface2 = Color(0xFF545C7E);
-  static const Color blue = Color(0xFF7AA2F7);
+  // Modern dark UI palette
+  static const Color surface0 = Color(0xFF17171B);
+  static const Color surface1 = Color(0xFF1E1E24);
+  static const Color surface2 = Color(0xFF2D2D3A);
+  static const Color blue = Color(0xFF5B9BF8);
   static const Color lavender = Color(0xFF9D7CD8);
   static const Color sapphire = Color(0xFF7DCFFF);
   static const Color sky = Color(0xFF7DCFFF);
-  static const Color teal = Color(0xFF2AC3DE);
-  static const Color green = Color(0xFF9ECE6A);
-  static const Color yellow = Color(0xFFE0AF68);
+  static const Color teal = Color(0xFF4DD0E1);
+  static const Color green = Color(0xFF7AE582);
+  static const Color yellow = Color(0xFFFFD166);
   static const Color peach = Color(0xFFFF9E64);
-  static const Color maroon = Color(0xFFF7768E);
-  static const Color red = Color(0xFFF7768E);
+  static const Color maroon = Color(0xFFF76686);
+  static const Color red = Color(0xFFF76686);
   static const Color mauve = Color(0xFFBB9AF7);
-  static const Color pink = Color(0xFFF7768E);
-  static const Color flamingo = Color(0xFFF7768E);
-  static const Color rosewater = Color(0xFFF7768E);
-  static const Color text = Color(0xFFC0CAF5);
-  static const Color subtext1 = Color(0xFFA9B1D6);
+  static const Color pink = Color(0xFFF76686);
+  static const Color flamingo = Color(0xFFF76686);
+  static const Color rosewater = Color(0xFFF76686);
+  static const Color text = Color(0xFFECECF4);
+  static const Color subtext1 = Color(0xFFABABBC);
 
   // Video player specific colors
   static const Color videoOverlay = Color(0x42000000);
@@ -215,7 +215,7 @@ class AppColors {
         iconTheme: IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           fontSize: 20,
           fontWeight: FontWeight.w500,
         ),
@@ -229,42 +229,42 @@ class AppColors {
             TextStyle(color: Colors.black87, fontSize: fontSize + 2),
         headlineSmall: TextStyle(color: Colors.black87, fontSize: fontSize + 1),
         titleLarge: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
           fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black54,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
@@ -332,6 +332,8 @@ class AppColors {
         onSurfaceVariant: AppColors.text,
         error: AppColors.red,
         onError: Colors.white,
+        background: AppColors.background,
+        shadow: Colors.black,
       ),
       canvasColor: AppColors.background,
       cardColor: AppColors.surface0,
@@ -340,15 +342,18 @@ class AppColors {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
+        shadowColor: Colors.black.withValues(alpha: 60),
+        elevation: 8.0,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface0,
         foregroundColor: AppColors.text,
         iconTheme: IconThemeData(color: AppColors.text),
         elevation: 4.0,
+        shadowColor: Colors.black.withValues(alpha: 60),
         titleTextStyle: TextStyle(
           color: AppColors.text,
-          fontFamily: 'JetBrains Mono',
+          fontFamily: 'JetBrains Mono Nerd Font',
           fontSize: 20,
           fontWeight: FontWeight.w500,
         ),
@@ -362,21 +367,21 @@ class AppColors {
             TextStyle(color: AppColors.text, fontSize: fontSize + 2),
         headlineSmall: TextStyle(color: AppColors.text, fontSize: fontSize + 1),
         titleLarge: TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
           fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,

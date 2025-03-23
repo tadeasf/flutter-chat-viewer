@@ -519,7 +519,7 @@ class MessageItemState extends State<MessageItem> {
                         _ensureDecoded(
                             widget.message['sender_name'] ?? 'Unknown sender'),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'JetBrains Mono',
+                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontSize: 14,
                         ),
                       ),

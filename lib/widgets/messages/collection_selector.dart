@@ -291,8 +291,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                         return Card(
                                           elevation: 0,
                                           color: isDarkMode
-                                              ? theme.inputDecorationTheme
-                                                  .fillColor
+                                              ? Color(0xFF1E1E24)
                                               : theme.cardColor,
                                           margin: const EdgeInsets.symmetric(
                                               vertical: 4),
@@ -374,7 +373,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 width: selectorWidth,
                 decoration: BoxDecoration(
-                  color: theme.cardColor,
+                  color: isDarkMode ? Color(0xFF1E1E24) : theme.cardColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: theme.dividerColor,

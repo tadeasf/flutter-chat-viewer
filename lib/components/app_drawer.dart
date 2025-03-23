@@ -49,7 +49,7 @@ class _AppDrawerState extends State<AppDrawer> {
     final photoStore = StoreProvider.of(context).photoStore;
 
     // Darker color for the drawer background
-    final darkGreyColor = Color(0xFF1A1A1A);
+    final darkGreyColor = Color(0xFF121214);
 
     return Drawer(
       backgroundColor: darkGreyColor,
@@ -66,7 +66,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     selectedCollection ?? 'No Collection Selected',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontSize: 18,
-                          fontFamily: 'JetBrains Mono',
+                          fontFamily: 'JetBrains Mono Nerd Font',
                           color: Colors.white,
                         ),
                     textAlign: TextAlign.center, // Center the text
@@ -97,7 +97,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade800, // Slightly lighter background
+                    color: Color(0xFF1E1E24), // Slightly lighter background
                     borderRadius: BorderRadius.circular(16), // Rounded corners
                   ),
                   child: Column(
@@ -109,7 +109,7 @@ class _AppDrawerState extends State<AppDrawer> {
                           'Gallery',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontFamily: 'JetBrains Mono',
+                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     color: Colors.white,
                                   ),
                           textAlign: TextAlign.center,
@@ -127,7 +127,7 @@ class _AppDrawerState extends State<AppDrawer> {
                           }
                         },
                       ),
-                      const Divider(color: Colors.grey),
+                      const Divider(color: Color(0xFF2D2D3A)),
                       ListTile(
                         leading:
                             const Icon(Icons.settings, color: Colors.white70),
@@ -135,7 +135,7 @@ class _AppDrawerState extends State<AppDrawer> {
                           'Settings',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontFamily: 'JetBrains Mono',
+                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     color: Colors.white,
                                   ),
                           textAlign: TextAlign.center,

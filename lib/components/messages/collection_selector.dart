@@ -230,12 +230,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                     focusNode: _searchFocusNode,
                                     onChanged: _applyFilter,
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontFamily: 'JetBrains Mono',
+                                      fontFamily: 'JetBrains Mono Nerd Font',
                                     ),
                                     decoration: InputDecoration(
                                       hintText: 'Search collections...',
                                       hintStyle: TextStyle(
-                                        fontFamily: 'JetBrains Mono',
+                                        fontFamily: 'JetBrains Mono Nerd Font',
                                         color: theme.colorScheme.onSurface
                                             .withValues(alpha: 0.6),
                                       ),
@@ -317,7 +317,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                         .textTheme.bodyMedium
                                                         ?.copyWith(
                                                       fontFamily:
-                                                          'JetBrains Mono',
+                                                          'JetBrains Mono Nerd Font',
                                                     ),
                                                     overflow:
                                                         TextOverflow.ellipsis,
@@ -335,7 +335,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                       .textTheme.bodyMedium
                                                       ?.copyWith(
                                                     fontFamily:
-                                                        'JetBrains Mono',
+                                                        'JetBrains Mono Nerd Font',
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 16,
                                                   ),
@@ -422,7 +422,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                   widget.selectedCollection ??
                                       'Select Collection',
                                   style: theme.textTheme.titleMedium?.copyWith(
-                                      fontFamily: 'JetBrains Mono',
+                                      fontFamily: 'JetBrains Mono Nerd Font',
                                       fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),

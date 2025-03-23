@@ -226,6 +226,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
   Widget build(BuildContext context) {
     final galleryStore = StoreProvider.of(context).galleryStore;
     final fileStore = StoreProvider.of(context).fileStore;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return KeyboardListener(
       focusNode: FocusNode(),
@@ -237,8 +238,10 @@ class PhotoGalleryState extends State<PhotoGallery> {
         }
       },
       child: Scaffold(
+        backgroundColor: isDarkMode ? Color(0xFF121214) : null,
         appBar: AppBar(
           title: Text('Photos - ${widget.collectionName}'),
+          backgroundColor: isDarkMode ? Color(0xFF17171B) : null,
           actions: [
             IconButton(
               icon: const Icon(Icons.settings_backup_restore),
@@ -330,7 +333,9 @@ class PhotoGalleryState extends State<PhotoGallery> {
                     );
                   },
                   child: Container(
-                    color: Theme.of(context).cardColor,
+                    color: isDarkMode
+                        ? Color(0xFF1E1E24)
+                        : Theme.of(context).cardColor,
                     child: PhotoThumbnail(
                       imageUrl: imageUrl,
                       collectionName: widget.collectionName,

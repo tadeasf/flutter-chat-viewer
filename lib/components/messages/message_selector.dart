@@ -19,6 +19,7 @@ import '../search/search_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import '../../stores/store_provider.dart';
+import '../../widgets/ui_utils/dark_geometric_background.dart';
 
 final searchKeySet = LogicalKeySet(
   LogicalKeyboardKey.meta, // Use control on Windows
@@ -510,224 +511,232 @@ class MessageSelectorState extends State<MessageSelector> {
         }
       },
       onCollectionSelectorToggle: toggleCollectionSelector,
-      child: Scaffold(
-        drawer: AppDrawer(
-          selectedCollection: selectedCollection,
-          isPhotoAvailable: isPhotoAvailable,
-          isProfilePhotoVisible: _isProfilePhotoVisible,
-          fromDate: fromDate,
-          toDate: toDate,
-          profilePhotoUrl: profilePhotoUrl,
-          messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
-          itemScrollController: itemScrollController,
-          onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
-          onFontSizeChanged: () {
-            setState(() {
-              // This will trigger a rebuild with the new font size
-            });
-          },
-        ),
-        body: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () async {
-                final store = StoreProvider.of(context).collectionStore;
-                // Force a refresh here since this is an explicit user action
-                await store.refreshCollections();
-              },
-              child: Observer(
-                builder: (context) {
-                  final collectionStore =
-                      StoreProvider.of(context).collectionStore;
-                  final isCollectionLoading = collectionStore.isLoading;
-                  final isMessageLoading = collectionStore.isMessageLoading;
-                  final collections = collectionStore.collections;
+      child: DarkGeometricBackground(
+        child: Scaffold(
+          drawer: AppDrawer(
+            selectedCollection: selectedCollection,
+            isPhotoAvailable: isPhotoAvailable,
+            isProfilePhotoVisible: _isProfilePhotoVisible,
+            fromDate: fromDate,
+            toDate: toDate,
+            profilePhotoUrl: profilePhotoUrl,
+            messages:
+                messages.map((m) => Map<String, dynamic>.from(m)).toList(),
+            itemScrollController: itemScrollController,
+            onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
+            onFontSizeChanged: () {
+              setState(() {
+                // This will trigger a rebuild with the new font size
+              });
+            },
+          ),
+          body: Stack(
+            children: [
+              RefreshIndicator(
+                onRefresh: () async {
+                  final store = StoreProvider.of(context).collectionStore;
+                  // Force a refresh here since this is an explicit user action
+                  await store.refreshCollections();
+                },
+                child: Observer(
+                  builder: (context) {
+                    final collectionStore =
+                        StoreProvider.of(context).collectionStore;
+                    final isCollectionLoading = collectionStore.isLoading;
+                    final isMessageLoading = collectionStore.isMessageLoading;
+                    final collections = collectionStore.collections;
 
-                  if (collections.isEmpty && isCollectionLoading) {
-                    return ListView(
-                      children: const [
-                        SizedBox(height: 200),
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 16),
-                              Text(
-                                'Loading collections...',
-                                style: TextStyle(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  } else if (collections.isEmpty) {
-                    return ListView(
-                      children: const [
-                        SizedBox(height: 200),
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Pull down to refresh collections',
-                                style: TextStyle(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Meta Elysia',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontFamily: 'CaskaydiaCove Nerd Font',
+                    if (collections.isEmpty && isCollectionLoading) {
+                      return ListView(
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Loading collections...',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     fontSize: 12,
                                   ),
-                        ),
-                      ),
-                      Expanded(
-                        child: isMessageLoading || isCrossCollectionLoading
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const CircularProgressIndicator(),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      selectedCollection != null
-                                          ? 'Loading messages...'
-                                          : 'Select a collection',
-                                      style: const TextStyle(
-                                        fontFamily: 'CaskaydiaCove Nerd Font',
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
                                 ),
-                              )
-                            : messages.isEmpty && selectedCollection != null
-                                ? const Center(
-                                    child: Text(
-                                      'No messages found',
-                                      style: TextStyle(
-                                        fontFamily: 'CaskaydiaCove Nerd Font',
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  )
-                                : MessageList(
-                                    messages: isCrossCollectionSearch
-                                        ? crossCollectionMessages
-                                        : messages,
-                                    searchResults: searchResults,
-                                    currentSearchIndex: currentSearchIndex,
-                                    itemScrollController: itemScrollController,
-                                    itemPositionsListener:
-                                        itemPositionsListener,
-                                    isSearchActive: isSearchVisible,
-                                    selectedCollectionName:
-                                        selectedCollection ?? '',
-                                    profilePhotoUrl: profilePhotoUrl,
-                                    isCrossCollectionSearch:
-                                        isCrossCollectionSearch,
-                                    onMessageTap:
-                                        _handleCrossCollectionMessageTap,
-                                  ),
-                      ),
-                      if (isCollectionSelectorVisible ||
-                          selectedCollection == null)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: CollectionSelector(
-                            selectedCollection: selectedCollection,
-                            initialCollections:
-                                collectionStore.filteredCollections.toList(),
-                            onCollectionChanged: _changeCollection,
+                              ],
+                            ),
                           ),
-                        ),
-                      if (isPhotoAvailable && selectedCollection != null)
+                        ],
+                      );
+                    } else if (collections.isEmpty) {
+                      return ListView(
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Pull down to refresh collections',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono Nerd Font',
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      children: [
                         Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Image.network(
-                            'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
-                            height: 100,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Text(
-                                'Failed to load image',
-                                style: TextStyle(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                          child: Text(
+                            'Meta Elysia',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontFamily: 'JetBrains Mono Nerd Font',
                                   fontSize: 12,
                                 ),
-                              );
-                            },
                           ),
                         ),
-                    ],
-                  );
-                },
+                        Expanded(
+                          child: isMessageLoading || isCrossCollectionLoading
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const CircularProgressIndicator(),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        selectedCollection != null
+                                            ? 'Loading messages...'
+                                            : 'Select a collection',
+                                        style: const TextStyle(
+                                          fontFamily:
+                                              'JetBrains Mono Nerd Font',
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : messages.isEmpty && selectedCollection != null
+                                  ? const Center(
+                                      child: Text(
+                                        'No messages found',
+                                        style: TextStyle(
+                                          fontFamily:
+                                              'JetBrains Mono Nerd Font',
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    )
+                                  : MessageList(
+                                      messages: isCrossCollectionSearch
+                                          ? crossCollectionMessages
+                                          : messages,
+                                      searchResults: searchResults,
+                                      currentSearchIndex: currentSearchIndex,
+                                      itemScrollController:
+                                          itemScrollController,
+                                      itemPositionsListener:
+                                          itemPositionsListener,
+                                      isSearchActive: isSearchVisible,
+                                      selectedCollectionName:
+                                          selectedCollection ?? '',
+                                      profilePhotoUrl: profilePhotoUrl,
+                                      isCrossCollectionSearch:
+                                          isCrossCollectionSearch,
+                                      onMessageTap:
+                                          _handleCrossCollectionMessageTap,
+                                    ),
+                        ),
+                        if (isCollectionSelectorVisible ||
+                            selectedCollection == null)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: CollectionSelector(
+                              selectedCollection: selectedCollection,
+                              initialCollections:
+                                  collectionStore.filteredCollections.toList(),
+                              onCollectionChanged: _changeCollection,
+                            ),
+                          ),
+                        if (isPhotoAvailable && selectedCollection != null)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Image.network(
+                              'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                              height: 100,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Text(
+                                  'Failed to load image',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono Nerd Font',
+                                    fontSize: 12,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-            if (_currentVisibility == VisibilityState.collectionSelector)
-              _buildCollectionSelectorOverlay(),
-          ],
+              if (_currentVisibility == VisibilityState.collectionSelector)
+                _buildCollectionSelectorOverlay(),
+            ],
+          ),
+          bottomNavigationBar: isSearchActive
+              ? _buildSearchResultsBar()
+              : (_currentVisibility == VisibilityState.search
+                  ? _buildSearchOverlay()
+                  : Navbar(
+                      title: selectedCollection ?? '',
+                      onSearchPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            return SearchDialog(
+                              onSearch: _handleSearchRequest,
+                              selectedCollection: selectedCollection,
+                            );
+                          },
+                        );
+                      },
+                      onCollectionSelectorPressed: toggleCollectionSelector,
+                      isCollectionSelectorVisible: isCollectionSelectorVisible,
+                      selectedCollection: selectedCollection,
+                      currentVisibility: _currentVisibility,
+                      onCrossCollectionSearch: (results) {
+                        setState(() {
+                          crossCollectionMessages = results
+                              .map((result) => {
+                                    'content': result['content'],
+                                    'sender_name': result['sender_name'],
+                                    'collectionName': result['collectionName'],
+                                    'timestamp_ms': result['timestamp_ms'] ?? 0,
+                                    'photos': result['photos'] ?? [],
+                                    'is_geoblocked_for_viewer':
+                                        result['is_geoblocked_for_viewer'] ??
+                                            false,
+                                    'is_online': result['is_online'] ?? false,
+                                  })
+                              .toList();
+                          isCrossCollectionSearch = true;
+                          messages = crossCollectionMessages;
+                          isSearchActive = true;
+                        });
+                      },
+                    )),
         ),
-        bottomNavigationBar: isSearchActive
-            ? _buildSearchResultsBar()
-            : (_currentVisibility == VisibilityState.search
-                ? _buildSearchOverlay()
-                : Navbar(
-                    title: selectedCollection ?? '',
-                    onSearchPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext dialogContext) {
-                          return SearchDialog(
-                            onSearch: _handleSearchRequest,
-                            selectedCollection: selectedCollection,
-                          );
-                        },
-                      );
-                    },
-                    onCollectionSelectorPressed: toggleCollectionSelector,
-                    isCollectionSelectorVisible: isCollectionSelectorVisible,
-                    selectedCollection: selectedCollection,
-                    currentVisibility: _currentVisibility,
-                    onCrossCollectionSearch: (results) {
-                      setState(() {
-                        crossCollectionMessages = results
-                            .map((result) => {
-                                  'content': result['content'],
-                                  'sender_name': result['sender_name'],
-                                  'collectionName': result['collectionName'],
-                                  'timestamp_ms': result['timestamp_ms'] ?? 0,
-                                  'photos': result['photos'] ?? [],
-                                  'is_geoblocked_for_viewer':
-                                      result['is_geoblocked_for_viewer'] ??
-                                          false,
-                                  'is_online': result['is_online'] ?? false,
-                                })
-                            .toList();
-                        isCrossCollectionSearch = true;
-                        messages = crossCollectionMessages;
-                        isSearchActive = true;
-                      });
-                    },
-                  )),
       ),
     );
   }
@@ -777,7 +786,7 @@ class MessageSelectorState extends State<MessageSelector> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
-                        fontFamily: 'CaskaydiaCove Nerd Font',
+                        fontFamily: 'JetBrains Mono Nerd Font',
                         fontStyle: FontStyle.normal,
                         fontWeight: FontWeight.w300,
                       ),
@@ -786,7 +795,7 @@ class MessageSelectorState extends State<MessageSelector> {
                         hintStyle: const TextStyle(
                           color: Colors.white60,
                           fontSize: 11,
-                          fontFamily: 'CaskaydiaCove Nerd Font',
+                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontStyle: FontStyle.normal,
                           fontWeight: FontWeight.w300,
                         ),

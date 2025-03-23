@@ -44,7 +44,7 @@ class Navbar extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.search),
             title: Text('Search in ${selectedCollection?.split('_').join(' ')}',
-                style: const TextStyle(fontFamily: 'JetBrains Mono')),
+                style: const TextStyle(fontFamily: 'JetBrains Mono Nerd Font')),
             dense: true,
           ),
         ),
@@ -53,7 +53,7 @@ class Navbar extends StatelessWidget {
           child: ListTile(
             leading: Icon(Icons.search_outlined),
             title: Text('Search All Collections',
-                style: TextStyle(fontFamily: 'JetBrains Mono')),
+                style: TextStyle(fontFamily: 'JetBrains Mono Nerd Font')),
             dense: true,
           ),
         ),
@@ -86,7 +86,7 @@ class Navbar extends StatelessWidget {
         selectedCollection != null && selectedCollection!.isNotEmpty;
 
     // Darker color for navbar
-    final darkNavbarColor = Color(0xFF121212);
+    final darkNavbarColor = Color(0xFF121214);
 
     return BottomAppBar(
       elevation: 8.0,

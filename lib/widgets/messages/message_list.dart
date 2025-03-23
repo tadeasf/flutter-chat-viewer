@@ -44,6 +44,7 @@ class MessageList extends StatelessWidget {
   Widget build(BuildContext context) {
     // Get the MessageIndexStore from provider
     final messageIndexStore = StoreProvider.of(context).messageIndexStore;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     // Update messages in the store
     messageIndexStore.updateMessagesFromRaw(messages);
@@ -51,34 +52,37 @@ class MessageList extends StatelessWidget {
     return ScrollConfiguration(
       behavior: CustomScrollBehavior(),
       child: Observer(
-        builder: (_) => ScrollablePositionedList.builder(
-          itemCount: messages.length,
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemBuilder: (context, index) {
-            final message = Map<String, dynamic>.from(messages[index]);
-            final collectionName = isCrossCollectionSearch
-                ? message['collectionName']
-                : selectedCollectionName;
+        builder: (_) => Container(
+          color: isDarkMode ? Color(0xFF121214) : null,
+          child: ScrollablePositionedList.builder(
+            itemCount: messages.length,
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              final message = Map<String, dynamic>.from(messages[index]);
+              final collectionName = isCrossCollectionSearch
+                  ? message['collectionName']
+                  : selectedCollectionName;
 
-            return MessageItem(
-              message: Map<String, dynamic>.from({
-                ...message,
-                'is_instagram': message['is_instagram'] ??
-                    message.containsKey('is_geoblocked_for_viewer'),
-              }),
-              isAuthor: message['sender_name'] == 'Tadeáš Fořt',
-              isHighlighted: isHighlighted(index),
-              isSearchActive: isSearchActive,
-              selectedCollectionName: collectionName,
-              profilePhotoUrl: profilePhotoUrl,
-              isCrossCollectionSearch: isCrossCollectionSearch,
-              onMessageTap: onMessageTap,
-              messages: messages,
-              itemScrollController: itemScrollController,
-            );
-          },
-          itemScrollController: itemScrollController,
-          itemPositionsListener: itemPositionsListener,
+              return MessageItem(
+                message: Map<String, dynamic>.from({
+                  ...message,
+                  'is_instagram': message['is_instagram'] ??
+                      message.containsKey('is_geoblocked_for_viewer'),
+                }),
+                isAuthor: message['sender_name'] == 'Tadeáš Fořt',
+                isHighlighted: isHighlighted(index),
+                isSearchActive: isSearchActive,
+                selectedCollectionName: collectionName,
+                profilePhotoUrl: profilePhotoUrl,
+                isCrossCollectionSearch: isCrossCollectionSearch,
+                onMessageTap: onMessageTap,
+                messages: messages,
+                itemScrollController: itemScrollController,
+              );
+            },
+            itemScrollController: itemScrollController,
+            itemPositionsListener: itemPositionsListener,
+          ),
         ),
       ),
     );

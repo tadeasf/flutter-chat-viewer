@@ -138,7 +138,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       width: 200,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black87,
+        color: Color(0xFF1E1E24),
         borderRadius: BorderRadius.circular(12),
       ),
       child: _errorMessage != null
@@ -222,7 +222,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
-                              fontFamily: 'CaskaydiaCove Nerd Font',
+                              fontFamily: 'JetBrains Mono Nerd Font',
                               fontStyle: FontStyle.normal,
                               fontWeight: FontWeight.w300,
                             ),
