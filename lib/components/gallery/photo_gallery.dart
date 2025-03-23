@@ -11,6 +11,8 @@ import '../messages/message_index_manager.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../utils/web_image_viewer.dart';
+import '../../stores/store_provider.dart';
+import '../../stores/file_store.dart';
 
 class PhotoGallery extends StatefulWidget {
   final String collectionName;
@@ -178,6 +180,19 @@ class PhotoGalleryState extends State<PhotoGallery> {
       child: Scaffold(
         appBar: AppBar(
           title: Text('Photos - ${widget.collectionName}'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_backup_restore),
+              tooltip: 'Clear image cache',
+              onPressed: () {
+                final fileStore = StoreProvider.of(context).fileStore;
+                fileStore.clearTypeCache(MediaType.image);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Image cache cleared')),
+                );
+              },
+            ),
+          ],
         ),
         body: GridView.builder(
           controller: _scrollController,

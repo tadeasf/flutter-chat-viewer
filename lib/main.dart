@@ -94,10 +94,7 @@ void main() async {
     // For web, we'll set a dummy value initially
     // The API key will be injected by the Dockerfile into window.FLUTTER_ENV
     // and ApiService will read it directly from the HTML when needed
-    dotenv.testLoad(
-        fileInput:
-            "X_API_KEY=4lFAmnt2FuHLDSKrka9cdI5loz0D90pyidtXKsR2hYuYcG5EHnUX5TV0H6Y3y");
-    // dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
+    dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
     if (kDebugMode) {
       print(
           "Web environment: API key will be read from window.FLUTTER_ENV at runtime");
@@ -116,6 +113,7 @@ void main() async {
       collectionStore: Stores.collectionStore,
       messageStore: Stores.messageStore,
       themeStore: Stores.themeStore,
+      fileStore: Stores.fileStore,
       child: const MyApp(),
     ),
   );
