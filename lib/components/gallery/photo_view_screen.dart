@@ -8,6 +8,8 @@ import 'dart:io';
 import '../../utils/api_db/api_service.dart';
 // For web platform
 import '../../utils/js_util.dart';
+import '../../stores/store_provider.dart';
+import '../../stores/file_store.dart';
 
 class PhotoViewScreen extends StatefulWidget {
   final String imageUrl;
@@ -38,6 +40,14 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
   void initState() {
     super.initState();
     imageUrl = widget.imageUrl;
+
+    // Prefetch the image if not on web platform
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final fileStore = StoreProvider.of(context).fileStore;
+        fileStore.prefetchFile(imageUrl, MediaType.image);
+      });
+    }
   }
 
   Future<void> _downloadImage(BuildContext context) async {
@@ -119,6 +129,8 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final fileStore = StoreProvider.of(context).fileStore;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -126,34 +138,51 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
       ),
       body: Stack(
         children: [
-          PhotoView(
-            imageProvider: NetworkImage(imageUrl, headers: ApiService.headers),
-            minScale: PhotoViewComputedScale.contained * 0.8,
-            maxScale: PhotoViewComputedScale.covered * 2,
-            backgroundDecoration: const BoxDecoration(
-              color: Colors.black,
-            ),
-            loadingBuilder: (context, event) => Center(
-              child: CircularProgressIndicator(
-                value: event == null
-                    ? 0
-                    : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-              ),
-            ),
-            errorBuilder: (context, error, stackTrace) {
-              return const Center(
-                child: Text(
-                  'Failed to load image',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'CaskaydiaCove Nerd Font',
-                    fontStyle: FontStyle.normal,
-                    fontWeight: FontWeight.w300,
+          FutureBuilder<String?>(
+              future:
+                  !kIsWeb ? fileStore.getFile(imageUrl, MediaType.image) : null,
+              builder: (context, snapshot) {
+                final ImageProvider imageProvider;
+
+                // If we're on web or file not cached yet, use network image
+                if (kIsWeb || !snapshot.hasData || snapshot.data == null) {
+                  imageProvider =
+                      NetworkImage(imageUrl, headers: ApiService.headers);
+                } else {
+                  // Use the cached file
+                  imageProvider = FileImage(File(snapshot.data!));
+                }
+
+                return PhotoView(
+                  imageProvider: imageProvider,
+                  minScale: PhotoViewComputedScale.contained * 0.8,
+                  maxScale: PhotoViewComputedScale.covered * 2,
+                  backgroundDecoration: const BoxDecoration(
+                    color: Colors.black,
                   ),
-                ),
-              );
-            },
-          ),
+                  loadingBuilder: (context, event) => Center(
+                    child: CircularProgressIndicator(
+                      value: event == null
+                          ? 0
+                          : event.cumulativeBytesLoaded /
+                              event.expectedTotalBytes!,
+                    ),
+                  ),
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Text(
+                        'Failed to load image',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'CaskaydiaCove Nerd Font',
+                          fontStyle: FontStyle.normal,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }),
           Positioned(
             bottom: 20,
             right: 20,

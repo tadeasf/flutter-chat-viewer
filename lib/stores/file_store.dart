@@ -1,7 +1,5 @@
 import 'package:mobx/mobx.dart';
 import 'package:logging/logging.dart';
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show compute;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../utils/api_db/api_service.dart';
@@ -320,8 +318,9 @@ abstract class FileStoreBase with Store {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

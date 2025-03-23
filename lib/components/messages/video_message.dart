@@ -5,6 +5,8 @@ import '../../utils/api_db/api_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
+import '../../stores/store_provider.dart';
+import '../../stores/file_store.dart';
 
 class VideoMessage extends StatefulWidget {
   final String videoUri;
@@ -44,6 +46,8 @@ class VideoMessageState extends State<VideoMessage> {
         widget.videoUri,
       );
 
+      final fileStore = StoreProvider.of(context).fileStore;
+
       if (kIsWeb) {
         // For web, use network source directly
         _videoPlayerController = VideoPlayerController.networkUrl(
@@ -52,22 +56,33 @@ class VideoMessageState extends State<VideoMessage> {
           httpHeaders: ApiService.headers,
         );
       } else {
-        // First fetch the video data
-        final videoData = await ApiService.fetchVideoData(videoUrl);
+        // Try to get from cache first
+        final cachedPath = await fileStore.getFile(videoUrl, MediaType.video);
 
-        // Get temporary directory
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/temp_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+        if (cachedPath != null) {
+          // Use cached file
+          _videoPlayerController = VideoPlayerController.file(
+            File(cachedPath),
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          );
+        } else {
+          // First fetch the video data
+          final videoData = await ApiService.fetchVideoData(videoUrl);
 
-        // Write video data to temporary file
-        await file.writeAsBytes(videoData);
+          // Get temporary directory
+          final dir = await getTemporaryDirectory();
+          final file = File(
+              '${dir.path}/temp_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
 
-        // Initialize video player with local file
-        _videoPlayerController = VideoPlayerController.file(
-          file,
-          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-        );
+          // Write video data to temporary file
+          await file.writeAsBytes(videoData);
+
+          // Initialize video player with local file
+          _videoPlayerController = VideoPlayerController.file(
+            file,
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          );
+        }
       }
 
       await _videoPlayerController.initialize();

@@ -4,6 +4,8 @@ import '../../utils/api_db/api_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
+import '../../stores/store_provider.dart';
+import '../../stores/file_store.dart';
 
 class AudioMessagePlayer extends StatefulWidget {
   final String audioUrl;
@@ -42,6 +44,8 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       _audioPlayer = AudioPlayer();
       widget.onPlayerCreated(widget.audioUrl, _audioPlayer!);
 
+      final fileStore = StoreProvider.of(context).fileStore;
+
       if (kIsWeb) {
         // For web, use URL directly
         await _audioPlayer!.setUrl(
@@ -49,19 +53,28 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
           headers: ApiService.headers,
         );
       } else {
-        // Fetch the audio data
-        final bytes = await ApiService.fetchAudioData(widget.audioUrl);
+        // Try to get from cache first
+        final cachedPath =
+            await fileStore.getFile(widget.audioUrl, MediaType.audio);
 
-        // Get temporary directory
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/temp_audio_${DateTime.now().millisecondsSinceEpoch}.aac');
+        if (cachedPath != null) {
+          // Use cached file
+          await _audioPlayer!.setFilePath(cachedPath);
+        } else {
+          // Fetch the audio data
+          final bytes = await ApiService.fetchAudioData(widget.audioUrl);
 
-        // Write the bytes to a temporary file
-        await file.writeAsBytes(bytes);
+          // Get temporary directory
+          final dir = await getTemporaryDirectory();
+          final file = File(
+              '${dir.path}/temp_audio_${DateTime.now().millisecondsSinceEpoch}.aac');
 
-        // Set the audio source from the file
-        await _audioPlayer!.setFilePath(file.path);
+          // Write the bytes to a temporary file
+          await file.writeAsBytes(bytes);
+
+          // Set the audio source from the file
+          await _audioPlayer!.setFilePath(file.path);
+        }
       }
 
       _audioPlayer!.durationStream.listen((duration) {
