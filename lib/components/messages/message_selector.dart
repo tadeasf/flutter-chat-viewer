@@ -4,22 +4,22 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import 'fetch_messages.dart';
-import '../gallery/photo_handler.dart';
 import 'message_list.dart';
 import '../../utils/api_db/api_service.dart';
-import '../profile_photo/profile_photo_manager.dart';
+// ignore: unused_import
 import '../search/navigate_search.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
 import '../navbar.dart';
-import '../search/scroll_to_highlighted_message.dart';
+import '../../utils/search/scroll_to_highlighted_message.dart';
 import '../search/search_messages.dart';
-import 'message_index_manager.dart';
-import '../search/search_type.dart';
+import '../../utils/search/search_type.dart';
 import '../ui_utils/visibility_state.dart';
 import '../search/search_dialog.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import '../../stores/store_provider.dart';
+import '../../widgets/ui_utils/dark_geometric_background.dart';
 
 final searchKeySet = LogicalKeySet(
   LogicalKeyboardKey.meta, // Use control on Windows
@@ -134,13 +134,10 @@ class MessageSelector extends StatefulWidget {
 }
 
 class MessageSelectorState extends State<MessageSelector> {
-  List<Map<String, dynamic>> collections = [];
-  List<Map<String, dynamic>> filteredCollections = [];
   String? selectedCollection;
   DateTime? fromDate;
   DateTime? toDate;
   List<Map<dynamic, dynamic>> messages = [];
-  bool isLoading = false;
   TextEditingController searchController = TextEditingController();
   final picker = ImagePicker();
   bool isPhotoAvailable = false;
@@ -158,11 +155,16 @@ class MessageSelectorState extends State<MessageSelector> {
   String? searchQueryInWidget;
   String? profilePhotoUrl;
   final bool _isProfilePhotoVisible = true;
-  int get maxCollectionIndex => filteredCollections.isNotEmpty
-      ? filteredCollections
-          .map((c) => c['index'] as int? ?? 0)
-          .reduce((a, b) => a > b ? a : b)
-      : 0;
+  int get maxCollectionIndex {
+    final store = StoreProvider.of(context).collectionStore;
+    final filteredList = store.filteredCollections;
+    return filteredList.isNotEmpty
+        ? filteredList
+            .map((c) => c['index'] as int? ?? 0)
+            .reduce((a, b) => a > b ? a : b)
+        : 0;
+  }
+
   bool isCollectionSelectorVisible = false;
   List<Map<dynamic, dynamic>> crossCollectionMessages = [];
   bool isCrossCollectionSearch = false;
@@ -177,22 +179,8 @@ class MessageSelectorState extends State<MessageSelector> {
   @override
   void initState() {
     super.initState();
-    loadCollections((loadedCollections) {
-      setState(() {
-        collections = loadedCollections;
-        filteredCollections = loadedCollections;
-        isCollectionSelectorVisible = selectedCollection == null;
-      });
-    });
-  }
-
-  void filterCollections(String query) {
-    setState(() {
-      filteredCollections = collections
-          .where((collection) =>
-              collection['name'].toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
+    // Get collections from the CollectionStore instead of loading directly
+    // The store will automatically load collections when it's initialized
   }
 
   @override
@@ -205,18 +193,31 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void setLoading(bool value) {
-    setState(() {
-      isLoading = value;
-    });
+    if (!mounted) return;
+    // Use the CollectionStore to set message loading state
+    final store = StoreProvider.of(context).collectionStore;
+    store.setMessageLoading(value);
   }
 
-  void setMessages(List<dynamic> loadedMessages) {
-    setState(() {
-      messages = loadedMessages
-          .expand((message) => message is List ? message : [message])
-          .map((message) => message as Map<dynamic, dynamic>)
-          .toList();
-    });
+  void setMessages(List<dynamic> rawMessages) {
+    if (rawMessages.isEmpty) return;
+
+    // Get the MessageStore instance
+    final messageStore = StoreProvider.of(context).messageStore;
+
+    // Process the loaded messages
+    final processedMessages = rawMessages.map((message) {
+      if (message is! Map) return <String, dynamic>{};
+      return Map<String, dynamic>.from(message);
+    }).toList();
+
+    // Sort messages by timestamp in ascending order (oldest first)
+    processedMessages.sort((a, b) => (a['timestamp_ms'] as int? ?? 0)
+        .compareTo(b['timestamp_ms'] as int? ?? 0));
+
+    // Clear existing messages and add all at once
+    messageStore.messages.clear();
+    messageStore.messages.addAll(processedMessages);
   }
 
   void updateCurrentSearchIndex(int index) {
@@ -239,6 +240,13 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void _navigateSearch(int direction) {
+    // Create a wrapper that returns the expected type
+    dynamic scrollWrapper(int index, List<int> indices,
+        ItemScrollController controller, SearchType type) {
+      scrollToHighlightedMessage(index, indices, controller, type);
+      return true; // Return any non-null value
+    }
+
     navigateSearch(
       direction,
       searchResults,
@@ -248,12 +256,16 @@ class MessageSelectorState extends State<MessageSelector> {
           currentSearchIndex = index;
         });
       },
-      scrollToHighlightedMessage,
+      scrollWrapper,
       itemScrollController,
     );
   }
 
   Future<void> _changeCollection(String? newValue) async {
+    // Use MessageStore for collection change and message loading
+    final messageStore = StoreProvider.of(context).messageStore;
+    final photoStore = StoreProvider.of(context).photoStore;
+
     setState(() {
       selectedCollection = newValue;
       isCollectionSelectorVisible = false;
@@ -266,11 +278,35 @@ class MessageSelectorState extends State<MessageSelector> {
     });
 
     if (selectedCollection != null) {
-      await PhotoHandler.checkPhotoAvailability(selectedCollection, setState);
-      await fetchMessages(selectedCollection, fromDate, toDate, setState,
-          setLoading, setMessages);
-      profilePhotoUrl =
-          await ProfilePhotoManager.getProfilePhotoUrl(selectedCollection!);
+      // Set loading state
+      setLoading(true);
+
+      // Use MessageStore to load messages for the new collection
+      await messageStore.setCollection(selectedCollection);
+
+      if (!mounted) return;
+
+      // Check photo availability after collection is set
+      final isAvailable =
+          await photoStore.checkPhotoAvailability(selectedCollection);
+      setState(() {
+        isPhotoAvailable = isAvailable;
+      });
+
+      if (!mounted) return;
+
+      // Get profile photo URL
+      profilePhotoUrl = await StoreProvider.of(context)
+          .profilePhotoStore
+          .getProfilePhotoUrl(selectedCollection!);
+
+      // Update messages from store to local state for rendering
+      setState(() {
+        messages = messageStore.messages.toList();
+      });
+
+      // Turn off loading state
+      setLoading(false);
     } else {
       setState(() {
         isCollectionSelectorVisible = true;
@@ -331,12 +367,9 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void refreshCollections() {
-    loadCollections((loadedCollections) {
-      setState(() {
-        collections = loadedCollections;
-        filteredCollections = loadedCollections;
-      });
-    });
+    // Update to use the CollectionStore
+    final store = StoreProvider.of(context).collectionStore;
+    store.refreshCollections();
   }
 
   void _handleCrossCollectionSearch(List<dynamic> results) {
@@ -379,54 +412,65 @@ class MessageSelectorState extends State<MessageSelector> {
     if (collectionName != selectedCollection) {
       setState(() {
         messages = [];
-        isLoading = true;
         selectedCollection = collectionName;
         isCollectionSelectorVisible = false;
         isCrossCollectionSearch = false;
       });
 
       try {
-        // Load messages for the new collection
-        await fetchMessages(
-          selectedCollection,
-          fromDate,
-          toDate,
-          setState,
-          (bool loading) => setState(() => isLoading = loading),
-          (List<dynamic> newMessages) async {
-            final processedMessages = List<Map<dynamic, dynamic>>.from(
-                newMessages.map((m) => Map<dynamic, dynamic>.from(m)));
+        // Get stores from context
+        final messageStore = StoreProvider.of(context).messageStore;
+        final collectionStore = StoreProvider.of(context).collectionStore;
 
-            setState(() {
-              messages = processedMessages;
-              isLoading = false;
-            });
+        // Set message loading to true
+        collectionStore.setMessageLoading(true);
 
-            // Important: Wait for the next frame to ensure messages are rendered
-            await Future.delayed(const Duration(milliseconds: 100));
+        // Fetch messages directly using MessageStore
+        await messageStore.fetchMessagesForDateRange(
+            collectionName, fromDate, toDate);
 
-            // Now scroll to the target message
-            final manager = MessageIndexManager();
-            manager.updateMessages(messages);
-            final index = manager.getIndexForTimestamp(timestamp);
+        if (!mounted) return;
 
-            if (index != null) {
-              scrollToHighlightedMessage(
-                index,
-                [index],
-                itemScrollController,
-                SearchType.crossCollection,
-              );
-            }
-          },
-        );
+        // Process messages
+        final processedMessages = List<Map<dynamic, dynamic>>.from(messageStore
+            .filteredMessages
+            .map((m) => Map<dynamic, dynamic>.from(m)));
+
+        setState(() {
+          messages = processedMessages;
+        });
+
+        // Set message loading to false
+        collectionStore.setMessageLoading(false);
+
+        // Important: Wait for the next frame to ensure messages are rendered
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        if (!mounted) return;
+
+        // Now scroll to the target message
+        final messageIndexStore = StoreProvider.of(context).messageIndexStore;
+        messageIndexStore.updateMessagesFromRaw(messages);
+        final index = messageIndexStore.getIndexForTimestampRaw(timestamp);
+
+        if (index != null) {
+          scrollToHighlightedMessage(
+            index,
+            [index],
+            itemScrollController,
+            SearchType.crossCollection,
+          );
+        }
       } catch (e) {
         if (kDebugMode) {
           print('Error handling message tap: $e');
         }
-        setState(() {
-          isLoading = false;
-        });
+
+        if (!mounted) return;
+
+        // Set message loading to false using the store
+        final store = StoreProvider.of(context).collectionStore;
+        store.setMessageLoading(false);
       }
     }
   }
@@ -457,7 +501,8 @@ class MessageSelectorState extends State<MessageSelector> {
       },
       onGalleryOpen: () {
         if (selectedCollection != null && messages.isNotEmpty) {
-          PhotoHandler.handleShowAllPhotos(
+          final photoStore = StoreProvider.of(context).photoStore;
+          photoStore.showAllPhotos(
             context,
             selectedCollection,
             messages: messages,
@@ -466,64 +511,86 @@ class MessageSelectorState extends State<MessageSelector> {
         }
       },
       onCollectionSelectorToggle: toggleCollectionSelector,
-      child: Scaffold(
-        drawer: AppDrawer(
-          selectedCollection: selectedCollection,
-          isPhotoAvailable: isPhotoAvailable,
-          isProfilePhotoVisible: _isProfilePhotoVisible,
-          fromDate: fromDate,
-          toDate: toDate,
-          profilePhotoUrl: profilePhotoUrl,
-          refreshCollections: refreshCollections,
-          setState: setState,
-          fetchMessages: fetchMessages,
-          setThemeMode: widget.setThemeMode,
-          themeMode: widget.themeMode,
-          picker: picker,
-          onCrossCollectionSearch: _handleCrossCollectionSearch,
-          onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
-          messages: messages.map((m) => Map<String, dynamic>.from(m)).toList(),
-          itemScrollController: itemScrollController,
-          onFontSizeChanged: () {
-            setState(() {
-              // This will trigger a rebuild with the new font size
-            });
-          },
-        ),
-        body: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () async {
-                await loadCollections((loadedCollections) {
-                  setState(() {
-                    collections = loadedCollections;
-                    filteredCollections = loadedCollections;
-                  });
-                });
-              },
-              child: collections.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 200),
-                        Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 16),
-                              Text(
-                                'Pull down to refresh collections',
-                                style: TextStyle(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
-                                  fontSize: 12,
+      child: DarkGeometricBackground(
+        child: Scaffold(
+          drawer: AppDrawer(
+            selectedCollection: selectedCollection,
+            isPhotoAvailable: isPhotoAvailable,
+            isProfilePhotoVisible: _isProfilePhotoVisible,
+            fromDate: fromDate,
+            toDate: toDate,
+            profilePhotoUrl: profilePhotoUrl,
+            messages:
+                messages.map((m) => Map<String, dynamic>.from(m)).toList(),
+            itemScrollController: itemScrollController,
+            onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
+            onFontSizeChanged: () {
+              setState(() {
+                // This will trigger a rebuild with the new font size
+              });
+            },
+          ),
+          body: Stack(
+            children: [
+              RefreshIndicator(
+                onRefresh: () async {
+                  final store = StoreProvider.of(context).collectionStore;
+                  // Force a refresh here since this is an explicit user action
+                  await store.refreshCollections();
+                },
+                child: Observer(
+                  builder: (context) {
+                    final collectionStore =
+                        StoreProvider.of(context).collectionStore;
+                    final isCollectionLoading = collectionStore.isLoading;
+                    final isMessageLoading = collectionStore.isMessageLoading;
+                    final collections = collectionStore.collections;
+
+                    if (collections.isEmpty && isCollectionLoading) {
+                      return ListView(
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Loading collections...',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono Nerd Font',
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    )
-                  : Column(
+                        ],
+                      );
+                    } else if (collections.isEmpty) {
+                      return ListView(
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Pull down to refresh collections',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono Nerd Font',
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Column(
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -533,31 +600,62 @@ class MessageSelectorState extends State<MessageSelector> {
                                 .textTheme
                                 .titleMedium
                                 ?.copyWith(
-                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                                  fontFamily: 'JetBrains Mono Nerd Font',
                                   fontSize: 12,
                                 ),
                           ),
                         ),
                         Expanded(
-                          child: isLoading || isCrossCollectionLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : MessageList(
-                                  messages: isCrossCollectionSearch
-                                      ? crossCollectionMessages
-                                      : messages,
-                                  searchResults: searchResults,
-                                  currentSearchIndex: currentSearchIndex,
-                                  itemScrollController: itemScrollController,
-                                  itemPositionsListener: itemPositionsListener,
-                                  isSearchActive: isSearchVisible,
-                                  selectedCollectionName:
-                                      selectedCollection ?? '',
-                                  profilePhotoUrl: profilePhotoUrl,
-                                  isCrossCollectionSearch:
-                                      isCrossCollectionSearch,
-                                  onMessageTap:
-                                      _handleCrossCollectionMessageTap,
-                                ),
+                          child: isMessageLoading || isCrossCollectionLoading
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const CircularProgressIndicator(),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        selectedCollection != null
+                                            ? 'Loading messages...'
+                                            : 'Select a collection',
+                                        style: const TextStyle(
+                                          fontFamily:
+                                              'JetBrains Mono Nerd Font',
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : messages.isEmpty && selectedCollection != null
+                                  ? const Center(
+                                      child: Text(
+                                        'No messages found',
+                                        style: TextStyle(
+                                          fontFamily:
+                                              'JetBrains Mono Nerd Font',
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    )
+                                  : MessageList(
+                                      messages: isCrossCollectionSearch
+                                          ? crossCollectionMessages
+                                          : messages,
+                                      searchResults: searchResults,
+                                      currentSearchIndex: currentSearchIndex,
+                                      itemScrollController:
+                                          itemScrollController,
+                                      itemPositionsListener:
+                                          itemPositionsListener,
+                                      isSearchActive: isSearchVisible,
+                                      selectedCollectionName:
+                                          selectedCollection ?? '',
+                                      profilePhotoUrl: profilePhotoUrl,
+                                      isCrossCollectionSearch:
+                                          isCrossCollectionSearch,
+                                      onMessageTap:
+                                          _handleCrossCollectionMessageTap,
+                                    ),
                         ),
                         if (isCollectionSelectorVisible ||
                             selectedCollection == null)
@@ -565,7 +663,8 @@ class MessageSelectorState extends State<MessageSelector> {
                             padding: const EdgeInsets.all(16.0),
                             child: CollectionSelector(
                               selectedCollection: selectedCollection,
-                              initialCollections: filteredCollections,
+                              initialCollections:
+                                  collectionStore.filteredCollections.toList(),
                               onCollectionChanged: _changeCollection,
                             ),
                           ),
@@ -579,7 +678,7 @@ class MessageSelectorState extends State<MessageSelector> {
                                 return const Text(
                                   'Failed to load image',
                                   style: TextStyle(
-                                    fontFamily: 'CaskaydiaCove Nerd Font',
+                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     fontSize: 12,
                                   ),
                                 );
@@ -587,54 +686,57 @@ class MessageSelectorState extends State<MessageSelector> {
                             ),
                           ),
                       ],
-                    ),
-            ),
-            if (_currentVisibility == VisibilityState.collectionSelector)
-              _buildCollectionSelectorOverlay(),
-          ],
+                    );
+                  },
+                ),
+              ),
+              if (_currentVisibility == VisibilityState.collectionSelector)
+                _buildCollectionSelectorOverlay(),
+            ],
+          ),
+          bottomNavigationBar: isSearchActive
+              ? _buildSearchResultsBar()
+              : (_currentVisibility == VisibilityState.search
+                  ? _buildSearchOverlay()
+                  : Navbar(
+                      title: selectedCollection ?? '',
+                      onSearchPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            return SearchDialog(
+                              onSearch: _handleSearchRequest,
+                              selectedCollection: selectedCollection,
+                            );
+                          },
+                        );
+                      },
+                      onCollectionSelectorPressed: toggleCollectionSelector,
+                      isCollectionSelectorVisible: isCollectionSelectorVisible,
+                      selectedCollection: selectedCollection,
+                      currentVisibility: _currentVisibility,
+                      onCrossCollectionSearch: (results) {
+                        setState(() {
+                          crossCollectionMessages = results
+                              .map((result) => {
+                                    'content': result['content'],
+                                    'sender_name': result['sender_name'],
+                                    'collectionName': result['collectionName'],
+                                    'timestamp_ms': result['timestamp_ms'] ?? 0,
+                                    'photos': result['photos'] ?? [],
+                                    'is_geoblocked_for_viewer':
+                                        result['is_geoblocked_for_viewer'] ??
+                                            false,
+                                    'is_online': result['is_online'] ?? false,
+                                  })
+                              .toList();
+                          isCrossCollectionSearch = true;
+                          messages = crossCollectionMessages;
+                          isSearchActive = true;
+                        });
+                      },
+                    )),
         ),
-        bottomNavigationBar: isSearchActive
-            ? _buildSearchResultsBar()
-            : (_currentVisibility == VisibilityState.search
-                ? _buildSearchOverlay()
-                : Navbar(
-                    title: selectedCollection ?? '',
-                    onSearchPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext dialogContext) {
-                          return SearchDialog(
-                            onSearch: _handleSearchRequest,
-                            selectedCollection: selectedCollection,
-                          );
-                        },
-                      );
-                    },
-                    onCollectionSelectorPressed: toggleCollectionSelector,
-                    isCollectionSelectorVisible: isCollectionSelectorVisible,
-                    selectedCollection: selectedCollection,
-                    currentVisibility: _currentVisibility,
-                    onCrossCollectionSearch: (results) {
-                      setState(() {
-                        crossCollectionMessages = results
-                            .map((result) => {
-                                  'content': result['content'],
-                                  'sender_name': result['sender_name'],
-                                  'collectionName': result['collectionName'],
-                                  'timestamp_ms': result['timestamp_ms'] ?? 0,
-                                  'photos': result['photos'] ?? [],
-                                  'is_geoblocked_for_viewer':
-                                      result['is_geoblocked_for_viewer'] ??
-                                          false,
-                                  'is_online': result['is_online'] ?? false,
-                                })
-                            .toList();
-                        isCrossCollectionSearch = true;
-                        messages = crossCollectionMessages;
-                        isSearchActive = true;
-                      });
-                    },
-                  )),
       ),
     );
   }
@@ -684,7 +786,7 @@ class MessageSelectorState extends State<MessageSelector> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
-                        fontFamily: 'CaskaydiaCove Nerd Font',
+                        fontFamily: 'JetBrains Mono Nerd Font',
                         fontStyle: FontStyle.normal,
                         fontWeight: FontWeight.w300,
                       ),
@@ -693,7 +795,7 @@ class MessageSelectorState extends State<MessageSelector> {
                         hintStyle: const TextStyle(
                           color: Colors.white60,
                           fontSize: 11,
-                          fontFamily: 'CaskaydiaCove Nerd Font',
+                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontStyle: FontStyle.normal,
                           fontWeight: FontWeight.w300,
                         ),
@@ -794,6 +896,8 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   Widget _buildCollectionSelectorOverlay() {
+    final store = StoreProvider.of(context).collectionStore;
+
     return Positioned(
       left: 0,
       right: 0,
@@ -801,46 +905,15 @@ class MessageSelectorState extends State<MessageSelector> {
       child: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
         padding: const EdgeInsets.all(16.0),
-        child: CollectionSelector(
-          selectedCollection: selectedCollection,
-          initialCollections: filteredCollections,
-          onCollectionChanged: _changeCollection,
-        ),
+        child: Observer(builder: (_) {
+          return CollectionSelector(
+            selectedCollection: selectedCollection,
+            initialCollections: store.filteredCollections.toList(),
+            onCollectionChanged: _changeCollection,
+          );
+        }),
       ),
     );
-  }
-
-  Future<void> loadCollections(
-      Function(List<Map<String, dynamic>>) callback) async {
-    int maxRetries = 3;
-    int currentTry = 0;
-
-    while (currentTry < maxRetries) {
-      try {
-        final loadedCollections = await ApiService.fetchCollections();
-        if (loadedCollections.isNotEmpty) {
-          callback(loadedCollections);
-          return;
-        }
-
-        currentTry++;
-        if (currentTry < maxRetries) {
-          await Future.delayed(Duration(seconds: 2 * currentTry));
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error loading collections (attempt $currentTry): $e');
-        }
-
-        currentTry++;
-        if (currentTry < maxRetries) {
-          await Future.delayed(Duration(seconds: 2 * currentTry));
-        }
-      }
-    }
-
-    // If we get here, all retries failed
-    callback([]); // Return empty list to trigger empty state UI
   }
 
   void _handleSearchRequest(String query, bool isCrossCollection) {
@@ -943,16 +1016,33 @@ class MessageSelectorState extends State<MessageSelector> {
       currentSearchIndex = -1;
     });
 
+    // Store selected timestamp before collection change
+    final targetTimestamp = timestamp;
+
     // Switch collection and scroll to message
     await _changeCollection(collectionName);
     if (!mounted) return;
 
+    // Wait for messages to be loaded and UI to update
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
     // Find the message index and scroll to it without triggering search UI
-    final messageIndex = MessageIndexManager().getIndexForTimestamp(timestamp);
+    final messageIndexStore = StoreProvider.of(context).messageIndexStore;
+    messageIndexStore.updateMessagesFromRaw(messages);
+    final messageIndex =
+        messageIndexStore.getIndexForTimestampRaw(targetTimestamp);
     if (messageIndex != null) {
+      // Use searchResults with single item to allow proper highlighting
+      setState(() {
+        searchResults = [messageIndex];
+        currentSearchIndex = 0;
+      });
+
       scrollToHighlightedMessage(
         messageIndex,
-        [], // Empty search results since we don't want search UI
+        searchResults,
         itemScrollController,
         SearchType.crossCollection,
       );

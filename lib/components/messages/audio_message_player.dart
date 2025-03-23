@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import '../../utils/api_db/api_service.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io';
+import '../../stores/store_provider.dart';
+import '../../stores/file_store.dart';
 
 class AudioMessagePlayer extends StatefulWidget {
   final String audioUrl;
   final Function(String uri, AudioPlayer player) onPlayerCreated;
   final Function(String uri) onPlayerDisposed;
+  final String? collectionName;
 
   const AudioMessagePlayer({
     super.key,
     required this.audioUrl,
     required this.onPlayerCreated,
     required this.onPlayerDisposed,
+    this.collectionName,
   });
 
   @override
@@ -29,6 +30,31 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
   Duration _position = Duration.zero;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _didInitialize = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only initialize once and when user clicks play
+    if (!_didInitialize && !_isInitialized && !_isLoading) {
+      _didInitialize = true;
+    }
+  }
+
+  String _getFormattedUrl() {
+    // If it's already a full URL, return it
+    if (widget.audioUrl.startsWith('http')) return widget.audioUrl;
+
+    final fileStore = StoreProvider.of(context).fileStore;
+    final collectionName = widget.collectionName ?? 'default';
+
+    // Use FileStore to format the audio URL
+    return fileStore.formatMediaUrl(
+      uri: widget.audioUrl,
+      type: MediaType.audio,
+      collectionName: collectionName,
+    );
+  }
 
   Future<void> _initializePlayer() async {
     if (_isInitialized || _isLoading) return;
@@ -42,26 +68,30 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       _audioPlayer = AudioPlayer();
       widget.onPlayerCreated(widget.audioUrl, _audioPlayer!);
 
+      final fileStore = StoreProvider.of(context).fileStore;
+      final formattedUrl = _getFormattedUrl();
+
       if (kIsWeb) {
         // For web, use URL directly
         await _audioPlayer!.setUrl(
-          widget.audioUrl,
-          headers: ApiService.headers,
+          formattedUrl,
+          headers: {'x-api-key': fileStore.apiKey},
         );
       } else {
-        // Fetch the audio data
-        final bytes = await ApiService.fetchAudioData(widget.audioUrl);
+        // Try to get from cache first
+        final cachedPath =
+            await fileStore.getFile(widget.audioUrl, MediaType.audio);
 
-        // Get temporary directory
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/temp_audio_${DateTime.now().millisecondsSinceEpoch}.aac');
-
-        // Write the bytes to a temporary file
-        await file.writeAsBytes(bytes);
-
-        // Set the audio source from the file
-        await _audioPlayer!.setFilePath(file.path);
+        if (cachedPath != null) {
+          // Use cached file
+          await _audioPlayer!.setFilePath(cachedPath);
+        } else {
+          // Use the URL
+          await _audioPlayer!.setUrl(
+            formattedUrl,
+            headers: {'x-api-key': fileStore.apiKey},
+          );
+        }
       }
 
       _audioPlayer!.durationStream.listen((duration) {
@@ -88,18 +118,20 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
         }
       });
 
-      setState(() {
-        _isInitialized = true;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _isLoading = false;
+        });
 
-      // Start playing immediately after loading
-      _audioPlayer!.play();
+        // Start playing immediately after loading
+        _audioPlayer!.play();
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load audio';
+          _errorMessage = 'Failed to load audio: $e';
         });
       }
     }
@@ -202,7 +234,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
-                              fontFamily: 'CaskaydiaCove Nerd Font',
+                              fontFamily: 'JetBrains Mono Nerd Font',
                               fontStyle: FontStyle.normal,
                               fontWeight: FontWeight.w300,
                             ),

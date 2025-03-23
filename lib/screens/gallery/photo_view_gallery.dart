@@ -1,12 +1,12 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import '../../utils/api_db/api_service.dart';
-import '../../utils/image_downloader.dart';
 import 'package:flutter/services.dart';
 import '../../utils/js_util.dart';
 import '../../utils/web_image_viewer.dart';
+import '../../stores/store_provider.dart';
+import '../../stores/file_store.dart';
 
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
@@ -43,6 +43,14 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     _focusNode = FocusNode();
+
+    // Update the galleryStore with current index
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final galleryStore = StoreProvider.of(context).galleryStore;
+        galleryStore.setCurrentPhotoIndex(_currentIndex);
+      }
+    });
   }
 
   @override
@@ -72,27 +80,11 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     }
   }
 
-  String _getPhotoUrl(Map<String, dynamic> photo) {
-    if (photo['fullUri'] != null) return photo['fullUri'] as String;
-
-    final uri = photo['uri'] as String;
-    if (uri.startsWith('messages/inbox/')) {
-      final collectionName = uri.split('/')[2];
-      final filename = uri.split('/').last;
-      return ApiService.getPhotoUrl(collectionName, filename);
-    }
-
-    return ApiService.getPhotoUrl(widget.collectionName, uri);
-  }
-
-  /// Extract filename from URI path
-  String _getFilename(Map<String, dynamic> photo) {
-    final uri = photo['uri'] as String;
-    return uri.split('/').last;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final galleryStore = StoreProvider.of(context).galleryStore;
+    final fileStore = StoreProvider.of(context).fileStore;
+
     return KeyboardListener(
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
@@ -117,16 +109,10 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                       ),
                     if (widget.onJumpToGallery != null)
                       IconButton(
-                        icon: const Icon(Icons.grid_view),
+                        icon: const Icon(Icons.photo_library),
                         onPressed: () =>
                             widget.onJumpToGallery?.call(_currentIndex),
-                        tooltip: 'Jump to Gallery',
-                      ),
-                    if (kIsWeb)
-                      IconButton(
-                        icon: const Icon(Icons.download),
-                        onPressed: () => _downloadCurrentImage(),
-                        tooltip: 'Download Image',
+                        tooltip: 'View in Gallery',
                       ),
                   ],
                 )
@@ -137,9 +123,14 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                   scrollPhysics: const BouncingScrollPhysics(),
                   builder: (BuildContext context, int index) {
                     final photo = widget.photos[index];
+                    final imageUrl =
+                        galleryStore.getPhotoUrl(photo, widget.collectionName);
+
                     return PhotoViewGalleryPageOptions(
-                      imageProvider: NetworkImage(_getPhotoUrl(photo),
-                          headers: ApiService.headers),
+                      imageProvider: NetworkImage(
+                        imageUrl,
+                        headers: {'x-api-key': fileStore.apiKey},
+                      ),
                       initialScale: PhotoViewComputedScale.contained,
                       minScale: PhotoViewComputedScale.contained,
                       maxScale: PhotoViewComputedScale.covered * 2,
@@ -156,46 +147,73 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                     setState(() {
                       _currentIndex = index;
                     });
+                    galleryStore.setCurrentPhotoIndex(index);
                   },
                 ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _downloadCurrentImage(),
+            backgroundColor: Colors.black.withAlpha(178),
+            child: const Icon(Icons.download, color: Colors.white),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildWebGallery() {
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: widget.photos.length,
-      onPageChanged: (index) {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      itemBuilder: (context, index) {
-        final photo = widget.photos[index];
-        final imageUrl = _getPhotoUrl(photo);
-        return Center(
-          child: Hero(
-            tag: 'photo_${photo['uri']}',
-            child: WebImageViewer(
-              imageUrl: imageUrl,
-              fit: BoxFit.contain,
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
+    final galleryStore = StoreProvider.of(context).galleryStore;
+
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: widget.photos.length,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+            galleryStore.setCurrentPhotoIndex(index);
+          },
+          itemBuilder: (context, index) {
+            final photo = widget.photos[index];
+            final imageUrl =
+                galleryStore.getPhotoUrl(photo, widget.collectionName);
+
+            return Center(
+              child: Hero(
+                tag: 'photo_${photo['uri']}',
+                child: WebImageViewer(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
+                ),
+              ),
+            );
+          },
+        ),
+        if (!widget.showAppBar) // Only show this if AppBar is hidden
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: () => _downloadCurrentImage(),
+              backgroundColor: Colors.black.withAlpha(178),
+              child: const Icon(Icons.download, color: Colors.white),
             ),
           ),
-        );
-      },
+      ],
     );
   }
 
   Future<void> _downloadCurrentImage() async {
     if (!mounted) return;
 
+    final galleryStore = StoreProvider.of(context).galleryStore;
+    final fileStore = StoreProvider.of(context).fileStore;
     final photo = widget.photos[_currentIndex];
-    final imageUrl = _getPhotoUrl(photo);
-    final filename = _getFilename(photo);
+    final imageUrl = galleryStore.getPhotoUrl(photo, widget.collectionName);
+    final filename = galleryStore.getFilename(photo);
 
     // Show a confirmation dialog
     final shouldDownload = await showDialog<bool>(
@@ -222,7 +240,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
       if (kIsWeb) {
         _downloadForWeb(filename);
       } else {
-        await ImageDownloader.downloadImage(context, imageUrl);
+        await fileStore.downloadFile(context, imageUrl, MediaType.image);
       }
     }
   }
@@ -230,21 +248,24 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
   void _downloadForWeb(String filename) {
     try {
       if (kIsWeb) {
-        final currentPhoto = widget.photos[_currentIndex];
-        final uri = currentPhoto['uri'] as String;
-
-        // Try to extract collection name from the URI if available
-        String collectionName = widget.collectionName;
-        if (uri.startsWith('messages/inbox/')) {
-          collectionName = uri.split('/')[2];
+        // Debug logging
+        if (kDebugMode) {
+          print('PhotoViewGallery._downloadForWeb');
+          print('Collection name: ${widget.collectionName}');
+          print('Filename: $filename');
         }
 
-        // Get a direct URL that works without API key
-        final directUrl =
-            ApiService.getWebDownloadUrl(collectionName, filename);
+        final galleryStore = StoreProvider.of(context).galleryStore;
+        final webDownloadUrl =
+            galleryStore.getWebDownloadUrl(widget.collectionName, filename);
+
+        // Log the generated URL
+        if (kDebugMode) {
+          print('Generated URL: $webDownloadUrl');
+        }
 
         // Open in new tab using the utility function
-        openInNewTab(directUrl);
+        openInNewTab(webDownloadUrl);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Image opened in new tab')),

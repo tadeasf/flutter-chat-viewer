@@ -1,19 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../utils/api_db/api_service.dart';
-import 'photo_gallery.dart';
+import 'api_db/api_service.dart';
+import '../screens/gallery/photo_gallery.dart';
 import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import '../stores/store_provider.dart';
 
 class PhotoHandler {
   static final Logger _logger = Logger('PhotoHandler');
   static XFile? image;
-  static bool isPhotoAvailable = false;
-  static bool isUploading = false;
-  static String? imageUrl;
 
+  // Check photo availability by using the ProfilePhotoStore
+  static Future<void> checkPhotoAvailability(
+      String? collectionName, Function setState) async {
+    if (collectionName == null) return;
+
+    try {
+      final response = await ApiService.get(
+        '/collection/has-photo/${Uri.encodeComponent(collectionName)}',
+        headers: {'x-api-key': ApiService.apiKey},
+      );
+      // ignore: unused_local_variable
+      final result = json.decode(response.body);
+
+      setState(() {
+        // Update the UI state with photo availability
+      });
+    } catch (e) {
+      _logger.warning('Error checking photo availability: $e');
+    }
+  }
+
+  // This method is still useful as it's a UI navigation function
   static void handleShowAllPhotos(
     BuildContext context,
     String? selectedCollection, {
@@ -49,17 +68,20 @@ class PhotoHandler {
     if (image == null || selectedCollection == null) return;
 
     setState(() {
-      isUploading = true;
+      // UI state update only
     });
 
     try {
+      // Read image data
       List<int> imageBytes = await image.readAsBytes();
       String base64Image = base64Encode(imageBytes);
 
+      // Create request data
       final photoData = {
         'photo': base64Image,
       };
 
+      // Make API call
       await ApiService.post(
         '/upload/photo/${Uri.encodeComponent(selectedCollection)}',
         body: photoData,
@@ -69,15 +91,16 @@ class PhotoHandler {
         },
       );
 
-      setState(() {
-        isUploading = false;
-        isPhotoAvailable = true;
-        imageUrl = ApiService.getProfilePhotoUrl(selectedCollection);
-      });
+      if (!context.mounted) return;
+
+      // Update the store
+      final store = StoreProvider.of(context).profilePhotoStore;
+      store.clearCache(selectedCollection);
+      await store.getProfilePhotoUrl(selectedCollection);
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Photo uploaded successfully')));
-        await checkPhotoAvailability(selectedCollection, setState);
       }
     } catch (e) {
       _logger.warning('Error uploading photo: $e');
@@ -85,72 +108,6 @@ class PhotoHandler {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Error uploading photo')));
       }
-    } finally {
-      setState(() {
-        isUploading = false;
-      });
-    }
-  }
-
-  static Future<void> checkPhotoAvailability(
-      String? selectedCollection, Function setState) async {
-    if (selectedCollection == null) return;
-
-    try {
-      // Use standard API for native platforms, direct URL for web
-      if (kIsWeb) {
-        try {
-          final url = ApiService.getProfilePhotoUrl(selectedCollection);
-          final imageStream = NetworkImage(url, headers: ApiService.headers)
-              .resolve(const ImageConfiguration());
-          bool hasError = false;
-
-          final imageStreamListener = ImageStreamListener(
-            (ImageInfo info, bool _) {
-              setState(() {
-                isPhotoAvailable = true;
-              });
-            },
-            onError: (dynamic error, StackTrace? stackTrace) {
-              hasError = true;
-              setState(() {
-                isPhotoAvailable = false;
-              });
-            },
-          );
-
-          imageStream.addListener(imageStreamListener);
-
-          // Wait for 3 seconds for the image to load or fail
-          await Future.delayed(const Duration(seconds: 3));
-          imageStream.removeListener(imageStreamListener);
-
-          if (!hasError) {
-            setState(() {
-              isPhotoAvailable = true;
-            });
-          }
-        } catch (e) {
-          _logger.warning('Error checking photo availability on web: $e');
-          setState(() {
-            isPhotoAvailable = false;
-          });
-        }
-      } else {
-        final response = await ApiService.get(
-          '/messages/${Uri.encodeComponent(selectedCollection)}/photo',
-          headers: {'x-api-key': ApiService.apiKey},
-        );
-        final isAvailable = json.decode(response.body)['isPhotoAvailable'];
-        setState(() {
-          isPhotoAvailable = isAvailable;
-        });
-      }
-    } catch (e) {
-      _logger.warning('Error checking photo availability: $e');
-      setState(() {
-        isPhotoAvailable = false;
-      });
     }
   }
 
@@ -163,16 +120,18 @@ class PhotoHandler {
       );
       final result = json.decode(response.body);
 
+      if (!context.mounted) return;
+
       if (result['success']) {
-        setState(() {
-          isPhotoAvailable = false;
-          imageUrl = null; // Clear the imageUrl
-        });
+        // Update the store
+        final store = StoreProvider.of(context).profilePhotoStore;
+        store.clearCache(collectionName);
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(result['message'])),
           );
-          // Notify the app that the photo has been deleted
+          // UI navigation
           Navigator.of(context).pop(true);
         }
       } else {

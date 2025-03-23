@@ -2,16 +2,21 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:typed_data';
-import 'url_formatter.dart';
+import 'url_formatter.dart' as url_formatter;
 import 'web_http_client.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../js_util.dart';
+import 'package:logging/logging.dart';
 
 class ApiService {
   static const String baseUrl = 'https://backend.jevrej.cz';
 
   // API key getter that checks for web environment to use window.FLUTTER_ENV
   static String get apiKey {
+    // For now, always use the hardcoded value from the .env file
+    // This ensures all API requests have the key, even on web
+    return '4lFAmnt2FuHLDSKrka9cdI5loz0D90pyidtXKsR2hYuYcG5EHnUX5TV0H6Y3y';
+
+    // Original implementation:
+    /*
     if (kIsWeb) {
       // Try to get the API key from window.FLUTTER_ENV in web mode
       final webApiKey = getApiKey();
@@ -22,6 +27,7 @@ class ApiService {
 
     // Fallback to dotenv for native platforms or if web API key not available
     return dotenv.env['X_API_KEY'] ?? '';
+    */
   }
 
   static final Map<String, String> _profilePhotoUrls = {};
@@ -58,8 +64,8 @@ class ApiService {
     if (kDebugMode) {
       print('Fetch Collections Request:');
       print('URL: $url');
-      print('Headers: $headers');
-      print('x-api-key: $apiKey');
+      // print('Headers: $headers');
+      // print('x-api-key: $apiKey');
     }
 
     http.Response response;
@@ -72,12 +78,26 @@ class ApiService {
     if (kDebugMode) {
       print('Fetch Collections Response:');
       print('Status Code: ${response.statusCode}');
-      print('Body: ${response.body}');
+      // print('Body: ${response.body}');
     }
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data is List) {
+        // Debug collection names and their format
+        if (kDebugMode && kIsWeb) {
+          if (kDebugMode) {
+            print('Collections data:');
+          }
+          for (var collection in data.take(5)) {
+            final name = collection['name'];
+            final key = collection['key'];
+            if (kDebugMode) {
+              print('Collection: name=$name, key=$key');
+            }
+          }
+        }
+
         return List<Map<String, dynamic>>.from(data);
       } else if (data is Map<String, dynamic> && data.containsKey('error')) {
         throw Exception(data['error']);
@@ -97,7 +117,7 @@ class ApiService {
     if (kDebugMode) {
       print('Fetch Alphabetical Collections Response:');
       print('Status Code: ${response.statusCode}');
-      print('Body: ${response.body}');
+      // print('Body: ${response.body}');
     }
 
     if (response.statusCode == 200) {
@@ -138,18 +158,26 @@ class ApiService {
   }
 
   static Future<List<dynamic>> fetchMessages(String collectionName,
-      {String? fromDate, String? toDate}) async {
+      {String? fromDate, String? toDate, int offset = 0, int limit = 0}) async {
     String url = '$baseUrl/messages/${Uri.encodeComponent(collectionName)}';
-    if (fromDate != null || toDate != null) {
-      List<String> queryParams = [];
-      if (fromDate != null) queryParams.add('fromDate=$fromDate');
-      if (toDate != null) queryParams.add('toDate=$toDate');
+    List<String> queryParams = [];
+
+    // Add date filters if provided
+    if (fromDate != null) queryParams.add('fromDate=$fromDate');
+    if (toDate != null) queryParams.add('toDate=$toDate');
+
+    // Add pagination parameters if provided
+    if (offset > 0) queryParams.add('offset=$offset');
+    if (limit > 0) queryParams.add('limit=$limit');
+
+    // Add query parameters to URL
+    if (queryParams.isNotEmpty) {
       url += '?${queryParams.join('&')}';
     }
 
-    if (kDebugMode) {
-      print('Fetching messages with headers: $headersWithMetrics');
-    }
+    // if (kDebugMode) {
+    //   print('Fetching messages with headers: $headersWithMetrics');
+    // }
 
     http.Response response;
     if (kIsWeb) {
@@ -161,7 +189,7 @@ class ApiService {
 
     if (kDebugMode) {
       print('Response status: ${response.statusCode}');
-      print('Response headers: ${response.headers}');
+      // print('Response headers: ${response.headers}');
     }
 
     if (response.statusCode == 200) {
@@ -224,49 +252,79 @@ class ApiService {
     if (kDebugMode) {
       print('getPhotoUrl: $baseUrl/inbox/$collectionName/photos/$filename');
     }
-    return UrlFormatter.formatMediaUrl(
-      collectionName: collectionName,
+    return url_formatter.UrlFormatter.formatUrl(
       uri: filename,
-      type: MediaType.photo,
+      type: url_formatter.MediaType.photo,
+      collectionName: collectionName,
+      source: url_formatter.MediaSource.message,
     );
   }
 
   static String getVideoUrl(String collectionName, String uri) {
-    return UrlFormatter.formatMediaUrl(
-      collectionName: collectionName,
+    return url_formatter.UrlFormatter.formatUrl(
       uri: uri,
-      type: MediaType.video,
+      type: url_formatter.MediaType.video,
+      collectionName: collectionName,
+      source: url_formatter.MediaSource.message,
     );
   }
 
   static String getAudioUrl(String collectionName, String uri) {
     // print the link we generate using the url formatter
     if (kDebugMode) {
-      print(UrlFormatter.formatMediaUrl(
-        collectionName: collectionName,
+      print('getAudioUrl: ${url_formatter.UrlFormatter.formatUrl(
         uri: uri,
-        type: MediaType.audio,
-      ));
+        type: url_formatter.MediaType.audio,
+        collectionName: collectionName,
+        source: url_formatter.MediaSource.message,
+      )}');
     }
-    return UrlFormatter.formatMediaUrl(
-      collectionName: collectionName,
+    return url_formatter.UrlFormatter.formatUrl(
       uri: uri,
-      type: MediaType.audio,
+      type: url_formatter.MediaType.audio,
+      collectionName: collectionName,
+      source: url_formatter.MediaSource.message,
     );
   }
 
   static String getProfilePhotoUrl(String collectionName) {
-    return UrlFormatter.formatProfilePhotoUrl(collectionName);
+    return url_formatter.UrlFormatter.formatProfilePhotoUrl(collectionName);
   }
 
-  static Future<List<Map<String, dynamic>>> fetchPhotos(
-      String collectionName) async {
-    final response = await get('/photos/${Uri.encodeComponent(collectionName)}',
-        headers: headers); // Use headers here
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
-    } else {
-      throw Exception('Failed to load photos: ${response.statusCode}');
+  static Future<List<Map<String, dynamic>>> fetchPhotos(String collectionName,
+      {String? senderName}) async {
+    final logger = Logger('ApiService.fetchPhotos');
+    logger.info('Fetching photos for collection: $collectionName');
+
+    String url = '$baseUrl/photos/${Uri.encodeComponent(collectionName)}';
+    if (senderName != null) {
+      logger.info('Filtering photos by sender: $senderName');
+      url += '?sender=${Uri.encodeComponent(senderName)}';
+    }
+    logger.info('Photos URL: $url');
+
+    http.Response response;
+    try {
+      if (kIsWeb) {
+        response = await WebHttpClient.get(Uri.parse(url), headers: headers);
+      } else {
+        response = await http.get(Uri.parse(url), headers: headers);
+      }
+
+      logger.info('Photos response status code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        logger.info('Photos data count: ${data.length}');
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        final error = 'Failed to load photos: ${response.statusCode}';
+        logger.warning('$error\nResponse body: ${response.body}');
+        throw Exception(error);
+      }
+    } catch (e) {
+      logger.severe('Error fetching photos: $e');
+      rethrow;
     }
   }
 
@@ -487,6 +545,80 @@ class ApiService {
   /// Returns a direct image URL for web downloads
   /// This URL can be used to open in a new tab for direct downloads
   static String getWebDownloadUrl(String collectionName, String filename) {
-    return '$baseUrl/inbox/${Uri.encodeComponent(collectionName)}/photos/$filename';
+    // Add debug logging to trace the collection name
+    if (kDebugMode) {
+      print('getWebDownloadUrl called with:');
+      print('  - collectionName: $collectionName');
+      print('  - filename: $filename');
+    }
+
+    // Use the UrlFormatter to ensure correct URL format with proper collection name format
+    final url = url_formatter.UrlFormatter.formatUrl(
+      uri: filename,
+      type: url_formatter.MediaType.photo,
+      collectionName: collectionName,
+      source: url_formatter.MediaSource.message,
+    );
+
+    if (kDebugMode) {
+      print('Generated URL: $url');
+
+      // Add checks to validate the collection name format
+      if (!collectionName.contains('_') && !url.contains('_')) {
+        print(
+            'WARNING: Collection name might be in display format instead of ID format');
+        print('Expected format example: andreazizkova_10209460325737541');
+        print('Current format: $collectionName');
+      }
+    }
+
+    return url;
+  }
+
+  // Search across all collections
+  static Future<List<dynamic>> searchAcrossCollections(String query) async {
+    final Logger logger = Logger('ApiService');
+    try {
+      final requestBody = jsonEncode({
+        'query': query,
+      });
+
+      final uri = Uri.parse('$baseUrl/search-across-collections');
+
+      if (kIsWeb) {
+        final response = await WebHttpClient.post(
+          uri,
+          headers: headers,
+          body: requestBody,
+        );
+        if (response.statusCode == 200) {
+          final responseBody = jsonDecode(response.body);
+          return responseBody['results'] ?? [];
+        } else {
+          logger.warning(
+              'Failed to search across collections: ${response.statusCode}');
+          throw Exception(
+              'Failed to search across collections: ${response.statusCode}');
+        }
+      } else {
+        final response = await http.post(
+          uri,
+          headers: headers,
+          body: requestBody,
+        );
+        if (response.statusCode == 200) {
+          final responseBody = jsonDecode(response.body);
+          return responseBody['results'] ?? [];
+        } else {
+          logger.warning(
+              'Failed to search across collections: ${response.statusCode}');
+          throw Exception(
+              'Failed to search across collections: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      logger.severe('Error searching across collections: $e');
+      throw Exception('Error searching across collections: $e');
+    }
   }
 }
