@@ -332,7 +332,7 @@ class AppColors {
         onSurfaceVariant: AppColors.text,
         error: AppColors.red,
         onError: Colors.white,
-        background: AppColors.background,
+        // Removed deprecated 'background' property as it's already defined as 'surface' above
         shadow: Colors.black,
       ),
       canvasColor: AppColors.background,
