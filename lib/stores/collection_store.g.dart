@@ -16,6 +16,13 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
       (_$hasActiveFilterComputed ??= Computed<bool>(() => super.hasActiveFilter,
               name: 'CollectionStoreBase.hasActiveFilter'))
           .value;
+  Computed<bool>? _$needsCollectionRefreshComputed;
+
+  @override
+  bool get needsCollectionRefresh => (_$needsCollectionRefreshComputed ??=
+          Computed<bool>(() => super.needsCollectionRefresh,
+              name: 'CollectionStoreBase.needsCollectionRefresh'))
+      .value;
 
   late final _$collectionsAtom =
       Atom(name: 'CollectionStoreBase.collections', context: context);
@@ -65,6 +72,22 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
     });
   }
 
+  late final _$isMessageLoadingAtom =
+      Atom(name: 'CollectionStoreBase.isMessageLoading', context: context);
+
+  @override
+  bool get isMessageLoading {
+    _$isMessageLoadingAtom.reportRead();
+    return super.isMessageLoading;
+  }
+
+  @override
+  set isMessageLoading(bool value) {
+    _$isMessageLoadingAtom.reportWrite(value, super.isMessageLoading, () {
+      super.isMessageLoading = value;
+    });
+  }
+
   late final _$filterQueryAtom =
       Atom(name: 'CollectionStoreBase.filterQuery', context: context);
 
@@ -78,6 +101,22 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
   set filterQuery(String value) {
     _$filterQueryAtom.reportWrite(value, super.filterQuery, () {
       super.filterQuery = value;
+    });
+  }
+
+  late final _$lastCollectionFetchAtom =
+      Atom(name: 'CollectionStoreBase.lastCollectionFetch', context: context);
+
+  @override
+  DateTime get lastCollectionFetch {
+    _$lastCollectionFetchAtom.reportRead();
+    return super.lastCollectionFetch;
+  }
+
+  @override
+  set lastCollectionFetch(DateTime value) {
+    _$lastCollectionFetchAtom.reportWrite(value, super.lastCollectionFetch, () {
+      super.lastCollectionFetch = value;
     });
   }
 
@@ -107,8 +146,29 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
         .run(() => super.refreshCollections());
   }
 
+  late final _$refreshCollectionsIfNeededAsyncAction = AsyncAction(
+      'CollectionStoreBase.refreshCollectionsIfNeeded',
+      context: context);
+
+  @override
+  Future<void> refreshCollectionsIfNeeded() {
+    return _$refreshCollectionsIfNeededAsyncAction
+        .run(() => super.refreshCollectionsIfNeeded());
+  }
+
   late final _$CollectionStoreBaseActionController =
       ActionController(name: 'CollectionStoreBase', context: context);
+
+  @override
+  void setMessageLoading(bool loading) {
+    final _$actionInfo = _$CollectionStoreBaseActionController.startAction(
+        name: 'CollectionStoreBase.setMessageLoading');
+    try {
+      return super.setMessageLoading(loading);
+    } finally {
+      _$CollectionStoreBaseActionController.endAction(_$actionInfo);
+    }
+  }
 
   @override
   void setFilterQuery(String query) {
@@ -138,8 +198,11 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
 collections: ${collections},
 filteredCollections: ${filteredCollections},
 isLoading: ${isLoading},
+isMessageLoading: ${isMessageLoading},
 filterQuery: ${filterQuery},
-hasActiveFilter: ${hasActiveFilter}
+lastCollectionFetch: ${lastCollectionFetch},
+hasActiveFilter: ${hasActiveFilter},
+needsCollectionRefresh: ${needsCollectionRefresh}
     ''';
   }
 }

@@ -14,7 +14,8 @@ import 'package:just_audio/just_audio.dart';
 import 'audio_message_player.dart';
 import '../media/video_player_screen.dart';
 import 'package:intl/intl.dart';
-import '../ui_utils/theme_manager.dart';
+import '../../stores/store_provider.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -167,6 +168,7 @@ class MessageItemState extends State<MessageItem> {
 
   Widget buildMessageContent() {
     final theme = Theme.of(context);
+    final themeStore = StoreProvider.of(context).themeStore;
     final List<Widget> mediaWidgets = [];
     const double displayWidth = 300.0;
 
@@ -178,10 +180,12 @@ class MessageItemState extends State<MessageItem> {
           padding: const EdgeInsets.only(bottom: 0),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: displayWidth),
-            child: Text(
-              _ensureDecoded(widget.message['content']),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: ThemeManager.fontSize,
+            child: Observer(
+              builder: (_) => Text(
+                _ensureDecoded(widget.message['content']),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: themeStore.fontSize,
+                ),
               ),
             ),
           ),

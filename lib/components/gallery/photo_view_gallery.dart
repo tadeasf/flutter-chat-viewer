@@ -122,12 +122,11 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                             widget.onJumpToGallery?.call(_currentIndex),
                         tooltip: 'Jump to Gallery',
                       ),
-                    if (kIsWeb)
-                      IconButton(
-                        icon: const Icon(Icons.download),
-                        onPressed: () => _downloadCurrentImage(),
-                        tooltip: 'Download Image',
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.download),
+                      onPressed: () => _downloadCurrentImage(),
+                      tooltip: 'Download Image',
+                    ),
                   ],
                 )
               : null,
@@ -158,35 +157,54 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                     });
                   },
                 ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _downloadCurrentImage(),
+            backgroundColor: Colors.black.withValues(alpha: 178),
+            child: const Icon(Icons.download, color: Colors.white),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildWebGallery() {
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: widget.photos.length,
-      onPageChanged: (index) {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      itemBuilder: (context, index) {
-        final photo = widget.photos[index];
-        final imageUrl = _getPhotoUrl(photo);
-        return Center(
-          child: Hero(
-            tag: 'photo_${photo['uri']}',
-            child: WebImageViewer(
-              imageUrl: imageUrl,
-              fit: BoxFit.contain,
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: widget.photos.length,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          itemBuilder: (context, index) {
+            final photo = widget.photos[index];
+            final imageUrl = _getPhotoUrl(photo);
+            return Center(
+              child: Hero(
+                tag: 'photo_${photo['uri']}',
+                child: WebImageViewer(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
+                ),
+              ),
+            );
+          },
+        ),
+        if (!widget.showAppBar) // Only show this if AppBar is hidden
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: () => _downloadCurrentImage(),
+              backgroundColor: Colors.black.withValues(alpha: 178),
+              child: const Icon(Icons.download, color: Colors.white),
             ),
           ),
-        );
-      },
+      ],
     );
   }
 

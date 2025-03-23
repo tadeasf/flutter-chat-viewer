@@ -136,13 +136,10 @@ class MessageSelector extends StatefulWidget {
 }
 
 class MessageSelectorState extends State<MessageSelector> {
-  List<Map<String, dynamic>> collections = [];
-  List<Map<String, dynamic>> filteredCollections = [];
   String? selectedCollection;
   DateTime? fromDate;
   DateTime? toDate;
   List<Map<dynamic, dynamic>> messages = [];
-  bool isLoading = false;
   TextEditingController searchController = TextEditingController();
   final picker = ImagePicker();
   bool isPhotoAvailable = false;
@@ -160,11 +157,16 @@ class MessageSelectorState extends State<MessageSelector> {
   String? searchQueryInWidget;
   String? profilePhotoUrl;
   final bool _isProfilePhotoVisible = true;
-  int get maxCollectionIndex => filteredCollections.isNotEmpty
-      ? filteredCollections
-          .map((c) => c['index'] as int? ?? 0)
-          .reduce((a, b) => a > b ? a : b)
-      : 0;
+  int get maxCollectionIndex {
+    final store = StoreProvider.of(context).collectionStore;
+    final filteredList = store.filteredCollections;
+    return filteredList.isNotEmpty
+        ? filteredList
+            .map((c) => c['index'] as int? ?? 0)
+            .reduce((a, b) => a > b ? a : b)
+        : 0;
+  }
+
   bool isCollectionSelectorVisible = false;
   List<Map<dynamic, dynamic>> crossCollectionMessages = [];
   bool isCrossCollectionSearch = false;
@@ -193,18 +195,24 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void setLoading(bool value) {
-    setState(() {
-      isLoading = value;
-    });
+    if (!mounted) return;
+    // Use the CollectionStore to set message loading state
+    final store = StoreProvider.of(context).collectionStore;
+    store.setMessageLoading(value);
   }
 
   void setMessages(List<dynamic> loadedMessages) {
-    setState(() {
-      messages = loadedMessages
-          .expand((message) => message is List ? message : [message])
-          .map((message) => message as Map<dynamic, dynamic>)
-          .toList();
-    });
+    // Use MessageStore instead of setState
+    final messageStore = StoreProvider.of(context).messageStore;
+
+    final processedMessages = loadedMessages
+        .expand((message) => message is List ? message : [message])
+        .map((message) => Map<String, dynamic>.from(message))
+        .toList();
+
+    // Update the messages in the store
+    messageStore.messages.clear();
+    messageStore.messages.addAll(processedMessages);
   }
 
   void updateCurrentSearchIndex(int index) {
@@ -242,6 +250,9 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   Future<void> _changeCollection(String? newValue) async {
+    // Use MessageStore for collection change and message loading
+    final messageStore = StoreProvider.of(context).messageStore;
+
     setState(() {
       selectedCollection = newValue;
       isCollectionSelectorVisible = false;
@@ -254,11 +265,30 @@ class MessageSelectorState extends State<MessageSelector> {
     });
 
     if (selectedCollection != null) {
+      // Set loading state
+      setLoading(true);
+
+      // Use MessageStore to load messages for the new collection
+      await messageStore.setCollection(selectedCollection);
+
+      if (!mounted) return;
+
+      // Check photo availability after collection is set
       await PhotoHandler.checkPhotoAvailability(selectedCollection, setState);
-      await fetchMessages(selectedCollection, fromDate, toDate, setState,
-          setLoading, setMessages);
+
+      if (!mounted) return;
+
+      // Get profile photo URL
       profilePhotoUrl =
           await ProfilePhotoManager.getProfilePhotoUrl(selectedCollection!);
+
+      // Update messages from store to local state for rendering
+      setState(() {
+        messages = messageStore.messages.toList();
+      });
+
+      // Turn off loading state
+      setLoading(false);
     } else {
       setState(() {
         isCollectionSelectorVisible = true;
@@ -364,31 +394,35 @@ class MessageSelectorState extends State<MessageSelector> {
     if (collectionName != selectedCollection) {
       setState(() {
         messages = [];
-        isLoading = true;
         selectedCollection = collectionName;
         isCollectionSelectorVisible = false;
         isCrossCollectionSearch = false;
       });
 
       try {
+        // Store a local reference to selectedCollection to avoid context access after async gap
+        final currentCollection = selectedCollection;
+
         // Load messages for the new collection
         await fetchMessages(
-          selectedCollection,
+          currentCollection,
           fromDate,
           toDate,
           setState,
-          (bool loading) => setState(() => isLoading = loading),
           (List<dynamic> newMessages) async {
+            if (!mounted) return;
+
             final processedMessages = List<Map<dynamic, dynamic>>.from(
                 newMessages.map((m) => Map<dynamic, dynamic>.from(m)));
 
             setState(() {
               messages = processedMessages;
-              isLoading = false;
             });
 
             // Important: Wait for the next frame to ensure messages are rendered
             await Future.delayed(const Duration(milliseconds: 100));
+
+            if (!mounted) return;
 
             // Now scroll to the target message
             final manager = MessageIndexManager();
@@ -404,14 +438,18 @@ class MessageSelectorState extends State<MessageSelector> {
               );
             }
           },
+          context: context,
         );
       } catch (e) {
         if (kDebugMode) {
           print('Error handling message tap: $e');
         }
-        setState(() {
-          isLoading = false;
-        });
+
+        if (!mounted) return;
+
+        // Set message loading to false using the store
+        final store = StoreProvider.of(context).collectionStore;
+        store.setMessageLoading(false);
       }
     }
   }
@@ -480,52 +518,104 @@ class MessageSelectorState extends State<MessageSelector> {
             RefreshIndicator(
               onRefresh: () async {
                 final store = StoreProvider.of(context).collectionStore;
+                // Force a refresh here since this is an explicit user action
                 await store.refreshCollections();
               },
-              child: Observer(builder: (_) {
-                final store = StoreProvider.of(context).collectionStore;
+              child: Observer(
+                builder: (context) {
+                  final collectionStore =
+                      StoreProvider.of(context).collectionStore;
+                  final isCollectionLoading = collectionStore.isLoading;
+                  final isMessageLoading = collectionStore.isMessageLoading;
+                  final collections = collectionStore.collections;
 
-                return store.collections.isEmpty
-                    ? ListView(
-                        children: const [
-                          SizedBox(height: 200),
-                          Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Pull down to refresh collections',
-                                  style: TextStyle(
-                                    fontFamily: 'CaskaydiaCove Nerd Font',
-                                    fontSize: 12,
-                                  ),
+                  if (collections.isEmpty && isCollectionLoading) {
+                    return ListView(
+                      children: const [
+                        SizedBox(height: 200),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text(
+                                'Loading collections...',
+                                style: TextStyle(
+                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                                  fontSize: 12,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Text(
-                              'Meta Elysia',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
+                        ),
+                      ],
+                    );
+                  } else if (collections.isEmpty) {
+                    return ListView(
+                      children: const [
+                        SizedBox(height: 200),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Pull down to refresh collections',
+                                style: TextStyle(
+                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Meta Elysia',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontFamily: 'CaskaydiaCove Nerd Font',
                                     fontSize: 12,
                                   ),
-                            ),
-                          ),
-                          Expanded(
-                            child: isLoading || isCrossCollectionLoading
+                        ),
+                      ),
+                      Expanded(
+                        child: isMessageLoading || isCrossCollectionLoading
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const CircularProgressIndicator(),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      selectedCollection != null
+                                          ? 'Loading messages...'
+                                          : 'Select a collection',
+                                      style: const TextStyle(
+                                        fontFamily: 'CaskaydiaCove Nerd Font',
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : messages.isEmpty && selectedCollection != null
                                 ? const Center(
-                                    child: CircularProgressIndicator())
+                                    child: Text(
+                                      'No messages found',
+                                      style: TextStyle(
+                                        fontFamily: 'CaskaydiaCove Nerd Font',
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  )
                                 : MessageList(
                                     messages: isCrossCollectionSearch
                                         ? crossCollectionMessages
@@ -544,37 +634,39 @@ class MessageSelectorState extends State<MessageSelector> {
                                     onMessageTap:
                                         _handleCrossCollectionMessageTap,
                                   ),
+                      ),
+                      if (isCollectionSelectorVisible ||
+                          selectedCollection == null)
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: CollectionSelector(
+                            selectedCollection: selectedCollection,
+                            initialCollections:
+                                collectionStore.filteredCollections.toList(),
+                            onCollectionChanged: _changeCollection,
                           ),
-                          if (isCollectionSelectorVisible ||
-                              selectedCollection == null)
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: CollectionSelector(
-                                selectedCollection: selectedCollection,
-                                initialCollections: filteredCollections,
-                                onCollectionChanged: _changeCollection,
-                              ),
-                            ),
-                          if (isPhotoAvailable && selectedCollection != null)
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Image.network(
-                                'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
-                                height: 100,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Text(
-                                    'Failed to load image',
-                                    style: TextStyle(
-                                      fontFamily: 'CaskaydiaCove Nerd Font',
-                                      fontSize: 12,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                        ],
-                      );
-              }),
+                        ),
+                      if (isPhotoAvailable && selectedCollection != null)
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Image.network(
+                            'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                            height: 100,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Text(
+                                'Failed to load image',
+                                style: TextStyle(
+                                  fontFamily: 'CaskaydiaCove Nerd Font',
+                                  fontSize: 12,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
             if (_currentVisibility == VisibilityState.collectionSelector)
               _buildCollectionSelectorOverlay(),

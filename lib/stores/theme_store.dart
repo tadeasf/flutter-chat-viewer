@@ -1,6 +1,154 @@
+import 'package:mobx/mobx.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Include the generated file
+part 'theme_store.g.dart';
+
+// This is the class used by rest of the codebase
+class ThemeStore = ThemeStoreBase with _$ThemeStore;
+
+// The store class
+abstract class ThemeStoreBase with Store {
+  // Font size constraints
+  static const double minFontSize = 12.0;
+  static const double maxFontSize = 24.0;
+  static const double fontSizeStep = 2.0;
+
+  // Observable for theme mode
+  @observable
+  ThemeMode themeMode = ThemeMode.system;
+
+  // Observable for font size
+  @observable
+  double fontSize = 16.0;
+
+  // Constructor initializes from saved preferences
+  ThemeStoreBase() {
+    _loadPreferences();
+  }
+
+  // Action to set theme mode
+  @action
+  Future<void> setThemeMode(ThemeMode mode) async {
+    themeMode = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('themeMode', mode.index);
+  }
+
+  // Action to set font size
+  @action
+  Future<void> setFontSize(double size) async {
+    if (size >= minFontSize && size <= maxFontSize) {
+      fontSize = size;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('fontSize', size);
+    }
+  }
+
+  // Action to increase font size
+  @action
+  Future<void> increaseFontSize() async {
+    await setFontSize(fontSize + fontSizeStep);
+  }
+
+  // Action to decrease font size
+  @action
+  Future<void> decreaseFontSize() async {
+    await setFontSize(fontSize - fontSizeStep);
+  }
+
+  // Load saved preferences
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load theme mode
+    final savedThemeModeIndex = prefs.getInt('themeMode');
+    if (savedThemeModeIndex != null &&
+        savedThemeModeIndex >= 0 &&
+        savedThemeModeIndex < ThemeMode.values.length) {
+      themeMode = ThemeMode.values[savedThemeModeIndex];
+    }
+
+    // Load font size
+    final savedFontSize = prefs.getDouble('fontSize');
+    if (savedFontSize != null &&
+        savedFontSize >= minFontSize &&
+        savedFontSize <= maxFontSize) {
+      fontSize = savedFontSize;
+    }
+  }
+
+  // Get current theme data
+  ThemeData getCurrentTheme() {
+    return themeMode == ThemeMode.light
+        ? AppColors.getLightTheme(fontSize)
+        : AppColors.getDarkTheme(fontSize);
+  }
+
+  // Show settings dialog
+  void showSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Theme Mode'),
+              DropdownButton<ThemeMode>(
+                value: themeMode,
+                onChanged: (ThemeMode? newValue) {
+                  if (newValue != null) {
+                    setThemeMode(newValue);
+                    Navigator.of(context).pop();
+                  }
+                },
+                items: ThemeMode.values.map((ThemeMode mode) {
+                  return DropdownMenuItem<ThemeMode>(
+                    value: mode,
+                    child: Text(mode.toString().split('.').last),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              const Text('Font Size'),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove),
+                    onPressed: () async {
+                      await decreaseFontSize();
+                    },
+                  ),
+                  Text(fontSize.toStringAsFixed(1)),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: () async {
+                      await increaseFontSize();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// Helper class for app colors
 class AppColors {
   // Add background color
   static const Color background = Color(0xFF1E1E2E);
@@ -30,41 +178,9 @@ class AppColors {
   static const Color rosewater = Color(0xFFCC2D55);
   static const Color text = Color(0xFFE5E5EA);
   static const Color subtext1 = Color(0xFF8E8E93);
-}
 
-class ThemeManager {
-  static const double minFontSize = 12.0;
-  static const double maxFontSize = 24.0;
-  static const double fontSizeStep = 2.0;
-  static double _fontSize = 16.0; // Default size
-
-  static double get fontSize => _fontSize;
-
-  static Future<void> initFontSize() async {
-    final prefs = await SharedPreferences.getInstance();
-    _fontSize = prefs.getDouble('fontSize') ?? 16.0;
-  }
-
-  static Future<void> setFontSize(double size) async {
-    if (size >= minFontSize && size <= maxFontSize) {
-      _fontSize = size;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('fontSize', size);
-    }
-  }
-
-  static Future<ThemeMode> loadThemeMode() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return ThemeMode
-        .values[prefs.getInt('themeMode') ?? ThemeMode.system.index];
-  }
-
-  static Future<void> saveThemeMode(ThemeMode mode) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', mode.index);
-  }
-
-  static ThemeData getLightTheme() {
+  // Light theme with custom font size
+  static ThemeData getLightTheme(double fontSize) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -98,52 +214,59 @@ class ThemeManager {
           fontWeight: FontWeight.w500,
         ),
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(color: Colors.black87),
-        displayMedium: TextStyle(color: Colors.black87),
-        displaySmall: TextStyle(color: Colors.black87),
-        headlineLarge: TextStyle(color: Colors.black87),
-        headlineMedium: TextStyle(color: Colors.black87),
-        headlineSmall: TextStyle(color: Colors.black87),
+      textTheme: TextTheme(
+        displayLarge: TextStyle(color: Colors.black87, fontSize: fontSize + 8),
+        displayMedium: TextStyle(color: Colors.black87, fontSize: fontSize + 6),
+        displaySmall: TextStyle(color: Colors.black87, fontSize: fontSize + 4),
+        headlineLarge: TextStyle(color: Colors.black87, fontSize: fontSize + 3),
+        headlineMedium:
+            TextStyle(color: Colors.black87, fontSize: fontSize + 2),
+        headlineSmall: TextStyle(color: Colors.black87, fontSize: fontSize + 1),
         titleLarge: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
+          fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
+          fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
+          fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
+          fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
+          fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: Colors.black54,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
+          fontSize: fontSize - 2,
         ),
-        labelLarge: TextStyle(color: Colors.black87),
-        labelMedium: TextStyle(color: Colors.black87),
-        labelSmall: TextStyle(color: Colors.black87),
+        labelLarge: TextStyle(color: Colors.black87, fontSize: fontSize),
+        labelMedium: TextStyle(color: Colors.black87, fontSize: fontSize - 1),
+        labelSmall: TextStyle(color: Colors.black87, fontSize: fontSize - 2),
       ),
       iconTheme: const IconThemeData(
         color: Color(0xFF4A90A4),
@@ -163,8 +286,8 @@ class ThemeManager {
       inputDecorationTheme: InputDecorationTheme(
         fillColor: Colors.grey[100],
         filled: true,
-        labelStyle: const TextStyle(color: Colors.black87),
-        hintStyle: TextStyle(color: Colors.grey[600]),
+        labelStyle: TextStyle(color: Colors.black87, fontSize: fontSize - 1),
+        hintStyle: TextStyle(color: Colors.grey[600], fontSize: fontSize - 1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Colors.grey[300]!),
@@ -185,7 +308,8 @@ class ThemeManager {
     );
   }
 
-  static ThemeData getDarkTheme() {
+  // Dark theme with custom font size
+  static ThemeData getDarkTheme(double fontSize) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -221,51 +345,58 @@ class ThemeManager {
         ),
       ),
       textTheme: TextTheme(
-        displayLarge: TextStyle(color: AppColors.text),
-        displayMedium: TextStyle(color: AppColors.text),
-        displaySmall: TextStyle(color: AppColors.text),
-        headlineLarge: TextStyle(color: AppColors.text),
-        headlineMedium: TextStyle(color: AppColors.text),
-        headlineSmall: TextStyle(color: AppColors.text),
+        displayLarge: TextStyle(color: AppColors.text, fontSize: fontSize + 8),
+        displayMedium: TextStyle(color: AppColors.text, fontSize: fontSize + 6),
+        displaySmall: TextStyle(color: AppColors.text, fontSize: fontSize + 4),
+        headlineLarge: TextStyle(color: AppColors.text, fontSize: fontSize + 3),
+        headlineMedium:
+            TextStyle(color: AppColors.text, fontSize: fontSize + 2),
+        headlineSmall: TextStyle(color: AppColors.text, fontSize: fontSize + 1),
         titleLarge: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
+          fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
+          fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
+          fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
+          fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
+          fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
           fontFamily: 'CaskaydiaCove Nerd Font',
           color: AppColors.subtext1,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
+          fontSize: fontSize - 2,
         ),
-        labelLarge: TextStyle(color: AppColors.text),
-        labelMedium: TextStyle(color: AppColors.text),
-        labelSmall: TextStyle(color: AppColors.text),
+        labelLarge: TextStyle(color: AppColors.text, fontSize: fontSize),
+        labelMedium: TextStyle(color: AppColors.text, fontSize: fontSize - 1),
+        labelSmall: TextStyle(color: AppColors.text, fontSize: fontSize - 2),
       ),
       iconTheme: IconThemeData(
         color: AppColors.text,
@@ -278,7 +409,7 @@ class ThemeManager {
       cardTheme: CardTheme(
         color: const Color(0xFF252525),
         elevation: 4,
-        shadowColor: Colors.black.withValues(alpha: 0.4),
+        shadowColor: Colors.black.withValues(alpha: 102),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -286,8 +417,8 @@ class ThemeManager {
       inputDecorationTheme: InputDecorationTheme(
         fillColor: const Color(0xFF222222),
         filled: true,
-        labelStyle: TextStyle(color: AppColors.text),
-        hintStyle: TextStyle(color: AppColors.subtext1),
+        labelStyle: TextStyle(color: AppColors.text, fontSize: fontSize - 1),
+        hintStyle: TextStyle(color: AppColors.subtext1, fontSize: fontSize - 1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: AppColors.surface2),
@@ -306,48 +437,6 @@ class ThemeManager {
         iconColor: AppColors.blue,
         tileColor: const Color(0xFF222222),
       ),
-    );
-  }
-
-  static void showSettingsDialog(BuildContext context, ThemeMode currentMode,
-      Function(ThemeMode) setThemeMode) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Settings'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Theme Mode'),
-              DropdownButton<ThemeMode>(
-                value: currentMode,
-                onChanged: (ThemeMode? newValue) {
-                  if (newValue != null) {
-                    setThemeMode(newValue);
-                    Navigator.of(context).pop();
-                  }
-                },
-                items: ThemeMode.values.map((ThemeMode mode) {
-                  return DropdownMenuItem<ThemeMode>(
-                    value: mode,
-                    child: Text(mode.toString().split('.').last),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 }

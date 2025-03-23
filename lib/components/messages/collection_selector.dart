@@ -28,13 +28,23 @@ class CollectionSelectorState extends State<CollectionSelector> {
   bool isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
   final FocusNode _keyboardFocusNode = FocusNode();
+  bool _didInitialRefresh = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
-    // Refresh collections when opened initially
-    _refreshCollections();
+    // Don't refresh collections here - will do in didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh collections here instead of in initState
+    if (!_didInitialRefresh) {
+      _refreshCollections();
+      _didInitialRefresh = true;
+    }
   }
 
   @override
@@ -63,7 +73,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
   Future<void> _refreshCollections() async {
     final store = StoreProvider.of(context).collectionStore;
-    await store.refreshCollections();
+    await store.refreshCollectionsIfNeeded();
   }
 
   void _applyFilter(String query) {
@@ -114,7 +124,10 @@ class CollectionSelectorState extends State<CollectionSelector> {
         // If we get here, the collection is ready
         collectionReady = true;
         widget.onCollectionChanged(collectionName);
-        await store.refreshCollections();
+        // Only refresh collections if necessary - collection hit count may have changed
+        if (store.needsCollectionRefresh) {
+          await store.refreshCollections();
+        }
         return;
       } catch (e) {
         currentAttempt++;

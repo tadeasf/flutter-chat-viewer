@@ -1,9 +1,8 @@
 import 'package:mobx/mobx.dart';
 import 'package:logging/logging.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show compute;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/api_db/api_service.dart';
-import 'package:intl/intl.dart';
 
 // Include the generated file
 part 'message_store.g.dart';
@@ -15,224 +14,135 @@ class MessageStore = MessageStoreBase with _$MessageStore;
 abstract class MessageStoreBase with Store {
   final Logger _logger = Logger('MessageStore');
 
-  // Observable collections
-  @observable
-  ObservableList<Map<dynamic, dynamic>> messages =
-      ObservableList<Map<dynamic, dynamic>>();
+  // Cache time for messages (10 minutes)
+  final Duration _messageCacheTime = const Duration(minutes: 10);
 
+  // Observable lists for messages
   @observable
-  ObservableList<Map<dynamic, dynamic>> crossCollectionMessages =
-      ObservableList<Map<dynamic, dynamic>>();
-
-  @observable
-  ObservableList<Map<String, dynamic>> allPhotos =
+  ObservableList<Map<String, dynamic>> messages =
       ObservableList<Map<String, dynamic>>();
 
-  // Observable loading states
-  @observable
-  bool isLoading = false;
-
-  @observable
-  bool isCrossCollectionLoading = false;
-
-  // Observable for the current collection
+  // Current collection name
   @observable
   String? currentCollection;
 
-  // Cache for messages by collection name
-  final Map<String, List<Map<dynamic, dynamic>>> _messagesCache = {};
-
-  // Observable for search functionality
+  // Timestamp for last fetch
   @observable
-  ObservableList<int> searchResults = ObservableList<int>();
+  DateTime lastMessageFetch = DateTime.fromMillisecondsSinceEpoch(0);
 
+  // Loading state
   @observable
-  int currentSearchIndex = -1;
+  bool isLoading = false;
 
+  // Error state
+  @observable
+  String? errorMessage;
+
+  // Cross-collection search results
+  @observable
+  ObservableList<Map<String, dynamic>> searchResults =
+      ObservableList<Map<String, dynamic>>();
+
+  // Search is active
   @observable
   bool isSearchActive = false;
 
+  // Current search query
   @observable
-  String? currentSearchQuery;
+  String? searchQuery;
 
-  // Observable for time filters
-  @observable
-  DateTime? fromDate;
-
-  @observable
-  DateTime? toDate;
-
-  // Observable for cross-collection search mode
-  @observable
-  bool isCrossCollectionSearch = false;
-
-  // Map of timestamp to message index for fast lookup
-  Map<int, int>? _timestampToIndexMap;
-
-  // Computed property to get sorted messages
+  // Computed property to check if message cache needs refresh
   @computed
-  List<Map<dynamic, dynamic>> get sortedMessages {
-    if (isCrossCollectionSearch) {
-      return crossCollectionMessages.toList();
-    } else {
-      return messages.toList();
-    }
-  }
+  bool get needsMessageRefresh =>
+      DateTime.now().difference(lastMessageFetch) > _messageCacheTime;
 
-  // Action to fetch messages for a collection
+  // Action to change collection and load messages
   @action
-  Future<void> fetchMessages(
-    String? collectionName, {
-    DateTime? fromDate,
-    DateTime? toDate,
-  }) async {
-    if (collectionName == null) return;
+  Future<void> setCollection(String? collectionName) async {
+    if (collectionName == currentCollection &&
+        messages.isNotEmpty &&
+        !needsMessageRefresh) {
+      return; // No need to reload if collection hasn't changed and cache is valid
+    }
 
-    this.currentCollection = collectionName;
-    this.fromDate = fromDate;
-    this.toDate = toDate;
+    // Clear current messages and set loading state
+    messages.clear();
+    errorMessage = null;
+    isLoading = true;
+    currentCollection = collectionName;
 
-    // Reset search state
-    searchResults.clear();
-    currentSearchIndex = -1;
-    isSearchActive = false;
-    currentSearchQuery = null;
-
-    // Check if we have cached messages for this collection
-    if (_messagesCache.containsKey(collectionName)) {
-      messages.clear();
-      messages.addAll(_messagesCache[collectionName]!);
-      _updateTimestampMap();
-      _updateAllPhotos();
+    if (collectionName == null) {
+      isLoading = false;
       return;
     }
 
+    try {
+      // Try to load from cache first
+      final cachedMessages = await _loadFromCache(collectionName);
+
+      if (cachedMessages.isNotEmpty) {
+        messages.addAll(cachedMessages);
+
+        // If cache is old, refresh in background
+        if (needsMessageRefresh) {
+          _fetchMessages(collectionName, updateUI: false);
+        } else {
+          isLoading = false;
+        }
+      } else {
+        // No cache, fetch directly
+        await _fetchMessages(collectionName);
+      }
+    } catch (e) {
+      _logger.warning('Error setting collection: $e');
+      errorMessage = 'Failed to load messages: $e';
+      isLoading = false;
+    }
+  }
+
+  // Action to refresh messages for current collection
+  @action
+  Future<void> refreshMessages() async {
+    if (currentCollection == null) return;
+
     isLoading = true;
+    errorMessage = null;
 
     try {
-      final loadedMessages = await ApiService.fetchMessages(
-        collectionName,
-        fromDate:
-            fromDate != null ? DateFormat('yyyy-MM-dd').format(fromDate) : null,
-        toDate: toDate != null ? DateFormat('yyyy-MM-dd').format(toDate) : null,
-      );
-
-      // Process messages
-      final processedMessages = loadedMessages
-          .expand((message) => message is List ? message : [message])
-          .map((message) => message as Map<dynamic, dynamic>)
-          .toList();
-
-      // Update observables
-      messages.clear();
-      messages.addAll(processedMessages);
-
-      // Cache the messages
-      _messagesCache[collectionName] = List.from(processedMessages);
-
-      // Update indexes and photos
-      _updateTimestampMap();
-      _updateAllPhotos();
-
-      isLoading = false;
+      await _fetchMessages(currentCollection!, forceRefresh: true);
     } catch (e) {
-      _logger.warning('Error fetching messages: $e');
+      _logger.warning('Error refreshing messages: $e');
+      errorMessage = 'Failed to refresh messages: $e';
       isLoading = false;
     }
   }
 
-  // Action to perform cross-collection search
+  // Action to search messages
   @action
-  Future<void> performCrossCollectionSearch(String query) async {
-    if (query.isEmpty) return;
-
-    currentSearchQuery = query;
-    isCrossCollectionLoading = true;
-    isCrossCollectionSearch = true;
-
-    try {
-      final results = await ApiService.performCrossCollectionSearch(query);
-
-      // Process results
-      final processedMessages = results.map((result) {
-        if (result is! Map) return <String, dynamic>{};
-
-        // Check if this is an Instagram message
-        final isInstagramMessage =
-            result.containsKey('is_geoblocked_for_viewer');
-
-        return Map<dynamic, dynamic>.from({
-          'content': _decodeIfNeeded(result['content']),
-          'sender_name': _decodeIfNeeded(result['sender_name']),
-          'collectionName': _decodeIfNeeded(result['collectionName']),
-          'timestamp_ms': result['timestamp_ms'] ?? 0,
-          'photos': result['photos'] ?? [],
-          'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
-          'is_online': result['is_online'] ?? false,
-          'is_instagram': isInstagramMessage,
-        });
-      }).toList();
-
-      // Update observables
-      crossCollectionMessages.clear();
-      crossCollectionMessages.addAll(processedMessages);
-
-      isCrossCollectionLoading = false;
-    } catch (e) {
-      _logger.warning('Error in cross-collection search: $e');
-      isCrossCollectionLoading = false;
-    }
-  }
-
-  // Action to search messages in current collection
-  @action
-  Future<void> searchMessages(String query) async {
-    if (query.isEmpty || messages.isEmpty) return;
-
-    currentSearchQuery = query;
+  Future<void> searchMessages(String query,
+      {bool isCrossCollection = false}) async {
     searchResults.clear();
-    currentSearchIndex = -1;
+    searchQuery = query;
     isSearchActive = true;
 
-    try {
-      // Convert to lowercase for case-insensitive search
-      final lowerQuery = query.toLowerCase();
+    if (isCrossCollection) {
+      try {
+        final results = await ApiService.performCrossCollectionSearch(query);
+        _processCrossCollectionResults(results);
+      } catch (e) {
+        _logger.warning('Error in cross-collection search: $e');
+        errorMessage = 'Search failed: $e';
+      }
+    } else {
+      // Local search in current messages
+      if (messages.isEmpty || currentCollection == null) return;
 
-      // Perform search
-      final results = <int>[];
-      for (int i = 0; i < messages.length; i++) {
-        final message = messages[i];
+      searchResults.addAll(messages.where((message) {
         final content = message['content']?.toString().toLowerCase() ?? '';
-
-        if (content.contains(lowerQuery)) {
-          results.add(i);
-        }
-      }
-
-      // Update results
-      searchResults.addAll(results);
-
-      // Select first result if available
-      if (searchResults.isNotEmpty) {
-        currentSearchIndex = 0;
-      }
-    } catch (e) {
-      _logger.warning('Error searching messages: $e');
-    }
-  }
-
-  // Action to navigate through search results
-  @action
-  void navigateSearch(int direction) {
-    if (searchResults.isEmpty) return;
-
-    final newIndex = currentSearchIndex + direction;
-
-    if (newIndex >= 0 && newIndex < searchResults.length) {
-      currentSearchIndex = newIndex;
-    } else if (searchResults.isNotEmpty) {
-      // Wrap around
-      currentSearchIndex = (newIndex < 0) ? searchResults.length - 1 : 0;
+        final sender = message['sender_name']?.toString().toLowerCase() ?? '';
+        return content.contains(query.toLowerCase()) ||
+            sender.contains(query.toLowerCase());
+      }).toList());
     }
   }
 
@@ -240,101 +150,78 @@ abstract class MessageStoreBase with Store {
   @action
   void clearSearch() {
     searchResults.clear();
-    currentSearchIndex = -1;
+    searchQuery = null;
     isSearchActive = false;
-    currentSearchQuery = null;
   }
 
-  // Action to exit cross-collection mode
-  @action
-  void exitCrossCollectionMode() {
-    isCrossCollectionSearch = false;
-    crossCollectionMessages.clear();
-  }
+  // Private method to fetch messages from API
+  Future<void> _fetchMessages(String? collectionName,
+      {bool updateUI = true, bool forceRefresh = false}) async {
+    if (collectionName == null) return;
 
-  // Action to clear message cache
-  @action
-  void clearCache([String? specificCollection]) {
-    if (specificCollection != null) {
-      _messagesCache.remove(specificCollection);
-    } else {
-      _messagesCache.clear();
-    }
-  }
+    try {
+      final loadedMessages = await ApiService.fetchMessages(collectionName);
 
-  // Helper method to update timestamp map
-  void _updateTimestampMap() {
-    final messagesForMapping =
-        isCrossCollectionSearch ? crossCollectionMessages : messages;
+      // Process and convert messages
+      final processedMessages = loadedMessages.map((message) {
+        if (message is! Map) return <String, dynamic>{};
+        return Map<String, dynamic>.from(message);
+      }).toList();
 
-    final sortedMsgs = List<Map<dynamic, dynamic>>.from(messagesForMapping)
-      ..sort((a, b) =>
-          (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
+      // Update cache
+      await _saveToCache(collectionName, processedMessages);
 
-    _timestampToIndexMap = Map.fromEntries(
-      sortedMsgs.asMap().entries.map((entry) => MapEntry(
-            entry.value['timestamp_ms'] as int,
-            entry.key,
-          )),
-    );
-  }
-
-  // Helper method to update all photos
-  void _updateAllPhotos() {
-    final messagesForPhotos =
-        isCrossCollectionSearch ? crossCollectionMessages : messages;
-
-    allPhotos.clear();
-
-    for (var message in messagesForPhotos) {
-      if (message['photos'] != null && (message['photos'] as List).isNotEmpty) {
-        for (var photo in message['photos']) {
-          allPhotos.add({
-            'uri': photo['uri'],
-            'timestamp_ms': message['timestamp_ms'],
-            'creation_timestamp': photo['creation_timestamp'] * 1000,
-            'collectionName': message['collectionName'] ?? currentCollection,
-          });
-        }
+      // Update UI if needed
+      if (updateUI) {
+        messages.clear();
+        messages.addAll(processedMessages);
+        lastMessageFetch = DateTime.now();
+        isLoading = false;
       }
-    }
-  }
+    } catch (e) {
+      _logger.warning('Error fetching messages: $e');
 
-  // Helper method to get message index by timestamp
-  int? getIndexForTimestamp(
-    int timestamp, {
-    bool isPhotoTimestamp = false,
-    bool useCreationTimestamp = false,
-  }) {
-    if (messages.isEmpty && crossCollectionMessages.isEmpty) {
-      return null;
-    }
+      if (updateUI) {
+        errorMessage = 'Failed to load messages: $e';
+        isLoading = false;
 
-    if (isPhotoTimestamp) {
-      // Convert photo timestamp to milliseconds for comparison
-      final photoTimestampMs = timestamp * 1000;
-      final messagesForLookup =
-          isCrossCollectionSearch ? crossCollectionMessages : messages;
-
-      for (var i = 0; i < messagesForLookup.length; i++) {
-        final message = messagesForLookup[i];
-        if (message['photos'] != null &&
-            (message['photos'] as List).isNotEmpty) {
-          for (var photo in message['photos']) {
-            final photoCreationTime =
-                (photo['creation_timestamp'] as int?) ?? 0;
-            if (photoCreationTime * 1000 == photoTimestampMs) {
-              return i;
-            }
+        // Try loading from cache as fallback
+        if (messages.isEmpty) {
+          final cachedMessages = await _loadFromCache(collectionName);
+          if (cachedMessages.isNotEmpty) {
+            messages.addAll(cachedMessages);
           }
         }
       }
     }
-
-    return _timestampToIndexMap?[timestamp];
   }
 
-  // Helper method to decode text properly
+  // Process cross-collection search results
+  void _processCrossCollectionResults(List<dynamic> results) {
+    searchResults.clear();
+
+    final processed = results.map((result) {
+      if (result is! Map) return <String, dynamic>{};
+
+      // Check if this is an Instagram message by the presence of is_geoblocked_for_viewer
+      final isInstagramMessage = result.containsKey('is_geoblocked_for_viewer');
+
+      return {
+        'content': _decodeIfNeeded(result['content']),
+        'sender_name': _decodeIfNeeded(result['sender_name']),
+        'collectionName': _decodeIfNeeded(result['collectionName']),
+        'timestamp_ms': result['timestamp_ms'] ?? 0,
+        'photos': result['photos'] ?? [],
+        'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
+        'is_online': result['is_online'] ?? false,
+        'is_instagram': isInstagramMessage, // Add this flag for styling
+      };
+    }).toList();
+
+    searchResults.addAll(processed);
+  }
+
+  // Helper to decode UTF-8 content if needed
   String _decodeIfNeeded(dynamic text) {
     if (text == null) return '';
     try {
@@ -342,5 +229,53 @@ abstract class MessageStoreBase with Store {
     } catch (e) {
       return text.toString();
     }
+  }
+
+  // Cache operations - save messages to cache
+  Future<void> _saveToCache(
+      String collectionName, List<dynamic> messagesList) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Create a cache key for this collection
+      final cacheKey = 'messages_${collectionName.replaceAll(' ', '_')}';
+
+      // Store messages as JSON string
+      await prefs.setString(cacheKey, json.encode(messagesList));
+
+      // Store timestamp
+      await prefs.setInt(
+          '${cacheKey}_timestamp', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      _logger.warning('Error saving messages to cache: $e');
+    }
+  }
+
+  // Load messages from cache
+  Future<List<Map<String, dynamic>>> _loadFromCache(
+      String collectionName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Create a cache key for this collection
+      final cacheKey = 'messages_${collectionName.replaceAll(' ', '_')}';
+
+      // Get cached data
+      final cachedData = prefs.getString(cacheKey);
+      final timestamp = prefs.getInt('${cacheKey}_timestamp') ?? 0;
+
+      if (cachedData != null) {
+        // Update last fetch time based on cache timestamp
+        lastMessageFetch = DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+        // Decode and return messages
+        return List<Map<String, dynamic>>.from(
+            json.decode(cachedData).map((m) => Map<String, dynamic>.from(m)));
+      }
+    } catch (e) {
+      _logger.warning('Error loading messages from cache: $e');
+    }
+
+    return [];
   }
 }

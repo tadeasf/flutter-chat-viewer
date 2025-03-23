@@ -25,13 +25,29 @@ abstract class CollectionStoreBase with Store {
   @observable
   bool isLoading = false;
 
+  // Observable for message loading state
+  @observable
+  bool isMessageLoading = false;
+
   // Observable for filter query
   @observable
   String filterQuery = '';
 
+  // Timestamp of last collection fetch
+  @observable
+  DateTime lastCollectionFetch = DateTime.fromMillisecondsSinceEpoch(0);
+
+  // Refresh threshold (5 minutes)
+  final Duration _refreshThreshold = const Duration(minutes: 5);
+
   // Computed property to check if there's an active filter
   @computed
   bool get hasActiveFilter => filterQuery.isNotEmpty;
+
+  // Computed property to check if collections need refresh
+  @computed
+  bool get needsCollectionRefresh =>
+      DateTime.now().difference(lastCollectionFetch) > _refreshThreshold;
 
   // Initialize store
   CollectionStoreBase() {
@@ -62,6 +78,8 @@ abstract class CollectionStoreBase with Store {
         _applyFilter();
 
         isLoading = false;
+        // Update the last fetch timestamp
+        lastCollectionFetch = DateTime.now();
       });
     } catch (e) {
       _logger.warning('Error loading collections: $e');
@@ -124,11 +142,28 @@ abstract class CollectionStoreBase with Store {
         _applyFilter();
 
         isLoading = false;
+        // Update the last fetch timestamp
+        lastCollectionFetch = DateTime.now();
       });
     } catch (e) {
       _logger.warning('Error refreshing collections: $e');
       isLoading = false;
     }
+  }
+
+  // Action to conditionally refresh collections only if needed
+  @action
+  Future<void> refreshCollectionsIfNeeded() async {
+    // If collections are empty or refresh threshold passed, load them
+    if (collections.isEmpty || needsCollectionRefresh) {
+      await refreshCollections();
+    }
+  }
+
+  // Action to set message loading state
+  @action
+  void setMessageLoading(bool loading) {
+    isMessageLoading = loading;
   }
 
   // Action to set filter query and apply filter

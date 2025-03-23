@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import './gallery/photo_handler.dart';
-import './ui_utils/theme_manager.dart';
+import '../stores/store_provider.dart';
 import './profile_photo/profile_photo.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
 
 class AppDrawer extends StatelessWidget {
   final String? selectedCollection;
@@ -47,6 +48,8 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeStore = StoreProvider.of(context).themeStore;
+
     return Drawer(
       child: SafeArea(
         child: Padding(
@@ -115,37 +118,52 @@ class AppDrawer extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium),
                   onTap: () {
                     Navigator.pop(context);
-                    ThemeManager.showSettingsDialog(
-                        context, themeMode, setThemeMode);
+                    themeStore.showSettingsDialog(context);
                   },
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.format_size),
-                  title: Row(
-                    children: [
-                      Text('Text Size'),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.remove),
-                        onPressed: () async {
-                          await ThemeManager.setFontSize(
-                            ThemeManager.fontSize - ThemeManager.fontSizeStep,
-                          );
-                          onFontSizeChanged();
-                        },
-                      ),
-                      Text(ThemeManager.fontSize.toStringAsFixed(1)),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () async {
-                          await ThemeManager.setFontSize(
-                            ThemeManager.fontSize + ThemeManager.fontSizeStep,
-                          );
-                          onFontSizeChanged();
-                        },
-                      ),
-                    ],
+                Observer(
+                  builder: (_) => ListTile(
+                    leading: const Icon(Icons.format_size),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Text Size',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          onPressed: () async {
+                            await themeStore.decreaseFontSize();
+                            onFontSizeChanged();
+                          },
+                        ),
+                        Text(
+                          themeStore.fontSize.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          onPressed: () async {
+                            await themeStore.increaseFontSize();
+                            onFontSizeChanged();
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

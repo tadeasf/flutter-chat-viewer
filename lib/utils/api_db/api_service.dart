@@ -58,8 +58,8 @@ class ApiService {
     if (kDebugMode) {
       print('Fetch Collections Request:');
       print('URL: $url');
-      print('Headers: $headers');
-      print('x-api-key: $apiKey');
+      // print('Headers: $headers');
+      // print('x-api-key: $apiKey');
     }
 
     http.Response response;
@@ -72,7 +72,7 @@ class ApiService {
     if (kDebugMode) {
       print('Fetch Collections Response:');
       print('Status Code: ${response.statusCode}');
-      print('Body: ${response.body}');
+      // print('Body: ${response.body}');
     }
 
     if (response.statusCode == 200) {
@@ -97,7 +97,7 @@ class ApiService {
     if (kDebugMode) {
       print('Fetch Alphabetical Collections Response:');
       print('Status Code: ${response.statusCode}');
-      print('Body: ${response.body}');
+      // print('Body: ${response.body}');
     }
 
     if (response.statusCode == 200) {
@@ -147,9 +147,9 @@ class ApiService {
       url += '?${queryParams.join('&')}';
     }
 
-    if (kDebugMode) {
-      print('Fetching messages with headers: $headersWithMetrics');
-    }
+    // if (kDebugMode) {
+    //   print('Fetching messages with headers: $headersWithMetrics');
+    // }
 
     http.Response response;
     if (kIsWeb) {
@@ -161,7 +161,7 @@ class ApiService {
 
     if (kDebugMode) {
       print('Response status: ${response.statusCode}');
-      print('Response headers: ${response.headers}');
+      // print('Response headers: ${response.headers}');
     }
 
     if (response.statusCode == 200) {
