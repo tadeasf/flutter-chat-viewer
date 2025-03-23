@@ -31,23 +31,17 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
     return Stack(
       children: [
         Container(
-          width: widget.size,
-          height: widget.size,
+          width: widget.size * 1.25,
+          height: widget.size * 1.25,
+          margin: EdgeInsets.all(widget.size * 0.15),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primaryContainer,
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 26),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: widget.profilePhotoUrl != null &&
                   widget.profilePhotoUrl!.isNotEmpty
               ? ClipRRect(
-                  borderRadius: BorderRadius.circular(widget.size / 2),
+                  borderRadius: BorderRadius.circular(widget.size * 1.25 / 2),
                   child: CachedNetworkImage(
                     imageUrl: widget.profilePhotoUrl!,
                     fit: BoxFit.cover,
@@ -63,17 +57,17 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
                 )
               : Icon(
                   Icons.person,
-                  size: widget.size * 0.5,
+                  size: widget.size * 0.625,
                   color: Colors.white54,
                 ),
         ),
         if (widget.isOnline)
           Positioned(
-            right: 0,
-            bottom: 0,
+            right: widget.size * 0.15,
+            bottom: widget.size * 0.15,
             child: Container(
-              width: widget.size * 0.25,
-              height: widget.size * 0.25,
+              width: widget.size * 0.25 * 1.25,
+              height: widget.size * 0.25 * 1.25,
               decoration: BoxDecoration(
                 color: Colors.green,
                 shape: BoxShape.circle,

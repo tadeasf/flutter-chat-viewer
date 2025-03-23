@@ -92,12 +92,12 @@ abstract class ThemeStoreBase with Store {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Settings'),
+          title: const Text('Settings', textAlign: TextAlign.center),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text('Theme Mode'),
+              const Text('Theme Mode', textAlign: TextAlign.center),
               DropdownButton<ThemeMode>(
                 value: themeMode,
                 onChanged: (ThemeMode? newValue) {
@@ -114,8 +114,9 @@ abstract class ThemeStoreBase with Store {
                 }).toList(),
               ),
               const SizedBox(height: 16),
-              const Text('Font Size'),
+              const Text('Font Size', textAlign: TextAlign.center),
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.remove),
@@ -135,11 +136,13 @@ abstract class ThemeStoreBase with Store {
             ],
           ),
           actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+            Center(
+              child: TextButton(
+                child: const Text('Close'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
             ),
           ],
         );
@@ -150,34 +153,37 @@ abstract class ThemeStoreBase with Store {
 
 // Helper class for app colors
 class AppColors {
-  // Add background color
-  static const Color background = Color(0xFF1E1E2E);
+  // Background color - Darker than current Tokyo Night
+  static const Color background = Color(0xFF121214);
+
+  // Message bubbles
+  static const Color authorBubble = Color(0xFF1E1E24);
+  static const Color senderBubble = Color(0xFF2D2D3A);
+
+  // Modern dark UI palette
+  static const Color surface0 = Color(0xFF17171B);
+  static const Color surface1 = Color(0xFF1E1E24);
+  static const Color surface2 = Color(0xFF2D2D3A);
+  static const Color blue = Color(0xFF5B9BF8);
+  static const Color lavender = Color(0xFF9D7CD8);
+  static const Color sapphire = Color(0xFF7DCFFF);
+  static const Color sky = Color(0xFF7DCFFF);
+  static const Color teal = Color(0xFF4DD0E1);
+  static const Color green = Color(0xFF7AE582);
+  static const Color yellow = Color(0xFFFFD166);
+  static const Color peach = Color(0xFFFF9E64);
+  static const Color maroon = Color(0xFFF76686);
+  static const Color red = Color(0xFFF76686);
+  static const Color mauve = Color(0xFFBB9AF7);
+  static const Color pink = Color(0xFFF76686);
+  static const Color flamingo = Color(0xFFF76686);
+  static const Color rosewater = Color(0xFFF76686);
+  static const Color text = Color(0xFFECECF4);
+  static const Color subtext1 = Color(0xFFABABBC);
 
   // Video player specific colors
   static const Color videoOverlay = Color(0x42000000);
   static const Color videoControls = text;
-
-  // Darker and less vibrant Catppuccin Mocha inspired colors
-  static const Color base = Color(0xFF0D0D0D);
-  static const Color surface0 = Color(0xFF1A1A1A);
-  static const Color surface1 = Color(0xFF262626);
-  static const Color surface2 = Color(0xFF333333);
-  static const Color blue = Color(0xFF4A90A4);
-  static const Color lavender = Color(0xFF6A6A75);
-  static const Color sapphire = Color(0xFF005B99);
-  static const Color sky = Color(0xFF4A90A4);
-  static const Color teal = Color(0xFF3A8C7E);
-  static const Color green = Color(0xFF2A8C59);
-  static const Color yellow = Color(0xFFCCAA00);
-  static const Color peach = Color(0xFFCC7A00);
-  static const Color maroon = Color(0xFFCC3A30);
-  static const Color red = Color(0xFFCC2D55);
-  static const Color mauve = Color(0xFF8A52CC);
-  static const Color pink = Color(0xFFCC2D55);
-  static const Color flamingo = Color(0xFFCC3A30);
-  static const Color rosewater = Color(0xFFCC2D55);
-  static const Color text = Color(0xFFE5E5EA);
-  static const Color subtext1 = Color(0xFF8E8E93);
 
   // Light theme with custom font size
   static ThemeData getLightTheme(double fontSize) {
@@ -209,7 +215,7 @@ class AppColors {
         iconTheme: IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           fontSize: 20,
           fontWeight: FontWeight.w500,
         ),
@@ -223,42 +229,42 @@ class AppColors {
             TextStyle(color: Colors.black87, fontSize: fontSize + 2),
         headlineSmall: TextStyle(color: Colors.black87, fontSize: fontSize + 1),
         titleLarge: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
           fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black54,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
@@ -320,26 +326,34 @@ class AppColors {
         onPrimary: Colors.white,
         secondary: AppColors.mauve,
         onSecondary: Colors.white,
-        surface: const Color(0xFF202020),
+        surface: AppColors.surface0,
         onSurface: AppColors.text,
         surfaceTint: AppColors.background,
         onSurfaceVariant: AppColors.text,
         error: AppColors.red,
         onError: Colors.white,
+        // Removed deprecated 'background' property as it's already defined as 'surface' above
+        shadow: Colors.black,
       ),
       canvasColor: AppColors.background,
-      cardColor: const Color(0xFF252525),
+      cardColor: AppColors.surface0,
       dialogTheme: DialogTheme(
         backgroundColor: AppColors.surface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        shadowColor: Colors.black.withValues(alpha: 60),
+        elevation: 8.0,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: const Color(0xFF181818),
+        backgroundColor: AppColors.surface0,
         foregroundColor: AppColors.text,
         iconTheme: IconThemeData(color: AppColors.text),
         elevation: 4.0,
+        shadowColor: Colors.black.withValues(alpha: 60),
         titleTextStyle: TextStyle(
           color: AppColors.text,
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           fontSize: 20,
           fontWeight: FontWeight.w500,
         ),
@@ -353,42 +367,42 @@ class AppColors {
             TextStyle(color: AppColors.text, fontSize: fontSize + 2),
         headlineSmall: TextStyle(color: AppColors.text, fontSize: fontSize + 1),
         titleLarge: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
           fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'CaskaydiaCoveNerdFontMono',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'CaskaydiaCoveNerdFontMono',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'CaskaydiaCove Nerd Font',
+          fontFamily: 'CaskaydiaCoveNerdFontMono',
           color: AppColors.subtext1,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
@@ -402,40 +416,43 @@ class AppColors {
         color: AppColors.text,
       ),
       bottomAppBarTheme: BottomAppBarTheme(
-        color: const Color(0xFF181818),
-        surfaceTintColor: const Color(0xFF181818),
+        color: AppColors.surface0,
+        surfaceTintColor: AppColors.surface0,
       ),
       dividerColor: AppColors.surface2,
       cardTheme: CardTheme(
-        color: const Color(0xFF252525),
+        color: AppColors.surface0,
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 102),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        fillColor: const Color(0xFF222222),
+        fillColor: AppColors.surface1,
         filled: true,
         labelStyle: TextStyle(color: AppColors.text, fontSize: fontSize - 1),
         hintStyle: TextStyle(color: AppColors.subtext1, fontSize: fontSize - 1),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: AppColors.surface2),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: AppColors.surface2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: AppColors.blue, width: 2),
         ),
       ),
       listTileTheme: ListTileThemeData(
         textColor: AppColors.text,
         iconColor: AppColors.blue,
-        tileColor: const Color(0xFF222222),
+        tileColor: AppColors.surface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }

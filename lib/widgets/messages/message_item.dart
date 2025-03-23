@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import '../../stores/store_provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import '../../stores/file_store.dart';
+import '../../stores/theme_store.dart';
 
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -191,6 +192,7 @@ class MessageItemState extends State<MessageItem> {
               builder: (_) => Text(
                 _ensureDecoded(widget.message['content']),
                 style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'CaskaydiaCoveNerdFontMono',
                   fontSize: themeStore.fontSize,
                 ),
               ),
@@ -452,34 +454,25 @@ class MessageItemState extends State<MessageItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
     final isInstagram = widget.message.containsKey('is_geoblocked_for_viewer');
 
     Color getBubbleColor() {
       if (widget.isHighlighted) {
-        return theme.colorScheme.primary.withValues(alpha: 0.2);
+        return theme.colorScheme.primary.withAlpha(51); // 0.2 alpha
       }
       if (isInstagram) {
         // Instagram styling
         if (widget.isAuthor) {
-          return isDarkMode
-              ? theme.colorScheme.secondary.withValues(alpha: 0.3)
-              : theme.colorScheme.secondary.withValues(alpha: 0.3);
+          return AppColors.authorBubble;
         } else {
-          return isDarkMode
-              ? theme.colorScheme.secondary.withValues(alpha: 0.6)
-              : theme.colorScheme.secondary.withValues(alpha: 0.6);
+          return AppColors.senderBubble;
         }
       } else {
         // Facebook styling
         if (widget.isAuthor) {
-          return isDarkMode
-              ? theme.colorScheme.surface.withValues(alpha: 0.3)
-              : theme.colorScheme.surface.withValues(alpha: 0.3);
+          return AppColors.authorBubble;
         } else {
-          return isDarkMode
-              ? theme.colorScheme.primary.withValues(alpha: 0.3)
-              : theme.colorScheme.primary.withValues(alpha: 0.3);
+          return AppColors.senderBubble;
         }
       }
     }
@@ -517,7 +510,7 @@ class MessageItemState extends State<MessageItem> {
                         collectionName: widget.isCrossCollectionSearch
                             ? widget.message['collectionName']
                             : widget.selectedCollectionName,
-                        size: 24.0,
+                        size: 32.0,
                         isOnline: widget.message['is_online'] ?? false,
                         profilePhotoUrl: widget.profilePhotoUrl,
                       ),
@@ -526,7 +519,7 @@ class MessageItemState extends State<MessageItem> {
                         _ensureDecoded(
                             widget.message['sender_name'] ?? 'Unknown sender'),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontSize: 14,
                         ),
                       ),
@@ -551,9 +544,9 @@ class MessageItemState extends State<MessageItem> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
+                        color: Colors.black.withAlpha(26),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),

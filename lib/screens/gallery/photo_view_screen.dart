@@ -129,6 +129,7 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
                           ? 0
                           : event.cumulativeBytesLoaded /
                               event.expectedTotalBytes!,
+                      color: Colors.white70,
                     ),
                   ),
                   errorBuilder: (context, error, stackTrace) {
@@ -137,7 +138,7 @@ class PhotoViewScreenState extends State<PhotoViewScreen> {
                         'Failed to load image',
                         style: TextStyle(
                           color: Colors.white,
-                          fontFamily: 'CaskaydiaCove Nerd Font',
+                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontStyle: FontStyle.normal,
                           fontWeight: FontWeight.w300,
                         ),

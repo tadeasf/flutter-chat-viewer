@@ -158,12 +158,20 @@ class ApiService {
   }
 
   static Future<List<dynamic>> fetchMessages(String collectionName,
-      {String? fromDate, String? toDate}) async {
+      {String? fromDate, String? toDate, int offset = 0, int limit = 0}) async {
     String url = '$baseUrl/messages/${Uri.encodeComponent(collectionName)}';
-    if (fromDate != null || toDate != null) {
-      List<String> queryParams = [];
-      if (fromDate != null) queryParams.add('fromDate=$fromDate');
-      if (toDate != null) queryParams.add('toDate=$toDate');
+    List<String> queryParams = [];
+
+    // Add date filters if provided
+    if (fromDate != null) queryParams.add('fromDate=$fromDate');
+    if (toDate != null) queryParams.add('toDate=$toDate');
+
+    // Add pagination parameters if provided
+    if (offset > 0) queryParams.add('offset=$offset');
+    if (limit > 0) queryParams.add('limit=$limit');
+
+    // Add query parameters to URL
+    if (queryParams.isNotEmpty) {
       url += '?${queryParams.join('&')}';
     }
 

@@ -43,8 +43,8 @@ class Navbar extends StatelessWidget {
           value: 'collection',
           child: ListTile(
             leading: const Icon(Icons.search),
-            title:
-                Text('Search in ${selectedCollection?.split('_').join(' ')}'),
+            title: Text('Search in ${selectedCollection?.split('_').join(' ')}',
+                style: const TextStyle(fontFamily: 'JetBrains Mono Nerd Font')),
             dense: true,
           ),
         ),
@@ -52,7 +52,8 @@ class Navbar extends StatelessWidget {
           value: 'cross',
           child: ListTile(
             leading: Icon(Icons.search_outlined),
-            title: Text('Search All Collections'),
+            title: Text('Search All Collections',
+                style: TextStyle(fontFamily: 'JetBrains Mono Nerd Font')),
             dense: true,
           ),
         ),
@@ -84,31 +85,48 @@ class Navbar extends StatelessWidget {
     final bool hasCollection =
         selectedCollection != null && selectedCollection!.isNotEmpty;
 
+    // Darker color for navbar
+    final darkNavbarColor = Color(0xFF121214);
+
     return BottomAppBar(
       elevation: 8.0,
-      color: Theme.of(context).primaryColor,
+      color: darkNavbarColor,
+      shape: const AutomaticNotchedShape(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30.0),
+            topRight: Radius.circular(30.0),
+          ),
+        ),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           IconButton(
-            icon: Icon(currentVisibility == VisibilityState.drawer
-                ? Icons.menu_open
-                : Icons.menu),
+            icon: Icon(
+                currentVisibility == VisibilityState.drawer
+                    ? Icons.menu_open
+                    : Icons.menu,
+                color: Colors.white70),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
           ),
           IconButton(
-            icon: Icon(currentVisibility == VisibilityState.collectionSelector
-                ? Icons.view_list
-                : Icons.view_list_outlined),
+            icon: Icon(
+                currentVisibility == VisibilityState.collectionSelector
+                    ? Icons.view_list
+                    : Icons.view_list_outlined,
+                color: Colors.white70),
             onPressed: onCollectionSelectorPressed,
           ),
           Builder(
             builder: (context) => IconButton(
-              icon: Icon(currentVisibility == VisibilityState.search
-                  ? Icons.search_off
-                  : Icons.search),
+              icon: Icon(
+                  currentVisibility == VisibilityState.search
+                      ? Icons.search_off
+                      : Icons.search,
+                  color: Colors.white70),
               onPressed: hasCollection
                   ? () => _showSearchOptions(context, onSearchPressed)
                   : null,
