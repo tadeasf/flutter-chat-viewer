@@ -35,26 +35,69 @@ class Navbar extends StatelessWidget {
       Offset.zero & overlay.size,
     );
 
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     showMenu<String>(
       context: context,
       position: position,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      color: isDarkMode ? Color(0xFF1E1E24) : theme.colorScheme.surface,
       items: [
         PopupMenuItem<String>(
           value: 'collection',
-          child: ListTile(
-            leading: const Icon(Icons.search),
-            title: Text('Search in ${selectedCollection?.split('_').join(' ')}',
-                style: const TextStyle(fontFamily: 'JetBrains Mono Nerd Font')),
-            dense: true,
+          padding: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search,
+                  size: 20,
+                  color:
+                      isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Search in ${selectedCollection?.split('_').join(' ')}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'JetBrains Mono Nerd Font',
+                    color: isDarkMode
+                        ? Colors.white70
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'cross',
-          child: ListTile(
-            leading: Icon(Icons.search_outlined),
-            title: Text('Search All Collections',
-                style: TextStyle(fontFamily: 'JetBrains Mono Nerd Font')),
-            dense: true,
+          padding: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_outlined,
+                  size: 20,
+                  color:
+                      isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Search All Collections',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'JetBrains Mono Nerd Font',
+                    color: isDarkMode
+                        ? Colors.white70
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

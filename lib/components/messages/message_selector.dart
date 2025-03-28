@@ -841,6 +841,8 @@ class MessageSelectorState extends State<MessageSelector> {
       return const SizedBox.shrink();
     }
 
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     final String displayText = searchResults.isNotEmpty
         ? '"${currentSearchQuery ?? ""}" (${currentSearchIndex + 1}/${searchResults.length})'
         : 'No results for "${currentSearchQuery ?? ""}"';
@@ -848,10 +850,12 @@ class MessageSelectorState extends State<MessageSelector> {
     return Container(
       height: kBottomNavigationBarHeight,
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withValues(alpha: 76),
+        color: isDarkMode
+            ? Color(0xFF121214)
+            : theme.colorScheme.primary.withValues(alpha: 26),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 25),
+            color: Colors.black.withValues(alpha: 26),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -864,23 +868,37 @@ class MessageSelectorState extends State<MessageSelector> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 displayText,
-                style: const TextStyle(color: Colors.white),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color:
+                      isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
           if (searchResults.isNotEmpty) ...[
             IconButton(
-              icon: const Icon(Icons.arrow_upward, color: Colors.white),
+              icon: Icon(
+                Icons.arrow_upward,
+                color:
+                    isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+              ),
               onPressed: () => _navigateSearch(-1),
             ),
             IconButton(
-              icon: const Icon(Icons.arrow_downward, color: Colors.white),
+              icon: Icon(
+                Icons.arrow_downward,
+                color:
+                    isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+              ),
               onPressed: () => _navigateSearch(1),
             ),
           ],
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: Icon(
+              Icons.close,
+              color: isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+            ),
             onPressed: () {
               setState(() {
                 searchController.clear();

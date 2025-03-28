@@ -53,10 +53,12 @@ class SearchDialogState extends State<SearchDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor:
+          isDarkMode ? Color(0xFF1E1E24) : theme.colorScheme.surface,
       child: Container(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -68,34 +70,49 @@ class SearchDialogState extends State<SearchDialog> {
                   : 'Search in ${widget.selectedCollection?.split('_').join(' ')}',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color:
+                    isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+              ),
               decoration: InputDecoration(
                 hintText: 'Enter search term...',
                 hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.hintColor,
+                  color: isDarkMode ? Colors.white38 : theme.hintColor,
                 ),
                 prefixIcon: Icon(Icons.search,
-                    color: theme.iconTheme.color?.withValues(alpha: 0.6)),
+                    color: isDarkMode
+                        ? Colors.white38
+                        : theme.iconTheme.color?.withValues(alpha: 153)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: theme.dividerColor),
+                  borderSide: BorderSide(
+                    color: isDarkMode ? Colors.white24 : theme.dividerColor,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: theme.dividerColor),
+                  borderSide: BorderSide(
+                    color: isDarkMode ? Colors.white24 : theme.dividerColor,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: theme.colorScheme.primary),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary,
+                    width: 2,
+                  ),
                 ),
                 filled: true,
-                fillColor: theme.colorScheme.surface.withValues(alpha: 0.7),
+                fillColor: isDarkMode
+                    ? Color(0xFF17171B)
+                    : theme.colorScheme.surface.withValues(alpha: 179),
               ),
               onSubmitted: (_) {
                 if (!_isCrossCollection) {
@@ -107,7 +124,10 @@ class SearchDialogState extends State<SearchDialog> {
             SwitchListTile(
               title: Text(
                 'Search across all collections',
-                style: theme.textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color:
+                      isDarkMode ? Colors.white70 : theme.colorScheme.onSurface,
+                ),
               ),
               value: _isCrossCollection,
               activeColor: theme.colorScheme.secondary,
@@ -123,21 +143,28 @@ class SearchDialogState extends State<SearchDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
                   child: Text(
                     'Cancel',
-                    style: theme.textTheme.bodyMedium,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode
+                          ? Colors.white70
+                          : theme.colorScheme.onSurface,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
                   onPressed: _isSearching ? null : _handleSearch,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 12,
                     ),
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -149,7 +176,8 @@ class SearchDialogState extends State<SearchDialog> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                theme.colorScheme.onPrimary),
+                              theme.colorScheme.onPrimary,
+                            ),
                           ),
                         )
                       : Text(

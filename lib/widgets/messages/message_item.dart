@@ -360,15 +360,7 @@ class MessageItemState extends State<MessageItem> {
     final collectionName = widget.message['collectionName'];
     if (collectionName == null) return;
 
-    bool collectionReady = false;
-    int maxAttempts = 3;
-    int currentAttempt = 0;
-
-    final errorColor = Theme.of(context).colorScheme.error;
-    final onErrorColor = Theme.of(context).colorScheme.onError;
-
     final navigatorState = Navigator.of(context);
-    final scaffoldMessengerState = ScaffoldMessenger.of(context);
 
     if (!mounted) return;
 
@@ -386,69 +378,49 @@ class MessageItemState extends State<MessageItem> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) => loadingDialog,
-    ).then((_) {
-      // Dialog closed, nothing to do
-    });
+    );
 
     try {
-      while (!collectionReady && currentAttempt < maxAttempts) {
+      // Keep trying to load messages until successful
+      while (true) {
         try {
           final messages = await ApiService.fetchMessages(collectionName);
 
           if (!mounted) return;
 
-          final messageContent =
+          // Check if we got valid messages (more than 1 message or a single message that's not the loading message)
+          final content =
               messages[0]['content']?.toString().toLowerCase() ?? '';
-          if (messages.length == 1 &&
-              messageContent.contains('please try loading collection again')) {
-            await Future.delayed(const Duration(seconds: 5));
-            currentAttempt++;
-            continue;
+          if (messages.length > 1 ||
+              (messages.length == 1 &&
+                  !content.contains('please try loading collection'))) {
+            if (mounted) {
+              navigatorState.pop(); // Close loading dialog
+              widget.onMessageTap(
+                collectionName,
+                widget.message['timestamp_ms'],
+              );
+            }
+            break;
           }
 
-          collectionReady = true;
-          break;
+          // If we didn't get valid messages, wait and retry
+          await Future.delayed(const Duration(seconds: 2));
         } catch (e) {
           if (kDebugMode) {
-            print('Error switching to collection: $e');
+            print('Error loading collection: $e');
           }
-          currentAttempt++;
-        }
-      }
-
-      if (mounted) {
-        navigatorState.pop();
-
-        if (collectionReady) {
-          widget.onMessageTap(
-            collectionName,
-            widget.message['timestamp_ms'],
-          );
-        } else {
-          _showErrorSnackbar(scaffoldMessengerState, errorColor, onErrorColor,
-              'Collection is still being prepared. Please try again in a moment.');
+          await Future.delayed(const Duration(seconds: 2));
         }
       }
     } catch (e) {
       if (mounted) {
         navigatorState.pop();
-        _showErrorSnackbar(scaffoldMessengerState, errorColor, onErrorColor,
-            'Error loading collection: $e');
+        if (kDebugMode) {
+          print('Fatal error loading collection: $e');
+        }
       }
     }
-  }
-
-  void _showErrorSnackbar(ScaffoldMessengerState messenger, Color errorColor,
-      Color onErrorColor, String message) {
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: onErrorColor),
-        ),
-        backgroundColor: errorColor,
-      ),
-    );
   }
 
   @override
