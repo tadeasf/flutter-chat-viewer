@@ -91,6 +91,11 @@ class UrlFormatter {
     final String formattedCollectionName =
         _ensureCorrectCollectionNameFormat(collectionName ?? '');
 
+    // For videos, we need to ensure we're using the correct endpoint
+    if (type == MediaType.video) {
+      return '$baseUrl/serve/video/${Uri.encodeComponent(formattedCollectionName)}/${Uri.encodeComponent(uri)}';
+    }
+
     // Construct the URL based on the source
     if (source == MediaSource.message) {
       final url = '$baseUrl/inbox/$formattedCollectionName/$mediaFolder/$uri';

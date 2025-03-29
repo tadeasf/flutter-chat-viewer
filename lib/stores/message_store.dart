@@ -343,8 +343,40 @@ abstract class MessageStoreBase with Store {
     }
 
     try {
-      // Fetch all messages at once without pagination
-      final loadedMessages = await ApiService.fetchMessages(collectionName);
+      // Maximum number of retries
+      int maxRetries = 5;
+      int currentRetry = 0;
+      List<dynamic> loadedMessages = [];
+
+      while (currentRetry < maxRetries) {
+        // Fetch messages
+        loadedMessages = await ApiService.fetchMessages(collectionName);
+
+        // Check if we got the "please try loading" message
+        if (loadedMessages.length == 1) {
+          final content =
+              loadedMessages[0]['content']?.toString().toLowerCase() ?? '';
+          if (content.contains('please try loading collection again')) {
+            // Wait before retrying (increase delay with each retry)
+            await Future.delayed(Duration(seconds: 2 * (currentRetry + 1)));
+            currentRetry++;
+            continue;
+          }
+        }
+
+        // If we get here, we either have valid messages or a different error
+        break;
+      }
+
+      // If we still have the loading message after all retries, throw an error
+      if (loadedMessages.length == 1) {
+        final content =
+            loadedMessages[0]['content']?.toString().toLowerCase() ?? '';
+        if (content.contains('please try loading collection again')) {
+          throw Exception(
+              'Collection is still being prepared after maximum retries');
+        }
+      }
 
       // Process and convert messages
       final processedMessages = loadedMessages.map((message) {
@@ -356,8 +388,16 @@ abstract class MessageStoreBase with Store {
       processedMessages.sort((a, b) =>
           (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
 
-      // Update cache
-      await _saveToCache(collectionName, processedMessages);
+      // Update cache only if we have valid messages (not the loading message)
+      if (processedMessages.length > 1 ||
+          (processedMessages.length == 1 &&
+              processedMessages[0]['content'] != null &&
+              !processedMessages[0]['content']
+                  .toString()
+                  .toLowerCase()
+                  .contains('please try loading collection'))) {
+        await _saveToCache(collectionName, processedMessages);
+      }
 
       if (!backgroundRefresh) {
         // Update UI
@@ -384,8 +424,9 @@ abstract class MessageStoreBase with Store {
         errorMessage = 'Failed to load messages: $e';
         isLoading = false;
 
-        // Try loading from cache as fallback
-        if (messages.isEmpty) {
+        // Try loading from cache as fallback only if it's not the "please try loading" error
+        if (messages.isEmpty &&
+            !e.toString().contains('Collection is still being prepared')) {
           final cachedMessages = await _loadFromCache(collectionName);
           if (cachedMessages.isNotEmpty) {
             messages.addAll(cachedMessages);

@@ -8,7 +8,7 @@ import '../../screens/gallery/photo_view_gallery.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:just_audio/just_audio.dart';
 import 'audio_message_player.dart';
-import '../media/video_player_screen.dart';
+import '../../screens/media/video_player_screen.dart';
 import 'package:intl/intl.dart';
 import '../../stores/store_provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
