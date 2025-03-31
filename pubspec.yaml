@@ -43,7 +43,7 @@ dependencies:
   video_player: ^2.9.3
   just_audio: ^0.9.46
   chewie: ^1.8.5
-  wakelock_plus: ^1.1.4
+  wakelock_plus: ^1.2.11
   web: ^1.1.1
   mobx: ^2.5.0
   flutter_mobx: ^2.3.0
