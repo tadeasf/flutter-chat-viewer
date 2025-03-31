@@ -43,6 +43,104 @@ class _AppDrawerState extends State<AppDrawer> {
   VoidCallback get onFontSizeChanged => widget.onFontSizeChanged;
   String? get profilePhotoUrl => widget.profilePhotoUrl;
 
+  bool get hasProfilePhoto =>
+      profilePhotoUrl != null && profilePhotoUrl!.isNotEmpty;
+
+  Future<void> _handlePhotoAction(BuildContext context, bool isUpload) async {
+    if (selectedCollection == null) return;
+
+    // Store the context-dependent values before async operations
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final galleryStore = StoreProvider.of(context).galleryStore;
+    final profileStore = StoreProvider.of(context).profilePhotoStore;
+    final messageStore = StoreProvider.of(context).messageStore;
+    final String currentCollection = selectedCollection!;
+
+    try {
+      if (isUpload) {
+        // Upload photo using the gallery store
+        final success =
+            await galleryStore.uploadPhoto(context, currentCollection);
+
+        if (!mounted) return;
+
+        if (success) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('Photo uploaded successfully')),
+          );
+        }
+      } else {
+        // Show confirmation dialog before deleting
+        final bool? confirmed = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: const Text('Delete Profile Photo?'),
+              content: const Text(
+                  'Are you sure you want to delete this profile photo?'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (!mounted || confirmed != true) return;
+
+        // Delete photo using the gallery store
+        final result = await galleryStore.deletePhoto(currentCollection);
+
+        if (!mounted) return;
+
+        if (result['success']) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text(result['message'])),
+          );
+        } else {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text('Error: ${result['message']}')),
+          );
+          return; // Don't proceed with reload if delete failed
+        }
+      }
+
+      // Clear cache and refresh after upload/delete
+      if (!mounted) return;
+
+      profileStore.clearCache(currentCollection);
+      await profileStore.getProfilePhotoUrl(currentCollection);
+
+      // Reload the collection to reflect changes
+      if (!mounted) return;
+      await messageStore.setCollection(currentCollection);
+
+      if (!mounted) return;
+      setState(() {
+        // Update the state to reflect changes
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              'Failed to ${isUpload ? 'upload' : 'delete'} photo. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeStore = StoreProvider.of(context).themeStore;
@@ -58,7 +156,7 @@ class _AppDrawerState extends State<AppDrawer> {
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center, // Center content
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -69,36 +167,56 @@ class _AppDrawerState extends State<AppDrawer> {
                           fontFamily: 'JetBrains Mono Nerd Font',
                           color: Colors.white,
                         ),
-                    textAlign: TextAlign.center, // Center the text
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 if (isProfilePhotoVisible && selectedCollection != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Center(
-                      // Center the profile photo
-                      child: ProfilePhoto(
-                        key: ValueKey(profilePhotoUrl),
-                        collectionName: selectedCollection!,
-                        size: 120.0,
-                        isOnline: true,
-                        profilePhotoUrl: profilePhotoUrl,
-                        showButtons: true,
-                        onPhotoDeleted: () {
-                          // Add this callback
-                          setState(() {
-                            // Update the state to reflect the deleted photo
-                          });
-                        },
-                      ),
+                    child: Column(
+                      children: [
+                        Center(
+                          child: ProfilePhoto(
+                            key: ValueKey(profilePhotoUrl),
+                            collectionName: selectedCollection!,
+                            size: 120.0,
+                            isOnline: true,
+                            profilePhotoUrl: profilePhotoUrl,
+                            showButtons:
+                                false, // Don't show buttons in ProfilePhoto
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (hasProfilePhoto)
+                              IconButton(
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.white70),
+                                onPressed: () =>
+                                    _handlePhotoAction(context, false),
+                                tooltip: 'Delete Photo',
+                              )
+                            else
+                              IconButton(
+                                icon: const Icon(Icons.upload,
+                                    color: Colors.white70),
+                                onPressed: () =>
+                                    _handlePhotoAction(context, true),
+                                tooltip: 'Upload Photo',
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 const SizedBox(height: 24),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
                   decoration: BoxDecoration(
-                    color: Color(0xFF1E1E24), // Slightly lighter background
-                    borderRadius: BorderRadius.circular(16), // Rounded corners
+                    color: Color(0xFF1E1E24),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     children: [
@@ -116,7 +234,6 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                         onTap: () {
                           Navigator.pop(context);
-                          // Use the PhotoStore to handle gallery navigation
                           if (selectedCollection != null) {
                             photoStore.showAllPhotos(
                               context,
@@ -148,7 +265,6 @@ class _AppDrawerState extends State<AppDrawer> {
                     ],
                   ),
                 ),
-                // Removed Text Size section as it's in settings
               ],
             ),
           ),
