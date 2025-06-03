@@ -206,7 +206,7 @@ class AppColors {
       ),
       canvasColor: Colors.white,
       cardColor: Colors.white,
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
@@ -282,7 +282,7 @@ class AppColors {
         surfaceTintColor: Colors.white,
       ),
       dividerColor: Colors.grey[300],
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -337,7 +337,7 @@ class AppColors {
       ),
       canvasColor: AppColors.background,
       cardColor: AppColors.surface0,
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -420,7 +420,7 @@ class AppColors {
         surfaceTintColor: AppColors.surface0,
       ),
       dividerColor: AppColors.surface2,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface0,
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 102),
