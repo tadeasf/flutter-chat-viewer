@@ -277,7 +277,7 @@ class AppColors {
       iconTheme: const IconThemeData(
         color: Color(0xFF4A90A4),
       ),
-      bottomAppBarTheme: const BottomAppBarTheme(
+      bottomAppBarTheme: const BottomAppBarThemeData(
         color: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -415,7 +415,7 @@ class AppColors {
       iconTheme: IconThemeData(
         color: AppColors.text,
       ),
-      bottomAppBarTheme: BottomAppBarTheme(
+      bottomAppBarTheme: BottomAppBarThemeData(
         color: AppColors.surface0,
         surfaceTintColor: AppColors.surface0,
       ),
