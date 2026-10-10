@@ -28,7 +28,7 @@ class WebImageViewer extends StatelessWidget {
       height: height,
       child: CachedNetworkImage(
         imageUrl: imageUrl,
-        httpHeaders: ApiService.headers,
+        httpHeaders: ApiService.headersFor(imageUrl),
         fit: fit,
         width: width,
         height: height,

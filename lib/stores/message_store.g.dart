@@ -9,75 +9,130 @@ part of 'message_store.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$MessageStore on MessageStoreBase, Store {
-  Computed<bool>? _$hasDateFilterComputed;
+  Computed<bool>? _$hasOlderComputed;
 
   @override
-  bool get hasDateFilter =>
-      (_$hasDateFilterComputed ??= Computed<bool>(() => super.hasDateFilter,
-              name: 'MessageStoreBase.hasDateFilter'))
+  bool get hasOlder =>
+      (_$hasOlderComputed ??= Computed<bool>(() => super.hasOlder,
+              name: 'MessageStoreBase.hasOlder'))
+          .value;
+  Computed<bool>? _$hasNewerComputed;
+
+  @override
+  bool get hasNewer =>
+      (_$hasNewerComputed ??= Computed<bool>(() => super.hasNewer,
+              name: 'MessageStoreBase.hasNewer'))
           .value;
 
-  late final _$messagesAtom =
-      Atom(name: 'MessageStoreBase.messages', context: context);
+  late final _$collectionAtom =
+      Atom(name: 'MessageStoreBase.collection', context: context);
 
   @override
-  ObservableList<Map<String, dynamic>> get messages {
-    _$messagesAtom.reportRead();
-    return super.messages;
+  String? get collection {
+    _$collectionAtom.reportRead();
+    return super.collection;
   }
 
   @override
-  set messages(ObservableList<Map<String, dynamic>> value) {
-    _$messagesAtom.reportWrite(value, super.messages, () {
-      super.messages = value;
+  set collection(String? value) {
+    _$collectionAtom.reportWrite(value, super.collection, () {
+      super.collection = value;
     });
   }
 
-  late final _$filteredMessagesAtom =
-      Atom(name: 'MessageStoreBase.filteredMessages', context: context);
+  late final _$totalAtom =
+      Atom(name: 'MessageStoreBase.total', context: context);
 
   @override
-  ObservableList<Map<String, dynamic>> get filteredMessages {
-    _$filteredMessagesAtom.reportRead();
-    return super.filteredMessages;
+  int get total {
+    _$totalAtom.reportRead();
+    return super.total;
   }
 
   @override
-  set filteredMessages(ObservableList<Map<String, dynamic>> value) {
-    _$filteredMessagesAtom.reportWrite(value, super.filteredMessages, () {
-      super.filteredMessages = value;
+  set total(int value) {
+    _$totalAtom.reportWrite(value, super.total, () {
+      super.total = value;
     });
   }
 
-  late final _$currentCollectionAtom =
-      Atom(name: 'MessageStoreBase.currentCollection', context: context);
+  late final _$startAtom =
+      Atom(name: 'MessageStoreBase.start', context: context);
 
   @override
-  String? get currentCollection {
-    _$currentCollectionAtom.reportRead();
-    return super.currentCollection;
+  int get start {
+    _$startAtom.reportRead();
+    return super.start;
   }
 
   @override
-  set currentCollection(String? value) {
-    _$currentCollectionAtom.reportWrite(value, super.currentCollection, () {
-      super.currentCollection = value;
+  set start(int value) {
+    _$startAtom.reportWrite(value, super.start, () {
+      super.start = value;
     });
   }
 
-  late final _$lastMessageFetchAtom =
-      Atom(name: 'MessageStoreBase.lastMessageFetch', context: context);
+  late final _$anchorAtom =
+      Atom(name: 'MessageStoreBase.anchor', context: context);
 
   @override
-  DateTime get lastMessageFetch {
-    _$lastMessageFetchAtom.reportRead();
-    return super.lastMessageFetch;
+  int get anchor {
+    _$anchorAtom.reportRead();
+    return super.anchor;
   }
 
   @override
-  set lastMessageFetch(DateTime value) {
-    _$lastMessageFetchAtom.reportWrite(value, super.lastMessageFetch, () {
-      super.lastMessageFetch = value;
+  set anchor(int value) {
+    _$anchorAtom.reportWrite(value, super.anchor, () {
+      super.anchor = value;
+    });
+  }
+
+  late final _$anchoredAtBottomAtom =
+      Atom(name: 'MessageStoreBase.anchoredAtBottom', context: context);
+
+  @override
+  bool get anchoredAtBottom {
+    _$anchoredAtBottomAtom.reportRead();
+    return super.anchoredAtBottom;
+  }
+
+  @override
+  set anchoredAtBottom(bool value) {
+    _$anchoredAtBottomAtom.reportWrite(value, super.anchoredAtBottom, () {
+      super.anchoredAtBottom = value;
+    });
+  }
+
+  late final _$generationAtom =
+      Atom(name: 'MessageStoreBase.generation', context: context);
+
+  @override
+  int get generation {
+    _$generationAtom.reportRead();
+    return super.generation;
+  }
+
+  @override
+  set generation(int value) {
+    _$generationAtom.reportWrite(value, super.generation, () {
+      super.generation = value;
+    });
+  }
+
+  late final _$highlightIdAtom =
+      Atom(name: 'MessageStoreBase.highlightId', context: context);
+
+  @override
+  String? get highlightId {
+    _$highlightIdAtom.reportRead();
+    return super.highlightId;
+  }
+
+  @override
+  set highlightId(String? value) {
+    _$highlightIdAtom.reportWrite(value, super.highlightId, () {
+      super.highlightId = value;
     });
   }
 
@@ -97,207 +152,123 @@ mixin _$MessageStore on MessageStoreBase, Store {
     });
   }
 
-  late final _$errorMessageAtom =
-      Atom(name: 'MessageStoreBase.errorMessage', context: context);
+  late final _$errorAtom =
+      Atom(name: 'MessageStoreBase.error', context: context);
 
   @override
-  String? get errorMessage {
-    _$errorMessageAtom.reportRead();
-    return super.errorMessage;
+  String? get error {
+    _$errorAtom.reportRead();
+    return super.error;
   }
 
   @override
-  set errorMessage(String? value) {
-    _$errorMessageAtom.reportWrite(value, super.errorMessage, () {
-      super.errorMessage = value;
+  set error(String? value) {
+    _$errorAtom.reportWrite(value, super.error, () {
+      super.error = value;
     });
   }
 
-  late final _$fromDateAtom =
-      Atom(name: 'MessageStoreBase.fromDate', context: context);
+  late final _$statsAtom =
+      Atom(name: 'MessageStoreBase.stats', context: context);
 
   @override
-  DateTime? get fromDate {
-    _$fromDateAtom.reportRead();
-    return super.fromDate;
+  Map<String, dynamic>? get stats {
+    _$statsAtom.reportRead();
+    return super.stats;
   }
 
   @override
-  set fromDate(DateTime? value) {
-    _$fromDateAtom.reportWrite(value, super.fromDate, () {
-      super.fromDate = value;
+  set stats(Map<String, dynamic>? value) {
+    _$statsAtom.reportWrite(value, super.stats, () {
+      super.stats = value;
     });
   }
 
-  late final _$toDateAtom =
-      Atom(name: 'MessageStoreBase.toDate', context: context);
+  late final _$openAsyncAction =
+      AsyncAction('MessageStoreBase.open', context: context);
 
   @override
-  DateTime? get toDate {
-    _$toDateAtom.reportRead();
-    return super.toDate;
+  Future<void> open(String name, {int? at}) {
+    return _$openAsyncAction.run(() => super.open(name, at: at));
   }
 
+  late final _$jumpToOffsetAsyncAction =
+      AsyncAction('MessageStoreBase.jumpToOffset', context: context);
+
   @override
-  set toDate(DateTime? value) {
-    _$toDateAtom.reportWrite(value, super.toDate, () {
-      super.toDate = value;
-    });
+  Future<void> jumpToOffset(int offset) {
+    return _$jumpToOffsetAsyncAction.run(() => super.jumpToOffset(offset));
   }
 
-  late final _$searchResultsAtom =
-      Atom(name: 'MessageStoreBase.searchResults', context: context);
+  late final _$jumpToLatestAsyncAction =
+      AsyncAction('MessageStoreBase.jumpToLatest', context: context);
 
   @override
-  ObservableList<Map<String, dynamic>> get searchResults {
-    _$searchResultsAtom.reportRead();
-    return super.searchResults;
+  Future<void> jumpToLatest() {
+    return _$jumpToLatestAsyncAction.run(() => super.jumpToLatest());
   }
 
+  late final _$jumpToStartAsyncAction =
+      AsyncAction('MessageStoreBase.jumpToStart', context: context);
+
   @override
-  set searchResults(ObservableList<Map<String, dynamic>> value) {
-    _$searchResultsAtom.reportWrite(value, super.searchResults, () {
-      super.searchResults = value;
-    });
+  Future<void> jumpToStart() {
+    return _$jumpToStartAsyncAction.run(() => super.jumpToStart());
   }
 
-  late final _$isSearchActiveAtom =
-      Atom(name: 'MessageStoreBase.isSearchActive', context: context);
+  late final _$jumpToAsyncAction =
+      AsyncAction('MessageStoreBase.jumpTo', context: context);
 
   @override
-  bool get isSearchActive {
-    _$isSearchActiveAtom.reportRead();
-    return super.isSearchActive;
+  Future<void> jumpTo(int timestamp, {String? id}) {
+    return _$jumpToAsyncAction.run(() => super.jumpTo(timestamp, id: id));
   }
 
+  late final _$loadOlderAsyncAction =
+      AsyncAction('MessageStoreBase.loadOlder', context: context);
+
   @override
-  set isSearchActive(bool value) {
-    _$isSearchActiveAtom.reportWrite(value, super.isSearchActive, () {
-      super.isSearchActive = value;
-    });
+  Future<void> loadOlder() {
+    return _$loadOlderAsyncAction.run(() => super.loadOlder());
   }
 
-  late final _$searchQueryAtom =
-      Atom(name: 'MessageStoreBase.searchQuery', context: context);
+  late final _$loadNewerAsyncAction =
+      AsyncAction('MessageStoreBase.loadNewer', context: context);
 
   @override
-  String? get searchQuery {
-    _$searchQueryAtom.reportRead();
-    return super.searchQuery;
+  Future<void> loadNewer() {
+    return _$loadNewerAsyncAction.run(() => super.loadNewer());
   }
 
-  @override
-  set searchQuery(String? value) {
-    _$searchQueryAtom.reportWrite(value, super.searchQuery, () {
-      super.searchQuery = value;
-    });
-  }
-
-  late final _$isCrossCollectionSearchingAtom = Atom(
-      name: 'MessageStoreBase.isCrossCollectionSearching', context: context);
+  late final _$_replaceWindowAsyncAction =
+      AsyncAction('MessageStoreBase._replaceWindow', context: context);
 
   @override
-  bool get isCrossCollectionSearching {
-    _$isCrossCollectionSearchingAtom.reportRead();
-    return super.isCrossCollectionSearching;
-  }
-
-  @override
-  set isCrossCollectionSearching(bool value) {
-    _$isCrossCollectionSearchingAtom
-        .reportWrite(value, super.isCrossCollectionSearching, () {
-      super.isCrossCollectionSearching = value;
-    });
-  }
-
-  late final _$crossCollectionResultsAtom =
-      Atom(name: 'MessageStoreBase.crossCollectionResults', context: context);
-
-  @override
-  ObservableList<Map<String, dynamic>> get crossCollectionResults {
-    _$crossCollectionResultsAtom.reportRead();
-    return super.crossCollectionResults;
-  }
-
-  @override
-  set crossCollectionResults(ObservableList<Map<String, dynamic>> value) {
-    _$crossCollectionResultsAtom
-        .reportWrite(value, super.crossCollectionResults, () {
-      super.crossCollectionResults = value;
-    });
-  }
-
-  late final _$searchIndexAtom =
-      Atom(name: 'MessageStoreBase.searchIndex', context: context);
-
-  @override
-  ObservableMap<String, Map<String, List<int>>> get searchIndex {
-    _$searchIndexAtom.reportRead();
-    return super.searchIndex;
-  }
-
-  @override
-  set searchIndex(ObservableMap<String, Map<String, List<int>>> value) {
-    _$searchIndexAtom.reportWrite(value, super.searchIndex, () {
-      super.searchIndex = value;
-    });
-  }
-
-  late final _$setCollectionAsyncAction =
-      AsyncAction('MessageStoreBase.setCollection', context: context);
-
-  @override
-  Future<void> setCollection(String? collectionName) {
-    return _$setCollectionAsyncAction
-        .run(() => super.setCollection(collectionName));
-  }
-
-  late final _$refreshMessagesAsyncAction =
-      AsyncAction('MessageStoreBase.refreshMessages', context: context);
-
-  @override
-  Future<void> refreshMessages() {
-    return _$refreshMessagesAsyncAction.run(() => super.refreshMessages());
-  }
-
-  late final _$fetchMessagesForDateRangeAsyncAction = AsyncAction(
-      'MessageStoreBase.fetchMessagesForDateRange',
-      context: context);
-
-  @override
-  Future<void> fetchMessagesForDateRange(
-      String collectionName, DateTime? from, DateTime? to) {
-    return _$fetchMessagesForDateRangeAsyncAction
-        .run(() => super.fetchMessagesForDateRange(collectionName, from, to));
-  }
-
-  late final _$searchMessagesAsyncAction =
-      AsyncAction('MessageStoreBase.searchMessages', context: context);
-
-  @override
-  Future<void> searchMessages(String query, {bool isCrossCollection = false}) {
-    return _$searchMessagesAsyncAction.run(() =>
-        super.searchMessages(query, isCrossCollection: isCrossCollection));
-  }
-
-  late final _$searchAcrossCollectionsAsyncAction =
-      AsyncAction('MessageStoreBase.searchAcrossCollections', context: context);
-
-  @override
-  Future<void> searchAcrossCollections(String query) {
-    return _$searchAcrossCollectionsAsyncAction
-        .run(() => super.searchAcrossCollections(query));
+  Future<void> _replaceWindow(
+      Future<(int, List<Map<String, dynamic>>, int, String?)> Function() load) {
+    return _$_replaceWindowAsyncAction.run(() => super._replaceWindow(load));
   }
 
   late final _$MessageStoreBaseActionController =
       ActionController(name: 'MessageStoreBase', context: context);
 
   @override
-  void clearSearch() {
+  void _prepend(List<Map<String, dynamic>> page, int newStart) {
     final _$actionInfo = _$MessageStoreBaseActionController.startAction(
-        name: 'MessageStoreBase.clearSearch');
+        name: 'MessageStoreBase._prepend');
     try {
-      return super.clearSearch();
+      return super._prepend(page, newStart);
+    } finally {
+      _$MessageStoreBaseActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void _append(List<Map<String, dynamic>> page) {
+    final _$actionInfo = _$MessageStoreBaseActionController.startAction(
+        name: 'MessageStoreBase._append');
+    try {
+      return super._append(page);
     } finally {
       _$MessageStoreBaseActionController.endAction(_$actionInfo);
     }
@@ -306,21 +277,18 @@ mixin _$MessageStore on MessageStoreBase, Store {
   @override
   String toString() {
     return '''
-messages: ${messages},
-filteredMessages: ${filteredMessages},
-currentCollection: ${currentCollection},
-lastMessageFetch: ${lastMessageFetch},
+collection: ${collection},
+total: ${total},
+start: ${start},
+anchor: ${anchor},
+anchoredAtBottom: ${anchoredAtBottom},
+generation: ${generation},
+highlightId: ${highlightId},
 isLoading: ${isLoading},
-errorMessage: ${errorMessage},
-fromDate: ${fromDate},
-toDate: ${toDate},
-searchResults: ${searchResults},
-isSearchActive: ${isSearchActive},
-searchQuery: ${searchQuery},
-isCrossCollectionSearching: ${isCrossCollectionSearching},
-crossCollectionResults: ${crossCollectionResults},
-searchIndex: ${searchIndex},
-hasDateFilter: ${hasDateFilter}
+error: ${error},
+stats: ${stats},
+hasOlder: ${hasOlder},
+hasNewer: ${hasNewer}
     ''';
   }
 }

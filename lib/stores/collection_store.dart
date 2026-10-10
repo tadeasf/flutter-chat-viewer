@@ -1,18 +1,26 @@
-import 'package:mobx/mobx.dart';
-import 'package:logging/logging.dart';
-import '../utils/api_db/load_collections.dart' as collection_loader;
+import 'dart:convert';
 
-// Include the generated file
+import 'package:mobx/mobx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/api_db/api_service.dart';
+
 part 'collection_store.g.dart';
 
-// This is the class used by rest of the codebase
 class CollectionStore = CollectionStoreBase with _$CollectionStore;
 
-// The store class
-abstract class CollectionStoreBase with Store {
-  final Logger _logger = Logger('CollectionStore');
+enum CollectionSort { mostOpened, largest, name }
 
-  // Observable lists for collections
+/// The list of conversations. The last list is kept in SharedPreferences so
+/// the app shows it immediately on start; it is then refreshed from the server.
+abstract class CollectionStoreBase with Store {
+  CollectionStoreBase() {
+    loadCollections();
+  }
+
+  static const _cacheKey = 'cachedCollections';
+  static const _refreshAfter = Duration(minutes: 5);
+
   @observable
   ObservableList<Map<String, dynamic>> collections =
       ObservableList<Map<String, dynamic>>();
@@ -21,201 +29,121 @@ abstract class CollectionStoreBase with Store {
   ObservableList<Map<String, dynamic>> filteredCollections =
       ObservableList<Map<String, dynamic>>();
 
-  // Observable for loading state
   @observable
   bool isLoading = false;
 
-  // Observable for message loading state
+  @observable
+  String? error;
+
   @observable
   bool isMessageLoading = false;
 
-  // Observable for filter query
   @observable
   String filterQuery = '';
 
-  // Timestamp of last collection fetch
   @observable
-  DateTime lastCollectionFetch = DateTime.fromMillisecondsSinceEpoch(0);
+  CollectionSort sort = CollectionSort.mostOpened;
 
-  // Refresh threshold (5 minutes)
-  final Duration _refreshThreshold = const Duration(minutes: 5);
+  DateTime _lastFetch = DateTime.fromMillisecondsSinceEpoch(0);
 
-  // Computed property to check if there's an active filter
-  @computed
-  bool get hasActiveFilter => filterQuery.isNotEmpty;
-
-  // Computed property to check if collections need refresh
-  @computed
-  bool get needsCollectionRefresh =>
-      DateTime.now().difference(lastCollectionFetch) > _refreshThreshold;
-
-  // Initialize store
-  CollectionStoreBase() {
-    // Initial load when store is created
-    loadCollections();
-  }
-
-  // Action to load collections
+  /// Shows the cached list (if any), then fetches a fresh one.
   @action
   Future<void> loadCollections() async {
-    isLoading = true;
-
-    try {
-      await collection_loader.loadCollections((loadedCollections) {
-        // Filter out unified_collection from the list
-        final filteredList = loadedCollections
-            .where((collection) => collection['name'] != 'unified_collection')
-            .toList();
-
-        // Sort collections according to requirements
-        _sortCollections(filteredList);
-
-        // Update observable lists
-        collections.clear();
-        collections.addAll(filteredList);
-
-        // Apply current filter if exists
-        _applyFilter();
-
-        isLoading = false;
-        // Update the last fetch timestamp
-        lastCollectionFetch = DateTime.now();
-      });
-    } catch (e) {
-      _logger.warning('Error loading collections: $e');
-      isLoading = false;
+    if (collections.isEmpty) {
+      final cached =
+          (await SharedPreferences.getInstance()).getString(_cacheKey);
+      if (cached != null) {
+        _setCollections(
+            (jsonDecode(cached) as List).cast<Map<String, dynamic>>());
+      }
     }
+    await refreshCollections();
   }
 
-  // Action to load more collections (for pagination)
-  @action
-  Future<void> loadMoreCollections() async {
-    if (isLoading) return;
-
-    isLoading = true;
-
-    try {
-      final newCollections = await collection_loader.loadMoreCollections();
-
-      // Filter out unified_collection from new collections too
-      final filteredNewCollections = newCollections
-          .where((collection) => collection['name'] != 'unified_collection')
-          .toList();
-
-      // Add to existing collections
-      collections.addAll(filteredNewCollections);
-
-      // Sort all collections
-      _sortCollections(collections);
-
-      // Apply current filter
-      _applyFilter();
-
-      isLoading = false;
-    } catch (e) {
-      _logger.warning('Error loading more collections: $e');
-      isLoading = false;
-    }
-  }
-
-  // Action to refresh collections
   @action
   Future<void> refreshCollections() async {
     isLoading = true;
-
+    error = null;
     try {
-      // Clear any existing cache
-      await collection_loader.retryLoadCollections((loadedCollections) {
-        // Filter out unified_collection
-        final filteredList = loadedCollections
-            .where((collection) => collection['name'] != 'unified_collection')
-            .toList();
-
-        // Sort collections
-        _sortCollections(filteredList);
-
-        // Update observable lists
-        collections.clear();
-        collections.addAll(filteredList);
-
-        // Apply current filter
-        _applyFilter();
-
-        isLoading = false;
-        // Update the last fetch timestamp
-        lastCollectionFetch = DateTime.now();
-      });
+      final fresh = await ApiService.fetchCollections();
+      _setCollections(fresh);
+      _lastFetch = DateTime.now();
+      (await SharedPreferences.getInstance())
+          .setString(_cacheKey, jsonEncode(fresh));
     } catch (e) {
-      _logger.warning('Error refreshing collections: $e');
+      error = '$e';
+    } finally {
       isLoading = false;
     }
   }
 
-  // Action to conditionally refresh collections only if needed
   @action
   Future<void> refreshCollectionsIfNeeded() async {
-    // If collections are empty or refresh threshold passed, load them
-    if (collections.isEmpty || needsCollectionRefresh) {
+    if (isLoading) return;
+    if (collections.isEmpty ||
+        DateTime.now().difference(_lastFetch) > _refreshAfter) {
       await refreshCollections();
     }
   }
 
-  // Action to set message loading state
   @action
   void setMessageLoading(bool loading) {
     isMessageLoading = loading;
   }
 
-  // Action to set filter query and apply filter
   @action
   void setFilterQuery(String query) {
     filterQuery = query;
     _applyFilter();
   }
 
-  // Internal method to apply filter
-  void _applyFilter() {
-    if (filterQuery.isEmpty) {
-      // If no filter, use all collections
-      filteredCollections.clear();
-      filteredCollections.addAll(collections);
-    } else {
-      // Apply filter
-      final filtered = collections
-          .where((collection) => collection['name']
-              .toLowerCase()
-              .contains(filterQuery.toLowerCase()))
-          .toList();
+  @action
+  void clearFilter() => setFilterQuery('');
 
-      filteredCollections.clear();
-      filteredCollections.addAll(filtered);
+  @action
+  void setSort(CollectionSort value) {
+    sort = value;
+    _applyFilter();
+  }
+
+  /// `unified_collection` (all chats merged, stale) is not a conversation.
+  @action
+  void _setCollections(List<Map<String, dynamic>> list) {
+    collections
+      ..clear()
+      ..addAll(list.where((c) => c['name'] != 'unified_collection'));
+    _applyFilter();
+  }
+
+  static int _int(Map<String, dynamic> c, String key) => (c[key] ?? 0) as int;
+
+  /// The server's by-count route never works, so sorting happens here.
+  int _compare(Map<String, dynamic> a, Map<String, dynamic> b) {
+    int byName() => (a['name'] as String)
+        .toLowerCase()
+        .compareTo((b['name'] as String).toLowerCase());
+    int byCount() => _int(b, 'messageCount').compareTo(_int(a, 'messageCount'));
+    switch (sort) {
+      case CollectionSort.mostOpened:
+        final byHits = _int(b, 'hits').compareTo(_int(a, 'hits'));
+        return byHits != 0 ? byHits : byCount();
+      case CollectionSort.largest:
+        return byCount();
+      case CollectionSort.name:
+        return byName();
     }
   }
 
-  // Helper method to sort collections by hits DESC, then by message count DESC
-  void _sortCollections(List<Map<String, dynamic>> collectionsList) {
-    collectionsList.sort((a, b) {
-      // First sort by hits in descending order
-      final int hitsA = a['hits'] ?? 0;
-      final int hitsB = b['hits'] ?? 0;
-
-      final int hitComparison = hitsB.compareTo(hitsA);
-
-      // If hits are the same, sort by message count in descending order
-      if (hitComparison == 0) {
-        final int messageCountA = a['messageCount'] ?? 0;
-        final int messageCountB = b['messageCount'] ?? 0;
-        return messageCountB.compareTo(messageCountA);
-      }
-
-      return hitComparison;
-    });
-  }
-
-  // Action to clear filter
-  @action
-  void clearFilter() {
-    filterQuery = '';
-    _applyFilter();
+  void _applyFilter() {
+    final query = filterQuery.toLowerCase();
+    final list = (query.isEmpty
+        ? collections.toList()
+        : collections
+            .where((c) => (c['name'] as String).toLowerCase().contains(query))
+            .toList())
+      ..sort(_compare);
+    filteredCollections
+      ..clear()
+      ..addAll(list);
   }
 }

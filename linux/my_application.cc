@@ -47,7 +47,12 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Meta Elysia");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  gtk_window_set_default_size(window, 1280, 800);
+  // Below this the single-pane layout still fits a message and the header.
+  GdkGeometry hints;
+  hints.min_width = 480;
+  hints.min_height = 560;
+  gtk_window_set_geometry_hints(window, nullptr, &hints, GDK_HINT_MIN_SIZE);
   gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

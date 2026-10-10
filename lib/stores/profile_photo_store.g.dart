@@ -25,38 +25,6 @@ mixin _$ProfilePhotoStore on ProfilePhotoStoreBase, Store {
     });
   }
 
-  late final _$loadingStatesAtom =
-      Atom(name: 'ProfilePhotoStoreBase.loadingStates', context: context);
-
-  @override
-  ObservableMap<String, bool> get loadingStates {
-    _$loadingStatesAtom.reportRead();
-    return super.loadingStates;
-  }
-
-  @override
-  set loadingStates(ObservableMap<String, bool> value) {
-    _$loadingStatesAtom.reportWrite(value, super.loadingStates, () {
-      super.loadingStates = value;
-    });
-  }
-
-  late final _$errorStatesAtom =
-      Atom(name: 'ProfilePhotoStoreBase.errorStates', context: context);
-
-  @override
-  ObservableMap<String, bool> get errorStates {
-    _$errorStatesAtom.reportRead();
-    return super.errorStates;
-  }
-
-  @override
-  set errorStates(ObservableMap<String, bool> value) {
-    _$errorStatesAtom.reportWrite(value, super.errorStates, () {
-      super.errorStates = value;
-    });
-  }
-
   late final _$getProfilePhotoUrlAsyncAction =
       AsyncAction('ProfilePhotoStoreBase.getProfilePhotoUrl', context: context);
 
@@ -66,35 +34,15 @@ mixin _$ProfilePhotoStore on ProfilePhotoStoreBase, Store {
         .run(() => super.getProfilePhotoUrl(collectionName));
   }
 
-  late final _$deleteProfilePhotoAsyncAction =
-      AsyncAction('ProfilePhotoStoreBase.deleteProfilePhoto', context: context);
-
-  @override
-  Future<bool> deleteProfilePhoto(String collectionName) {
-    return _$deleteProfilePhotoAsyncAction
-        .run(() => super.deleteProfilePhoto(collectionName));
-  }
-
   late final _$ProfilePhotoStoreBaseActionController =
       ActionController(name: 'ProfilePhotoStoreBase', context: context);
 
   @override
-  void clearCache(String collectionName) {
+  void photoChanged(String collectionName) {
     final _$actionInfo = _$ProfilePhotoStoreBaseActionController.startAction(
-        name: 'ProfilePhotoStoreBase.clearCache');
+        name: 'ProfilePhotoStoreBase.photoChanged');
     try {
-      return super.clearCache(collectionName);
-    } finally {
-      _$ProfilePhotoStoreBaseActionController.endAction(_$actionInfo);
-    }
-  }
-
-  @override
-  void clearAllCache() {
-    final _$actionInfo = _$ProfilePhotoStoreBaseActionController.startAction(
-        name: 'ProfilePhotoStoreBase.clearAllCache');
-    try {
-      return super.clearAllCache();
+      return super.photoChanged(collectionName);
     } finally {
       _$ProfilePhotoStoreBaseActionController.endAction(_$actionInfo);
     }
@@ -103,9 +51,7 @@ mixin _$ProfilePhotoStore on ProfilePhotoStoreBase, Store {
   @override
   String toString() {
     return '''
-profilePhotoUrls: ${profilePhotoUrls},
-loadingStates: ${loadingStates},
-errorStates: ${errorStates}
+profilePhotoUrls: ${profilePhotoUrls}
     ''';
   }
 }

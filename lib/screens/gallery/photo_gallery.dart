@@ -1,352 +1,348 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-import 'package:logging/logging.dart';
-import '../../screens/gallery/photo_view_gallery.dart';
-import '../../utils/search/scroll_to_highlighted_message.dart';
-import '../../utils/search/search_type.dart';
-import '../../widgets/gallery/photo_thumbnail.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import '../../stores/store_provider.dart';
-import '../../stores/file_store.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:mobx/mobx.dart';
 
+import '../../components/chat/audio_message_player.dart';
+import '../../components/chat/video_tile.dart';
+import '../../stores/store_provider.dart';
+import '../../theme.dart';
+import '../../utils/api_db/api_service.dart';
+import '../../utils/text_match.dart';
+import '../../widgets/gallery/photo_thumbnail.dart';
+import 'photo_view_gallery.dart';
+
+/// Media of a conversation in three tabs: the photos the other person sent
+/// (`/photos`), and all videos and voice messages (`/media`).
 class PhotoGallery extends StatefulWidget {
   final String collectionName;
-  final List<Map<dynamic, dynamic>> messages;
-  final ItemScrollController itemScrollController;
-  final Map<String, dynamic>? targetPhoto;
+  final String title;
+
+  /// Pops back to the chat and shows the message at [timestamp].
+  final void Function(int timestamp, String? id) onShowInChat;
 
   const PhotoGallery({
     super.key,
     required this.collectionName,
-    required this.messages,
-    required this.itemScrollController,
-    this.targetPhoto,
+    required this.title,
+    required this.onShowInChat,
   });
 
+  static void open(
+    BuildContext context,
+    String collectionName, {
+    String? title,
+    required void Function(int timestamp, String? id) onShowInChat,
+  }) =>
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PhotoGallery(
+            collectionName: collectionName,
+            title: title ?? collectionName,
+            onShowInChat: onShowInChat,
+          ),
+        ),
+      );
+
   @override
-  PhotoGalleryState createState() => PhotoGalleryState();
+  State<PhotoGallery> createState() => _PhotoGalleryState();
 }
 
-class PhotoGalleryState extends State<PhotoGallery> {
-  final ScrollController _scrollController = ScrollController();
-  final Logger _logger = Logger('PhotoGallery');
-  final List<ReactionDisposer> _disposers = [];
-
+class _PhotoGalleryState extends State<PhotoGallery> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_scrollListener);
-
-    // Load photos through store when component is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      final galleryStore = StoreProvider.of(context).galleryStore;
-      _logger
-          .info('Setting up gallery for collection: ${widget.collectionName}');
-
-      // Get the current user's name to filter out their photos
-      String? senderFilter;
-      if (widget.messages.isNotEmpty) {
-        // Find a message with sender_name that is not the author (you)
-        for (final message in widget.messages) {
-          if (message.containsKey('sender_name') &&
-              !message['sender_name'].toString().contains('Tadeáš Fořt')) {
-            senderFilter = message['sender_name'];
-            break;
-          }
-        }
+      if (mounted) {
+        StoreProvider.of(context)
+            .galleryStore
+            .setupGalleryForCollection(widget.collectionName);
       }
-
-      _logger.info('Using sender filter: $senderFilter');
-
-      // Setup the gallery store for this collection with sender filter
-      galleryStore.setupGalleryForCollection(
-          widget.collectionName, widget.targetPhoto,
-          sender: senderFilter);
-
-      // Set up reaction to scroll to target photo when photos are loaded
-      _setupReactions();
     });
   }
 
-  void _setupReactions() {
-    final galleryStore = StoreProvider.of(context).galleryStore;
+  void _showInChat(int? timestamp, String? id) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (timestamp != null) widget.onShowInChat(timestamp, id);
+  }
 
-    // React to photo loading completion to scroll to target photo
-    _disposers.add(reaction((_) => galleryStore.isLoading, (isLoading) {
-      if (!isLoading && galleryStore.hasTargetPhoto && mounted) {
-        _scrollToTargetPhoto();
-      }
-    }));
+  void _openViewer(int index) {
+    final stores = StoreProvider.of(context);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PhotoViewGalleryScreen(
+        photos: stores.galleryStore.getPhotosForGallery(),
+        initialIndex: index,
+        title: widget.title,
+        onShowInChat: (photo) =>
+            _showInChat(photo['message_timestamp'] as int?, null),
+      ),
+    ));
+  }
+
+  Future<void> _clearCache() async {
+    await DefaultCacheManager().emptyCache();
+    PaintingBinding.instance.imageCache.clear();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Image cache cleared')));
   }
 
   @override
-  void dispose() {
-    _scrollController.removeListener(_scrollListener);
-    _scrollController.dispose();
+  Widget build(BuildContext context) {
+    final gallery = StoreProvider.of(context).galleryStore;
+    final theme = Theme.of(context);
 
-    // Dispose of all reactions
-    for (final disposer in _disposers) {
-      disposer();
-    }
-
-    super.dispose();
-  }
-
-  void _scrollListener() {
-    if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent) {
-      // Load more photos through the store
-      final galleryStore = StoreProvider.of(context).galleryStore;
-      galleryStore.loadMorePhotos();
-    }
-  }
-
-  Future<void> _scrollToTargetPhoto() async {
-    final galleryStore = StoreProvider.of(context).galleryStore;
-
-    if (mounted && galleryStore.targetPhotoIndex != null) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (!mounted) return;
-        scrollToIndex(galleryStore.targetPhotoIndex!);
-      });
-    }
-  }
-
-  void _handleJumpToMessage(Map<String, dynamic> photo) {
-    final messageIndexStore = StoreProvider.of(context).messageIndexStore;
-    messageIndexStore.updateMessagesFromRaw(widget.messages);
-
-    // Get the creation_timestamp from the photo data
-    final timestamp = photo['creation_timestamp'];
-    _logger.info('Photo data: $photo');
-    _logger.info('photo timestamp: ${photo['creation_timestamp']}');
-    _logger.info('Timestamp: $timestamp');
-
-    if (timestamp == null) {
-      _logger.warning('Error: creation_timestamp is null in photo data');
-      return;
-    }
-
-    // In PhotoModel.fromMessageJson, the creation_timestamp is multiplied by 1000
-    // We need to do the same here to match the timestamps
-    int photoTimestamp = (timestamp as int) * 1000;
-    _logger.info('Modified photo timestamp (x1000): $photoTimestamp');
-
-    // First try searching with the modified timestamp
-    var messageIndex = messageIndexStore.getIndexForTimestampRaw(
-      photoTimestamp,
-      isPhotoTimestamp: true,
-    );
-
-    // If not found, try with the original timestamp
-    if (messageIndex == null) {
-      _logger.info('Trying original timestamp as fallback');
-      messageIndex = messageIndexStore.getIndexForTimestampRaw(
-        timestamp,
-        isPhotoTimestamp: true,
-      );
-    }
-
-    _logger.info('Message index: $messageIndex');
-
-    if (messageIndex != null) {
-      Navigator.pop(context);
-      _logger.info('Closed photo gallery view');
-
-      Navigator.pop(context);
-      _logger.info('Closed app drawer');
-
-      scrollToHighlightedMessage(
-        messageIndex,
-        [messageIndex],
-        widget.itemScrollController,
-        SearchType.photoView,
-      );
-      _logger.info('Scrolled to message');
-    } else {
-      _logger.warning(
-          'Error: No message index found for timestamp: $timestamp (or modified: $photoTimestamp)');
-
-      // Show a snackbar to notify the user
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not find the original message for this photo'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  void scrollToIndex(int index) {
-    _logger.info('Scrolling to index: $index');
-
-    final crossAxisCount = 3;
-    final rowIndex = index ~/ crossAxisCount;
-    final itemHeight = MediaQuery.of(context).size.width / crossAxisCount;
-    final offset = rowIndex * itemHeight;
-
-    _logger.info('Row index: $rowIndex, Offset: $offset');
-
-    _scrollController.animateTo(
-      offset,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  static void navigateToGalleryAndScroll(
-    BuildContext context,
-    String collectionName,
-    Map<String, dynamic> targetPhoto,
-    List<Map<dynamic, dynamic>> messages,
-    ItemScrollController itemScrollController,
-  ) {
-    // Get gallery store and set target photo before navigation
-    final galleryStore = StoreProvider.of(context).galleryStore;
-    galleryStore.setTargetPhoto(targetPhoto);
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => PhotoGallery(
-          collectionName: collectionName,
-          messages: messages,
-          itemScrollController: itemScrollController,
-          targetPhoto: targetPhoto,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(context).maybePop(),
+      },
+      child: Focus(
+        autofocus: true,
+        child: DefaultTabController(
+          length: 3,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text('Media · ${widget.title}'),
+              bottom: TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                tabs: [
+                  Tab(
+                    child: Observer(
+                      builder: (_) => Text(gallery.isLoading
+                          ? 'Photos'
+                          : 'Photos · ${formatCount(gallery.photos.length)}'),
+                    ),
+                  ),
+                  const Tab(text: 'Videos'),
+                  const Tab(text: 'Voice messages'),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  tooltip: 'Clear image cache',
+                  onPressed: _clearCache,
+                  icon: const Icon(Icons.cleaning_services_outlined),
+                ),
+                const SizedBox(width: Space.s),
+              ],
+            ),
+            body: TabBarView(children: [
+              Observer(builder: (_) {
+                if (gallery.isLoading && gallery.photos.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (gallery.error != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Could not load photos: ${gallery.error}'),
+                        TextButton(
+                          onPressed: () => gallery
+                              .setupGalleryForCollection(widget.collectionName),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                if (gallery.photos.isEmpty) {
+                  return Center(
+                    child: Text('No photos from ${widget.title}',
+                        style: theme.textTheme.bodyLarge),
+                  );
+                }
+                return Scrollbar(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(Space.s),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 220,
+                      mainAxisSpacing: 4,
+                      crossAxisSpacing: 4,
+                    ),
+                    itemCount: gallery.photos.length,
+                    itemBuilder: (context, i) {
+                      final photo = gallery.getPhotoAt(i);
+                      return MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () => _openViewer(i),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(Radii.s),
+                            child: PhotoThumbnail(
+                              imageUrl: gallery.getPhotoUrl(photo),
+                              collectionName: widget.collectionName,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }),
+              _MediaTab(
+                collectionName: widget.collectionName,
+                type: 'videos',
+                empty: 'No videos in this conversation',
+                onShowInChat: _showInChat,
+              ),
+              _MediaTab(
+                collectionName: widget.collectionName,
+                type: 'audio_files',
+                empty: 'No voice messages in this conversation',
+                onShowInChat: _showInChat,
+              ),
+            ]),
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Videos or voice messages from `/media`, newest first, with the date and
+/// sender of each and a way back to the message.
+class _MediaTab extends StatefulWidget {
+  final String collectionName;
+  final String type;
+  final String empty;
+  final void Function(int? timestamp, String? id) onShowInChat;
+
+  const _MediaTab({
+    required this.collectionName,
+    required this.type,
+    required this.empty,
+    required this.onShowInChat,
+  });
+
+  @override
+  State<_MediaTab> createState() => _MediaTabState();
+}
+
+class _MediaTabState extends State<_MediaTab>
+    with AutomaticKeepAliveClientMixin {
+  late Future<List<Map<String, dynamic>>> _items = _load();
+
+  /// One entry per file, carrying its message's id, time and sender.
+  Future<List<Map<String, dynamic>>> _load() async => [
+        for (final m
+            in await ApiService.fetchMedia(widget.collectionName, widget.type))
+          for (final f in (m[widget.type] as List).cast<Map>())
+            {
+              'uri': f['uri'],
+              '_id': m['_id'],
+              'timestamp_ms': m['timestamp_ms'],
+              'sender_name': m['sender_name'],
+            },
+      ];
+
+  @override
+  bool get wantKeepAlive => true;
+
+  Widget _caption(BuildContext context, Map<String, dynamic> item) {
+    final ts = item['timestamp_ms'] as int?;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            [
+              if (ts != null) '${formatShortDate(ts)} ${formatTime(ts)}',
+              item['sender_name'] ?? '',
+            ].join(' · '),
+            style: Theme.of(context).textTheme.bodySmall,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Show in chat',
+          visualDensity: VisualDensity.compact,
+          iconSize: 18,
+          onPressed: () => widget.onShowInChat(ts, item['_id'] as String?),
+          icon: const Icon(Icons.forum_outlined),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final galleryStore = StoreProvider.of(context).galleryStore;
-    final fileStore = StoreProvider.of(context).fileStore;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return KeyboardListener(
-      focusNode: FocusNode(),
-      autofocus: true,
-      onKeyEvent: (KeyEvent event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape) {
-          Navigator.of(context).pop();
-        }
-      },
-      child: Scaffold(
-        backgroundColor: isDarkMode ? Color(0xFF121214) : null,
-        appBar: AppBar(
-          title: Text('Photos - ${widget.collectionName}'),
-          backgroundColor: isDarkMode ? Color(0xFF17171B) : null,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings_backup_restore),
-              tooltip: 'Clear image cache',
-              onPressed: () {
-                fileStore.clearTypeCache(MediaType.image);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Image cache cleared')),
-                );
-              },
-            ),
-          ],
-        ),
-        body: Observer(
-          builder: (_) {
-            if (galleryStore.isLoading && galleryStore.photos.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (galleryStore.photos.isEmpty && !galleryStore.isLoading) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.photo_library,
-                        size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No photos found',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'This collection does not have any photos',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
+    super.build(context);
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _items,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Could not load: ${snapshot.error}'),
+                TextButton(
+                  onPressed: () => setState(() => _items = _load()),
+                  child: const Text('Retry'),
                 ),
-              );
-            }
-
-            return GridView.builder(
-              controller: _scrollController,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 4.0,
-                crossAxisSpacing: 4.0,
+              ],
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snapshot.data!;
+        if (items.isEmpty) {
+          return Center(
+              child: Text(widget.empty,
+                  style: Theme.of(context).textTheme.bodyLarge));
+        }
+        if (widget.type == 'videos') {
+          return Scrollbar(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(Space.m),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 300,
+                mainAxisExtent: 196,
+                mainAxisSpacing: Space.m,
+                crossAxisSpacing: Space.m,
               ),
-              itemCount:
-                  galleryStore.photos.length + (galleryStore.isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == galleryStore.photos.length &&
-                    galleryStore.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (index >= galleryStore.photos.length) {
-                  return Container();
-                }
-
-                final photo = galleryStore.getPhotoAt(index);
-                final imageUrl =
-                    galleryStore.getPhotoUrl(photo, widget.collectionName);
-
-                return GestureDetector(
-                  onTap: () {
-                    galleryStore.setCurrentPhotoIndex(index);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PhotoViewGalleryScreen(
-                          collectionName: widget.collectionName,
-                          initialIndex: index,
-                          photos: galleryStore.getPhotosForGallery(),
-                          showAppBar: true,
-                          onJumpToMessage: _handleJumpToMessage,
-                          onJumpToGallery: (currentIndex) {
-                            final currentPhoto =
-                                galleryStore.getPhotoAt(currentIndex);
-                            PhotoGalleryState.navigateToGalleryAndScroll(
-                              context,
-                              widget.collectionName,
-                              currentPhoto,
-                              widget.messages,
-                              widget.itemScrollController,
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    color: isDarkMode
-                        ? Color(0xFF1E1E24)
-                        : Theme.of(context).cardColor,
-                    child: PhotoThumbnail(
-                      imageUrl: imageUrl,
-                      collectionName: widget.collectionName,
-                    ),
+              itemCount: items.length,
+              itemBuilder: (context, i) => Column(
+                children: [
+                  Expanded(
+                    child: VideoTile(
+                        uri: items[i]['uri'] as String,
+                        width: double.infinity,
+                        height: double.infinity),
                   ),
-                );
-              },
-            );
-          },
-        ),
-      ),
+                  _caption(context, items[i]),
+                ],
+              ),
+            ),
+          );
+        }
+        return Scrollbar(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(
+                horizontal: Space.l, vertical: Space.m),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: Space.s),
+            itemBuilder: (context, i) => Row(
+              children: [
+                AudioMessagePlayer(
+                    key: ValueKey(items[i]['uri']),
+                    uri: items[i]['uri'] as String),
+                const SizedBox(width: Space.l),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: _caption(context, items[i]),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

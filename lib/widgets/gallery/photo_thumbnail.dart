@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../utils/web_image_viewer.dart';
-import '../../stores/store_provider.dart';
+import '../../utils/api_db/api_service.dart';
+import '../../components/ui_utils/media_unavailable.dart';
 
 class PhotoThumbnail extends StatelessWidget {
   final String imageUrl;
@@ -18,8 +19,6 @@ class PhotoThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileStore = StoreProvider.of(context).fileStore;
-
     return Hero(
       tag: 'photo_$imageUrl',
       child: kIsWeb
@@ -31,8 +30,10 @@ class PhotoThumbnail extends StatelessWidget {
             )
           : CachedNetworkImage(
               imageUrl: imageUrl,
-              httpHeaders: {'x-api-key': fileStore.apiKey},
+              httpHeaders: ApiService.headersFor(imageUrl),
               fit: BoxFit.cover,
+              // Decode at tile size instead of full resolution.
+              memCacheWidth: 600,
               placeholder: (context, url) => Container(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Center(
@@ -45,15 +46,7 @@ class PhotoThumbnail extends StatelessWidget {
                   ),
                 ),
               ),
-              errorWidget: (context, url, error) => Container(
-                color: Theme.of(context).colorScheme.errorContainer,
-                child: Center(
-                  child: Icon(
-                    Icons.error_outline,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-              ),
+              errorWidget: (context, url, error) => const MediaUnavailable(),
             ),
     );
   }

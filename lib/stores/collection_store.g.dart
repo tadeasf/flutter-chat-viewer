@@ -9,21 +9,6 @@ part of 'collection_store.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$CollectionStore on CollectionStoreBase, Store {
-  Computed<bool>? _$hasActiveFilterComputed;
-
-  @override
-  bool get hasActiveFilter =>
-      (_$hasActiveFilterComputed ??= Computed<bool>(() => super.hasActiveFilter,
-              name: 'CollectionStoreBase.hasActiveFilter'))
-          .value;
-  Computed<bool>? _$needsCollectionRefreshComputed;
-
-  @override
-  bool get needsCollectionRefresh => (_$needsCollectionRefreshComputed ??=
-          Computed<bool>(() => super.needsCollectionRefresh,
-              name: 'CollectionStoreBase.needsCollectionRefresh'))
-      .value;
-
   late final _$collectionsAtom =
       Atom(name: 'CollectionStoreBase.collections', context: context);
 
@@ -72,6 +57,22 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
     });
   }
 
+  late final _$errorAtom =
+      Atom(name: 'CollectionStoreBase.error', context: context);
+
+  @override
+  String? get error {
+    _$errorAtom.reportRead();
+    return super.error;
+  }
+
+  @override
+  set error(String? value) {
+    _$errorAtom.reportWrite(value, super.error, () {
+      super.error = value;
+    });
+  }
+
   late final _$isMessageLoadingAtom =
       Atom(name: 'CollectionStoreBase.isMessageLoading', context: context);
 
@@ -104,19 +105,19 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
     });
   }
 
-  late final _$lastCollectionFetchAtom =
-      Atom(name: 'CollectionStoreBase.lastCollectionFetch', context: context);
+  late final _$sortAtom =
+      Atom(name: 'CollectionStoreBase.sort', context: context);
 
   @override
-  DateTime get lastCollectionFetch {
-    _$lastCollectionFetchAtom.reportRead();
-    return super.lastCollectionFetch;
+  CollectionSort get sort {
+    _$sortAtom.reportRead();
+    return super.sort;
   }
 
   @override
-  set lastCollectionFetch(DateTime value) {
-    _$lastCollectionFetchAtom.reportWrite(value, super.lastCollectionFetch, () {
-      super.lastCollectionFetch = value;
+  set sort(CollectionSort value) {
+    _$sortAtom.reportWrite(value, super.sort, () {
+      super.sort = value;
     });
   }
 
@@ -126,15 +127,6 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
   @override
   Future<void> loadCollections() {
     return _$loadCollectionsAsyncAction.run(() => super.loadCollections());
-  }
-
-  late final _$loadMoreCollectionsAsyncAction =
-      AsyncAction('CollectionStoreBase.loadMoreCollections', context: context);
-
-  @override
-  Future<void> loadMoreCollections() {
-    return _$loadMoreCollectionsAsyncAction
-        .run(() => super.loadMoreCollections());
   }
 
   late final _$refreshCollectionsAsyncAction =
@@ -193,16 +185,37 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
   }
 
   @override
+  void setSort(CollectionSort value) {
+    final _$actionInfo = _$CollectionStoreBaseActionController.startAction(
+        name: 'CollectionStoreBase.setSort');
+    try {
+      return super.setSort(value);
+    } finally {
+      _$CollectionStoreBaseActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void _setCollections(List<Map<String, dynamic>> list) {
+    final _$actionInfo = _$CollectionStoreBaseActionController.startAction(
+        name: 'CollectionStoreBase._setCollections');
+    try {
+      return super._setCollections(list);
+    } finally {
+      _$CollectionStoreBaseActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   String toString() {
     return '''
 collections: ${collections},
 filteredCollections: ${filteredCollections},
 isLoading: ${isLoading},
+error: ${error},
 isMessageLoading: ${isMessageLoading},
 filterQuery: ${filterQuery},
-lastCollectionFetch: ${lastCollectionFetch},
-hasActiveFilter: ${hasActiveFilter},
-needsCollectionRefresh: ${needsCollectionRefresh}
+sort: ${sort}
     ''';
   }
 }

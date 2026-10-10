@@ -3,25 +3,24 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:logging/logging.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// Add this import
-import 'components/messages/message_selector.dart';
+import 'screens/home_screen.dart';
 import 'stores/store_provider.dart';
-import 'stores/theme_store.dart';
+import 'utils/api_db/api_service.dart';
+import 'theme.dart';
 // Use JsBridge for JS interactions
 import 'utils/js_bridge.dart';
 // Import web initialization
 import 'utils/web_init.dart' if (dart.library.io) 'utils/web_init_stub.dart';
-// Import the geometric background
-import 'components/ui_utils/geometric_background.dart';
 
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
 
   // Initialize logging
   Logger.root.level = Level.INFO;
@@ -65,15 +64,6 @@ void main() async {
     const platform = MethodChannel('app.meta_elysia/js_interop');
     platform.setMethodCallHandler((call) async {
       switch (call.method) {
-        case 'getApiKey':
-          try {
-            // Access the API key from window.FLUTTER_ENV
-            final apiKey = JsBridge.getWindowProperty('FLUTTER_ENV.X_API_KEY');
-            return apiKey?.toString() ?? '';
-          } catch (e) {
-            Logger('JSInterop').warning('Error accessing API key: $e');
-            return '';
-          }
         case 'openInNewTab':
           try {
             final url = call.arguments['url'] as String;
@@ -92,25 +82,9 @@ void main() async {
     });
   }
 
-  // Load environment variables
-  if (kIsWeb) {
-    // For web, we'll set a dummy value initially
-    // The API key will be injected by the Dockerfile into window.FLUTTER_ENV
-    // and ApiService will read it directly from the HTML when needed
-
-    dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
-    if (kDebugMode) {
-      print(
-          "Web environment: API key will be read from window.FLUTTER_ENV at runtime");
-    }
-  } else {
-    // Load from .env file for native platforms
-    await dotenv.load(fileName: ".env");
-    if (kDebugMode) {
-      print("Native environment: Loaded API key from .env file");
-      // Log the API key to verify it loaded correctly
-      print("API Key from .env: ${dotenv.env['X_API_KEY'] ?? 'Not found'}");
-    }
+  if (ApiService.apiKey.isEmpty) {
+    Logger('main').severe(
+        'API_KEY is not set. Build with --dart-define-from-file=.env.json');
   }
 
   runApp(
@@ -119,11 +93,8 @@ void main() async {
       collectionStore: Stores.collectionStore,
       messageStore: Stores.messageStore,
       themeStore: Stores.themeStore,
-      fileStore: Stores.fileStore,
-      photoStore: Stores.photoStore,
       galleryStore: Stores.galleryStore,
-      messageIndexStore: Stores.messageIndexStore,
-      navigationStore: Stores.navigationStore,
+      userDataStore: Stores.userDataStore,
       child: const MyApp(),
     ),
   );
@@ -137,62 +108,28 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final _light = buildTheme(Brightness.light);
+  final _dark = buildTheme(Brightness.dark);
+
   @override
   void initState() {
     super.initState();
     if (!kIsWeb && Platform.isAndroid) {
-      _requestPermissions();
-    }
-  }
-
-  Future<void> _requestPermissions() async {
-    if (await Permission.storage.request().isGranted) {
-      // Permission granted
-    } else {
-      // Handle the case when permission is not granted
+      Permission.storage.request();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final themeStore = StoreProvider.of(context).themeStore;
-
     return Observer(
       builder: (_) => MaterialApp(
         title: 'Meta Elysia',
-        theme: AppColors.getLightTheme(themeStore.fontSize),
-        darkTheme: AppColors.getDarkTheme(themeStore.fontSize),
+        debugShowCheckedModeBanner: false,
+        theme: _light,
+        darkTheme: _dark,
         themeMode: themeStore.themeMode,
-        home: GeometricBackground(
-          backgroundColor: AppColors.background,
-          patternColor: AppColors.surface1,
-          patternOpacity: 0.15,
-          patternDensity: 12,
-          child: FocusScope(
-            autofocus: true,
-            child: MessageSelectorShortcuts(
-              onSearchTriggered: () {
-                // Global handler
-              },
-              onPreviousResult: () {
-                // Global handler
-              },
-              onNextResult: () {
-                // Global handler
-              },
-              onGalleryOpen: () {
-                // Global handler
-              },
-              onCollectionSelectorToggle: () {
-                // Global handler
-              },
-              child: MessageSelector(
-                setThemeMode: (ThemeMode mode) => themeStore.setThemeMode(mode),
-                themeMode: themeStore.themeMode,
-              ),
-            ),
-          ),
-        ),
+        home: const HomeScreen(),
       ),
     );
   }

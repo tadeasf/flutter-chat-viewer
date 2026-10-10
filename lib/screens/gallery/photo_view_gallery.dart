@@ -1,31 +1,34 @@
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:flutter/services.dart';
-import '../../utils/js_util.dart';
-import '../../utils/web_image_viewer.dart';
-import '../../stores/store_provider.dart';
-import '../../stores/file_store.dart';
 
+import '../../components/ui_utils/media_unavailable.dart';
+import '../../theme.dart';
+import '../../utils/api_db/api_service.dart';
+import '../../utils/download.dart';
+import '../../utils/js_util.dart';
+import '../../utils/text_match.dart';
+
+/// Full-window photo viewer. Dark in both themes.
+/// Keys: left/right to move, Esc to close.
 class PhotoViewGalleryScreen extends StatefulWidget {
+  /// Photo objects with `uri` and, when known, `message_timestamp`.
   final List<Map<String, dynamic>> photos;
   final int initialIndex;
-  final Function(Map<String, dynamic>)? onLongPress;
-  final String collectionName;
-  final bool showAppBar;
-  final Function(int)? onJumpToGallery;
-  final Function(Map<String, dynamic>)? onJumpToMessage;
+  final String title;
+
+  /// Closes the viewer and shows the photo's message in the chat.
+  final void Function(Map<String, dynamic> photo)? onShowInChat;
 
   const PhotoViewGalleryScreen({
     super.key,
     required this.photos,
     required this.initialIndex,
-    this.onLongPress,
-    required this.collectionName,
-    this.showAppBar = true,
-    this.onJumpToGallery,
-    this.onJumpToMessage,
+    required this.title,
+    this.onShowInChat,
   });
 
   @override
@@ -33,248 +36,198 @@ class PhotoViewGalleryScreen extends StatefulWidget {
 }
 
 class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
-  late PageController _pageController;
-  late int _currentIndex;
-  late FocusNode _focusNode;
+  late final PageController _pages =
+      PageController(initialPage: widget.initialIndex);
+  final _strip = ScrollController();
+  late int _index = widget.initialIndex;
+
+  static const _thumb = 56.0;
+  static const _fg = Color(0xFFE8EDED);
+  static const _bg = Color(0xFF0B0D0E);
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
-    _focusNode = FocusNode();
-
-    // Update the galleryStore with current index
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final galleryStore = StoreProvider.of(context).galleryStore;
-        galleryStore.setCurrentPhotoIndex(_currentIndex);
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _centerStrip());
   }
 
   @override
   void dispose() {
-    _focusNode.dispose();
-    _pageController.dispose();
+    _pages.dispose();
+    _strip.dispose();
     super.dispose();
   }
 
-  void _handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.escape) {
-        Navigator.of(context).pop();
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-          _currentIndex > 0) {
-        _pageController.previousPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-          _currentIndex < widget.photos.length - 1) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
+  String _url(int i) => ApiService.mediaUrl(widget.photos[i]['uri'] as String);
+
+  void _go(int delta) {
+    final target = (_index + delta).clamp(0, widget.photos.length - 1);
+    if (target != _index) {
+      _pages.animateToPage(target,
+          duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
     }
+  }
+
+  void _centerStrip() {
+    if (!_strip.hasClients) return;
+    final target = _index * (_thumb + 6) -
+        (_strip.position.viewportDimension - _thumb) / 2;
+    _strip.animateTo(target.clamp(0, _strip.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
   }
 
   @override
   Widget build(BuildContext context) {
-    final galleryStore = StoreProvider.of(context).galleryStore;
-    final fileStore = StoreProvider.of(context).fileStore;
+    final photo = widget.photos[_index];
+    final ts = photo['message_timestamp'] as int?;
+    final label = [
+      if (widget.title.isNotEmpty) widget.title,
+      if (ts != null) formatDateTime(ts),
+      '${_index + 1} / ${widget.photos.length}',
+    ].join(' · ');
 
-    return KeyboardListener(
-      focusNode: _focusNode,
-      onKeyEvent: _handleKeyEvent,
-      autofocus: true,
-      child: GestureDetector(
-        onLongPress: widget.onLongPress != null
-            ? () => widget.onLongPress!(widget.photos[_currentIndex])
-            : null,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(context).maybePop(),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _go(-1),
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _go(1),
+      },
+      child: Focus(
+        autofocus: true,
         child: Scaffold(
-          backgroundColor: Colors.black.withValues(alpha: 127),
-          appBar: widget.showAppBar
-              ? AppBar(
-                  backgroundColor: Colors.black.withValues(alpha: 127),
-                  title: Text('${_currentIndex + 1} / ${widget.photos.length}'),
-                  actions: [
-                    if (widget.onJumpToMessage != null)
-                      IconButton(
-                        icon: const Icon(Icons.message),
-                        onPressed: () => widget.onJumpToMessage
-                            ?.call(widget.photos[_currentIndex]),
-                        tooltip: 'Jump to Message',
+          backgroundColor: _bg,
+          appBar: AppBar(
+            backgroundColor: _bg,
+            foregroundColor: _fg,
+            title: Text(label,
+                style: const TextStyle(fontSize: 14, color: _fg),
+                overflow: TextOverflow.ellipsis),
+            actions: [
+              if (widget.onShowInChat != null)
+                TextButton.icon(
+                  style: TextButton.styleFrom(foregroundColor: _fg),
+                  onPressed: () => widget.onShowInChat!(photo),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('Show in chat'),
+                ),
+              IconButton(
+                tooltip: kIsWeb ? 'Open in new tab' : 'Save to Downloads',
+                color: _fg,
+                onPressed: () => kIsWeb
+                    ? openInNewTab(_url(_index))
+                    : saveMedia(context, _url(_index)),
+                icon: const Icon(Icons.download_rounded),
+              ),
+              const SizedBox(width: Space.s),
+            ],
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    PhotoViewGallery.builder(
+                      pageController: _pages,
+                      itemCount: widget.photos.length,
+                      backgroundDecoration: const BoxDecoration(color: _bg),
+                      onPageChanged: (i) {
+                        setState(() => _index = i);
+                        _centerStrip();
+                      },
+                      loadingBuilder: (_, __) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                      builder: (context, i) => PhotoViewGalleryPageOptions(
+                        imageProvider: CachedNetworkImageProvider(_url(i),
+                            headers: ApiService.headersFor(_url(i))),
+                        initialScale: PhotoViewComputedScale.contained,
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: PhotoViewComputedScale.covered * 3,
+                        errorBuilder: (_, __, ___) => const Center(
+                            child: MediaUnavailable(width: 240, height: 160)),
                       ),
-                    if (widget.onJumpToGallery != null)
-                      IconButton(
-                        icon: const Icon(Icons.photo_library),
-                        onPressed: () =>
-                            widget.onJumpToGallery?.call(_currentIndex),
-                        tooltip: 'View in Gallery',
+                    ),
+                    if (_index > 0)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _NavButton(
+                            icon: Icons.chevron_left, onTap: () => _go(-1)),
+                      ),
+                    if (_index < widget.photos.length - 1)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: _NavButton(
+                            icon: Icons.chevron_right, onTap: () => _go(1)),
                       ),
                   ],
-                )
-              : null,
-          body: kIsWeb
-              ? _buildWebGallery()
-              : PhotoViewGallery.builder(
-                  scrollPhysics: const BouncingScrollPhysics(),
-                  builder: (BuildContext context, int index) {
-                    final photo = widget.photos[index];
-                    final imageUrl =
-                        galleryStore.getPhotoUrl(photo, widget.collectionName);
-
-                    return PhotoViewGalleryPageOptions(
-                      imageProvider: NetworkImage(
-                        imageUrl,
-                        headers: {'x-api-key': fileStore.apiKey},
-                      ),
-                      initialScale: PhotoViewComputedScale.contained,
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 2,
-                      heroAttributes:
-                          PhotoViewHeroAttributes(tag: 'photo_${photo['uri']}'),
-                    );
-                  },
-                  itemCount: widget.photos.length,
-                  loadingBuilder: (context, event) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  pageController: _pageController,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                    galleryStore.setCurrentPhotoIndex(index);
-                  },
                 ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _downloadCurrentImage(),
-            backgroundColor: Colors.black.withAlpha(178),
-            child: const Icon(Icons.download, color: Colors.white),
+              ),
+              if (widget.photos.length > 1)
+                SizedBox(
+                  height: _thumb + 24,
+                  child: ListView.separated(
+                    controller: _strip,
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Space.l, vertical: Space.m),
+                    itemCount: widget.photos.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (context, i) => GestureDetector(
+                      onTap: () => _pages.jumpToPage(i),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: i == _index ? 1 : 0.5,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(Radii.s),
+                            border: i == _index
+                                ? Border.all(
+                                    color: const Color(0xFF85D2DB), width: 2)
+                                : null,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(Radii.s - 1),
+                            child: CachedNetworkImage(
+                              imageUrl: _url(i),
+                              httpHeaders: ApiService.headersFor(_url(i)),
+                              width: _thumb,
+                              height: _thumb,
+                              memCacheWidth: (_thumb * 2).round(),
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) =>
+                                  const MediaUnavailable(
+                                      width: _thumb, height: _thumb),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildWebGallery() {
-    final galleryStore = StoreProvider.of(context).galleryStore;
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
 
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _pageController,
-          itemCount: widget.photos.length,
-          onPageChanged: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-            galleryStore.setCurrentPhotoIndex(index);
-          },
-          itemBuilder: (context, index) {
-            final photo = widget.photos[index];
-            final imageUrl =
-                galleryStore.getPhotoUrl(photo, widget.collectionName);
+  const _NavButton({required this.icon, required this.onTap});
 
-            return Center(
-              child: Hero(
-                tag: 'photo_${photo['uri']}',
-                child: WebImageViewer(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.contain,
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height,
-                ),
-              ),
-            );
-          },
-        ),
-        if (!widget.showAppBar) // Only show this if AppBar is hidden
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: FloatingActionButton(
-              onPressed: () => _downloadCurrentImage(),
-              backgroundColor: Colors.black.withAlpha(178),
-              child: const Icon(Icons.download, color: Colors.white),
-            ),
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(Space.m),
+        child: IconButton.filledTonal(
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0x33FFFFFF),
+            foregroundColor: Colors.white,
           ),
-      ],
-    );
-  }
-
-  Future<void> _downloadCurrentImage() async {
-    if (!mounted) return;
-
-    final galleryStore = StoreProvider.of(context).galleryStore;
-    final fileStore = StoreProvider.of(context).fileStore;
-    final photo = widget.photos[_currentIndex];
-    final imageUrl = galleryStore.getPhotoUrl(photo, widget.collectionName);
-    final filename = galleryStore.getFilename(photo);
-
-    // Show a confirmation dialog
-    final shouldDownload = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Download Image'),
-          content: const Text('Do you want to download this image?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-            ),
-            TextButton(
-              child: const Text('Download'),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldDownload == true && mounted) {
-      if (kIsWeb) {
-        _downloadForWeb(filename);
-      } else {
-        await fileStore.downloadFile(context, imageUrl, MediaType.image);
-      }
-    }
-  }
-
-  void _downloadForWeb(String filename) {
-    try {
-      if (kIsWeb) {
-        // Debug logging
-        if (kDebugMode) {
-          print('PhotoViewGallery._downloadForWeb');
-          print('Collection name: ${widget.collectionName}');
-          print('Filename: $filename');
-        }
-
-        final galleryStore = StoreProvider.of(context).galleryStore;
-        final webDownloadUrl =
-            galleryStore.getWebDownloadUrl(widget.collectionName, filename);
-
-        // Log the generated URL
-        if (kDebugMode) {
-          print('Generated URL: $webDownloadUrl');
-        }
-
-        // Open in new tab using the utility function
-        openInNewTab(webDownloadUrl);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image opened in new tab')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to open image: $e')),
+          onPressed: onTap,
+          icon: Icon(icon, size: 28),
+        ),
       );
-    }
-  }
 }

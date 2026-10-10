@@ -10,15 +10,11 @@ WORKDIR /app
 # Copy the Flutter project
 COPY . .
 
-# Remove .env from pubspec.yaml to prevent it from being bundled as an asset
-RUN sed -i '/- .env/d' pubspec.yaml
-
-# Set the API key as an environment variable
+# API key is compiled in with --dart-define
 ARG X_API_KEY
-ENV X_API_KEY=$X_API_KEY
 # Get dependencies and build
 RUN flutter pub get
-RUN flutter build web --release
+RUN flutter build web --release --dart-define=API_KEY=$X_API_KEY
 
 # Expose port for the web server
 EXPOSE 8664
