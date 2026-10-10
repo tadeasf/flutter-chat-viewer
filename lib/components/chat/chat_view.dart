@@ -17,6 +17,7 @@ import 'details_dialog.dart';
 import 'jump_to_date_dialog.dart';
 import 'message_bubble.dart';
 import 'message_list.dart';
+import 'export_dialog.dart';
 import 'stats_dialog.dart';
 import 'timeline_rail.dart';
 
@@ -136,6 +137,12 @@ class ChatViewState extends State<ChatView> {
     );
     if (timestamp != null) await store.jumpTo(timestamp);
   }
+
+  void openExport() => showDialog(
+        context: context,
+        builder: (_) => ExportDialog(
+            store: _store, collection: widget.collection, title: _title()),
+      );
 
   Future<void> openBookmarks() async {
     final store = _store;
@@ -298,6 +305,11 @@ class ChatViewState extends State<ChatView> {
               tooltip: 'Bookmarks (Ctrl+B)',
               onPressed: openBookmarks,
               icon: const Icon(Icons.bookmarks_outlined),
+            ),
+            IconButton(
+              tooltip: 'Export (Ctrl+E)',
+              onPressed: openExport,
+              icon: const Icon(Icons.file_download_outlined),
             ),
             IconButton(
               tooltip: 'Details and profile photo',

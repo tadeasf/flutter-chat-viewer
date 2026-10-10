@@ -116,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
         LogicalKeyboardKey.keyP => () => _chat?.openPhotos(),
         LogicalKeyboardKey.keyB => () => _chat?.openBookmarks(),
         LogicalKeyboardKey.keyI => () => _chat?.openStats(),
+        LogicalKeyboardKey.keyE => () => _chat?.openExport(),
         _ => null,
       };
     } else if (keys.isAltPressed && !keys.isControlPressed) {
