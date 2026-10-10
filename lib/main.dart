@@ -94,6 +94,7 @@ void main() async {
       messageStore: Stores.messageStore,
       themeStore: Stores.themeStore,
       galleryStore: Stores.galleryStore,
+      userDataStore: Stores.userDataStore,
       child: const MyApp(),
     ),
   );

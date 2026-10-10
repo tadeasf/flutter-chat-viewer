@@ -32,6 +32,7 @@ class ConversationList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final store = StoreProvider.of(context).collectionStore;
+    final userData = StoreProvider.of(context).userDataStore;
 
     return ColoredBox(
       color: theme.colorScheme.surfaceContainerLow,
@@ -122,20 +123,43 @@ class ConversationList extends StatelessWidget {
                         ? 'No conversations'
                         : 'No conversation matches “${store.filterQuery}”');
               }
+              // Pinned conversations first, in the chosen order.
+              final pinned = userData.pinned;
+              final rows = <Object>[
+                if (items.any((c) => pinned.contains(c['name']))) 'Pinned',
+                ...items.where((c) => pinned.contains(c['name'])),
+                if (pinned.isNotEmpty &&
+                    items.any((c) => !pinned.contains(c['name'])))
+                  'All conversations',
+                ...items.where((c) => !pinned.contains(c['name'])),
+              ];
               return Scrollbar(
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(6, 4, 6, Space.m),
-                  itemCount: items.length,
-                  itemExtent: 60,
+                  itemCount: rows.length,
                   itemBuilder: (context, i) {
-                    final c = items[i];
+                    final row = rows[i];
+                    if (row is String) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            Space.s, Space.m, Space.s, Space.xs),
+                        child:
+                            Text(row.toUpperCase(), style: monoStyle(context)),
+                      );
+                    }
+                    final c = row as Map<String, dynamic>;
                     final name = c['name'] as String;
-                    return _Row(
-                      name: name,
-                      count: (c['messageCount'] ?? 0) as int,
-                      hits: (c['hits'] ?? 0) as int,
-                      selected: name == selected,
-                      onTap: () => onSelect(name),
+                    return SizedBox(
+                      height: 60,
+                      child: _Row(
+                        name: name,
+                        count: (c['messageCount'] ?? 0) as int,
+                        hits: (c['hits'] ?? 0) as int,
+                        selected: name == selected,
+                        pinned: pinned.contains(name),
+                        onTap: () => onSelect(name),
+                        onTogglePin: () => userData.togglePin(name),
+                      ),
                     );
                   },
                 ),
@@ -153,14 +177,18 @@ class _Row extends StatelessWidget {
   final int count;
   final int hits;
   final bool selected;
+  final bool pinned;
   final VoidCallback onTap;
+  final VoidCallback onTogglePin;
 
   const _Row({
     required this.name,
     required this.count,
     required this.hits,
     required this.selected,
+    required this.pinned,
     required this.onTap,
+    required this.onTogglePin,
   });
 
   Future<void> _menu(BuildContext context, Offset position) async {
@@ -169,16 +197,20 @@ class _Row extends StatelessWidget {
       context: context,
       position: RelativeRect.fromRect(
           position & const Size(1, 1), Offset.zero & overlay.size),
-      items: const [
-        PopupMenuItem(value: 'open', child: Text('Open')),
-        PopupMenuItem(value: 'photos', child: Text('Open photos')),
-        PopupMenuItem(value: 'copy', child: Text('Copy name')),
+      items: [
+        const PopupMenuItem(value: 'open', child: Text('Open')),
+        PopupMenuItem(
+            value: 'pin', child: Text(pinned ? 'Unpin' : 'Pin to top')),
+        const PopupMenuItem(value: 'photos', child: Text('Open photos')),
+        const PopupMenuItem(value: 'copy', child: Text('Copy name')),
       ],
     );
     if (!context.mounted) return;
     switch (choice) {
       case 'open':
         onTap();
+      case 'pin':
+        onTogglePin();
       case 'photos':
         PhotoGallery.open(context, name);
       case 'copy':
@@ -230,6 +262,10 @@ class _Row extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: Space.s),
+                if (pinned) ...[
+                  Icon(Icons.push_pin, size: 14, color: sub),
+                  const SizedBox(width: Space.xs),
+                ],
                 Text(formatCount(count),
                     style: monoStyle(context, size: 12, color: sub)),
               ],

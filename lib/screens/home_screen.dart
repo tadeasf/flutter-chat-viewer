@@ -48,7 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _avatarUrl = null;
       });
       _loadAvatar(name);
-      await messages.open(name);
+      // Reopen where reading stopped, unless a specific message is wanted.
+      await messages.open(name,
+          at: timestamp == null ? stores.userDataStore.positions[name] : null);
       // The opened conversation's hit count changed.
       stores.collectionStore.refreshCollectionsIfNeeded();
     }
@@ -112,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
         LogicalKeyboardKey.keyF => () => _chat?.openFind(),
         LogicalKeyboardKey.keyG => () => _chat?.openJumpToDate(),
         LogicalKeyboardKey.keyP => () => _chat?.openPhotos(),
+        LogicalKeyboardKey.keyB => () => _chat?.openBookmarks(),
         _ => null,
       };
     } else if (keys.isAltPressed && !keys.isControlPressed) {

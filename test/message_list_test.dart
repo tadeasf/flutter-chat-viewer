@@ -15,10 +15,11 @@ Widget app(MessageStore store) => StoreProvider(
       messageStore: store,
       themeStore: Stores.themeStore,
       galleryStore: Stores.galleryStore,
+      userDataStore: Stores.userDataStore,
       child: MaterialApp(
         theme: buildTheme(Brightness.light),
         home: Scaffold(
-          body: MessageList(store: store),
+          body: MessageList(store: store, userData: Stores.userDataStore),
         ),
       ),
     );
@@ -83,5 +84,24 @@ void main() {
 
     expect(find.text('300'), findsOneWidget);
     expect(store.highlightId, 'm300');
+  });
+
+  testWidgets('reopening at a saved position shows that message near the top',
+      (tester) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final conv = FakeConversation.generate(1000);
+    final store = MessageStore(source: conv.source, pageSize: 100);
+    await store.open('c');
+    await tester.pumpWidget(app(store));
+    await tester.pumpAndSettle();
+    // Scroll first: a stale saved offset must not be restored.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 1500));
+    await tester.pumpAndSettle();
+    await store.open('c', at: conv.all[500]['timestamp_ms'] as int);
+    await tester.pumpAndSettle();
+    final y = tester.getTopLeft(find.text('500')).dy;
+    expect(y, inInclusiveRange(0, 800 * 0.4));
   });
 }

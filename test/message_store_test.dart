@@ -189,6 +189,24 @@ void main() {
     expect(s.hasOlder || s.hasNewer, isFalse);
   });
 
+  test('open at a remembered position starts there, without highlight',
+      () async {
+    await store.open('c', at: conv.all[640]['timestamp_ms'] as int);
+    expect(store.messages[store.anchor]['_id'], 'm640');
+    expect(store.highlightId, isNull);
+    expect(store.total, 1234);
+    expect(conv.calls.where((c) => c['countHit'] == true), hasLength(1));
+  });
+
+  test('jumpToOffset puts that message at the anchor', () async {
+    await store.open('c');
+    await store.jumpToOffset(900);
+    expect(store.messages[store.anchor]['_id'], 'm900');
+    await store.jumpToOffset(0);
+    expect(store.start, 0);
+    expect(store.messages[store.anchor]['_id'], 'm0');
+  });
+
   test('a failed load is reported, not thrown', () async {
     final failing = MessageStore(
       source: MessageSource(

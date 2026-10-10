@@ -28,6 +28,8 @@ class MessageBubble extends StatelessWidget {
   final bool highlighted;
   final String? query;
   final String? avatarUrl;
+  final bool bookmarked;
+  final VoidCallback? onToggleBookmark;
 
   const MessageBubble({
     super.key,
@@ -36,6 +38,8 @@ class MessageBubble extends StatelessWidget {
     this.highlighted = false,
     this.query,
     this.avatarUrl,
+    this.bookmarked = false,
+    this.onToggleBookmark,
   });
 
   bool get mine => message['sender_name'] == ownerName;
@@ -81,6 +85,10 @@ class MessageBubble extends StatelessWidget {
         if (text != null && text.isNotEmpty)
           const PopupMenuItem(value: 'copy', child: Text('Copy text')),
         const PopupMenuItem(value: 'date', child: Text('Copy date and time')),
+        if (onToggleBookmark != null)
+          PopupMenuItem(
+              value: 'bookmark',
+              child: Text(bookmarked ? 'Remove bookmark' : 'Bookmark')),
         if (photo != null) ...[
           const PopupMenuItem(value: 'open', child: Text('Open photo')),
           const PopupMenuItem(value: 'save', child: Text('Save to Downloads')),
@@ -93,6 +101,8 @@ class MessageBubble extends StatelessWidget {
         Clipboard.setData(ClipboardData(text: text!));
       case 'date':
         Clipboard.setData(ClipboardData(text: formatDateTime(timestamp)));
+      case 'bookmark':
+        onToggleBookmark!();
       case 'open':
         _openPhotos(context, _media('photos').indexOf(photo!));
       case 'save':
@@ -167,10 +177,20 @@ class MessageBubble extends StatelessWidget {
             padding: EdgeInsets.only(top: i == 0 ? 0 : 2),
             child: part,
           ),
-        if (position.last)
+        if (position.last || bookmarked)
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
-            child: Text(formatTime(timestamp), style: monoStyle(context)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (bookmarked) ...[
+                  Icon(Icons.bookmark,
+                      size: 12, color: theme.colorScheme.primary),
+                  const SizedBox(width: 2),
+                ],
+                Text(formatTime(timestamp), style: monoStyle(context)),
+              ],
+            ),
           ),
       ],
     );

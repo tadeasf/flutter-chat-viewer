@@ -31,6 +31,100 @@ class _SearchPaletteState extends State<SearchPalette> {
   bool _searchedFast = false;
   Duration? _took;
 
+  /// All hits of the last search; the filters below narrow them locally.
+  List<Map<String, dynamic>> _all = [];
+  int? _fromYear;
+  int? _toYear;
+  String? _chat;
+
+  static int _year(Map<String, dynamic> h) =>
+      DateTime.fromMillisecondsSinceEpoch(h['timestamp_ms'] as int? ?? 0).year;
+
+  /// Applies the filters and groups the hits by conversation.
+  void _regroup() {
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final h in _all) {
+      final name = h['collectionName'] as String? ?? '?';
+      final year = _year(h);
+      if (_chat != null && name != _chat) continue;
+      if (_fromYear != null && year < _fromYear!) continue;
+      if (_toYear != null && year > _toYear!) continue;
+      groups.putIfAbsent(name, () => []).add(h);
+    }
+    final rows = <Object>[];
+    final hitRows = <int>[];
+    for (final MapEntry(key: name, value: list) in groups.entries) {
+      if (!_searchedFast) {
+        list.sort((a, b) => (b['timestamp_ms'] as int? ?? 0)
+            .compareTo(a['timestamp_ms'] as int? ?? 0));
+      }
+      rows.add('$name · ${list.length}');
+      for (final h in list) {
+        hitRows.add(rows.length);
+        rows.add(h);
+      }
+    }
+    _rows = rows;
+    _hitRows = hitRows;
+    _selected = 0;
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
+  Widget _filters(BuildContext context) {
+    final years = {for (final h in _all) _year(h)}.toList()..sort();
+    final chats = {for (final h in _all) h['collectionName'] as String? ?? '?'}
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    DropdownMenuItem<T?> item<T>(T? value, String label) =>
+        DropdownMenuItem<T?>(value: value, child: Text(label));
+    final style = Theme.of(context).textTheme.bodySmall;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Space.l, 0, Space.l, Space.s),
+      child: Wrap(
+        spacing: Space.m,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('From', style: style),
+          DropdownButton<int?>(
+            value: _fromYear,
+            isDense: true,
+            items: [
+              item(null, 'any year'),
+              for (final y in years) item(y, '$y')
+            ],
+            onChanged: (v) => setState(() {
+              _fromYear = v;
+              _regroup();
+            }),
+          ),
+          Text('to', style: style),
+          DropdownButton<int?>(
+            value: _toYear,
+            isDense: true,
+            items: [
+              item(null, 'any year'),
+              for (final y in years) item(y, '$y')
+            ],
+            onChanged: (v) => setState(() {
+              _toYear = v;
+              _regroup();
+            }),
+          ),
+          Text('in', style: style),
+          DropdownButton<String?>(
+            value: _chat,
+            isDense: true,
+            items: [item(null, 'all chats'), for (final c in chats) item(c, c)],
+            onChanged: (v) => setState(() {
+              _chat = v;
+              _regroup();
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Display rows: a conversation header (String) or a hit (Map).
   List<Object> _rows = [];
   List<int> _hitRows = [];
@@ -56,33 +150,15 @@ class _SearchPaletteState extends State<SearchPalette> {
     try {
       final hits = await ApiService.search(q, fast: _fast);
       if (!mounted || _searched != q) return;
-      final groups = <String, List<Map<String, dynamic>>>{};
-      for (final h in hits) {
-        groups
-            .putIfAbsent(h['collectionName'] as String? ?? '?', () => [])
-            .add(h);
-      }
-      final rows = <Object>[];
-      final hitRows = <int>[];
-      for (final MapEntry(key: name, value: list) in groups.entries) {
-        if (!_fast) {
-          list.sort((a, b) => (b['timestamp_ms'] as int? ?? 0)
-              .compareTo(a['timestamp_ms'] as int? ?? 0));
-        }
-        rows.add('$name · ${list.length}');
-        for (final h in list) {
-          hitRows.add(rows.length);
-          rows.add(h);
-        }
-      }
       setState(() {
-        _rows = rows;
-        _hitRows = hitRows;
-        _selected = 0;
+        _all = hits;
+        _fromYear = null;
+        _toYear = null;
+        _chat = null;
         _loading = false;
         _took = watch.elapsed;
+        _regroup();
       });
-      if (_scroll.hasClients) _scroll.jumpTo(0);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -212,6 +288,7 @@ class _SearchPaletteState extends State<SearchPalette> {
                   ],
                 ),
               ),
+              if (_all.length > 1 && !_loading) _filters(context),
               if (_loading) const LinearProgressIndicator(minHeight: 2),
               const Divider(),
               Flexible(

@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 
 import '../../stores/message_store.dart';
+import '../../stores/user_data_store.dart';
 import '../../theme.dart';
 import '../../utils/text_match.dart';
 import 'message_bubble.dart';
@@ -16,16 +17,23 @@ import 'message_bubble.dart';
 /// screen. Scrolling near either end loads the next page.
 class MessageList extends StatefulWidget {
   final MessageStore store;
+  final UserDataStore userData;
   final String? avatarUrl;
 
   /// Text to mark in the bubbles (the find-in-chat query).
   final String? query;
 
+  /// Reading position: the timestamp of the message at the top while away
+  /// from the newest messages, null when back at them.
+  final ValueChanged<int?>? onPosition;
+
   const MessageList({
     super.key,
     required this.store,
+    required this.userData,
     this.avatarUrl,
     this.query,
+    this.onPosition,
   });
 
   @override
@@ -37,9 +45,12 @@ class MessageListState extends State<MessageList> {
   static const _loadAhead = 1500.0;
   static const _groupGap = Duration(minutes: 5);
 
-  final _controller = ScrollController();
+  // The window is replaced on every jump; restoring a saved offset (all
+  // lists without a PageStorageKey share one) would hide the anchor.
+  final _controller = ScrollController(keepScrollOffset: false);
   final _viewportKey = GlobalKey();
   bool _awayFromEnd = false;
+  int _generation = -1;
   int? _floatingDay;
   Timer? _hideDay;
 
@@ -80,15 +91,22 @@ class MessageListState extends State<MessageList> {
     final away = m.maxScrollExtent - m.pixels > 400;
     if (away != _awayFromEnd) setState(() => _awayFromEnd = away);
 
-    if (n is ScrollUpdateNotification) _showDayAtTop();
+    if (n is ScrollUpdateNotification) {
+      final top = _showDayAtTop();
+      if (!away && !widget.store.hasNewer) {
+        widget.onPosition?.call(null);
+      } else if (top != null) {
+        widget.onPosition?.call(top);
+      }
+    }
     return false;
   }
 
   /// Finds the message at the top of the viewport (each item carries its
   /// timestamp in a MetaData) and shows its day in a floating chip.
-  void _showDayAtTop() {
+  int? _showDayAtTop() {
     final box = _viewportKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
+    if (box == null) return null;
     final result = BoxHitTestResult();
     box.hitTest(result, position: Offset(box.size.width / 2, 12));
     int? ts;
@@ -99,7 +117,7 @@ class MessageListState extends State<MessageList> {
         break;
       }
     }
-    if (ts == null) return;
+    if (ts == null) return null;
     if (_floatingDay == null || !sameDay(_floatingDay!, ts)) {
       setState(() => _floatingDay = ts);
     }
@@ -107,6 +125,7 @@ class MessageListState extends State<MessageList> {
     _hideDay = Timer(const Duration(milliseconds: 1200), () {
       if (mounted) setState(() => _floatingDay = null);
     });
+    return ts;
   }
 
   int _ts(Map<String, dynamic> m) => m['timestamp_ms'] as int? ?? 0;
@@ -127,6 +146,16 @@ class MessageListState extends State<MessageList> {
       final highlightId = store.highlightId;
       final hasOlder = store.hasOlder;
       final hasNewer = store.hasNewer;
+      if (store.generation != _generation) {
+        // A new window starts at its anchor; nothing is scrolled yet.
+        _generation = store.generation;
+        _awayFromEnd = false;
+      }
+      final collection = store.collection ?? '';
+      final bookmarkIds = {
+        for (final b in widget.userData.bookmarks[collection] ?? const [])
+          b['_id']
+      };
 
       Widget item(int i) {
         final message = messages[i];
@@ -152,6 +181,9 @@ class MessageListState extends State<MessageList> {
                     highlightId != null && message['_id'] == highlightId,
                 query: widget.query,
                 avatarUrl: widget.avatarUrl,
+                bookmarked: bookmarkIds.contains(message['_id']),
+                onToggleBookmark: () =>
+                    widget.userData.toggleBookmark(collection, message),
               ),
             ],
           ),
@@ -163,9 +195,12 @@ class MessageListState extends State<MessageList> {
           NotificationListener<ScrollNotification>(
             onNotification: _onScroll,
             child: Scrollbar(
+              key: _viewportKey,
               controller: _controller,
+              // A new scroll view per window, so it starts at the anchor
+              // instead of keeping the previous window's offset.
               child: CustomScrollView(
-                key: _viewportKey,
+                key: ValueKey(store.generation),
                 controller: _controller,
                 center: _centerKey,
                 anchor: store.anchoredAtBottom ? 1.0 : 0.2,

@@ -188,8 +188,16 @@ mixin _$MessageStore on MessageStoreBase, Store {
       AsyncAction('MessageStoreBase.open', context: context);
 
   @override
-  Future<void> open(String name) {
-    return _$openAsyncAction.run(() => super.open(name));
+  Future<void> open(String name, {int? at}) {
+    return _$openAsyncAction.run(() => super.open(name, at: at));
+  }
+
+  late final _$jumpToOffsetAsyncAction =
+      AsyncAction('MessageStoreBase.jumpToOffset', context: context);
+
+  @override
+  Future<void> jumpToOffset(int offset) {
+    return _$jumpToOffsetAsyncAction.run(() => super.jumpToOffset(offset));
   }
 
   late final _$jumpToLatestAsyncAction =

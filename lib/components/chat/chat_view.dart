@@ -11,6 +11,7 @@ import '../../theme.dart';
 import '../../utils/api_db/api_service.dart';
 import '../../utils/text_match.dart';
 import '../avatar.dart';
+import 'bookmarks_dialog.dart';
 import 'details_dialog.dart';
 import 'jump_to_date_dialog.dart';
 import 'message_bubble.dart';
@@ -102,6 +103,18 @@ class ChatViewState extends State<ChatView> {
       builder: (_) => JumpToDateDialog(store: store),
     );
     if (timestamp != null) await store.jumpTo(timestamp);
+  }
+
+  Future<void> openBookmarks() async {
+    final store = _store;
+    final bookmark = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => BookmarksDialog(collection: widget.collection),
+    );
+    if (bookmark != null) {
+      await store.jumpTo(bookmark['timestamp_ms'] as int,
+          id: bookmark['_id'] as String?);
+    }
   }
 
   Future<void> openDetails() async {
@@ -245,6 +258,11 @@ class ChatViewState extends State<ChatView> {
               icon: const Icon(Icons.photo_library_outlined),
             ),
             IconButton(
+              tooltip: 'Bookmarks (Ctrl+B)',
+              onPressed: openBookmarks,
+              icon: const Icon(Icons.bookmarks_outlined),
+            ),
+            IconButton(
               tooltip: 'Details and profile photo',
               onPressed: openDetails,
               icon: const Icon(Icons.info_outline),
@@ -355,8 +373,12 @@ class ChatViewState extends State<ChatView> {
           MessageList(
             key: _listKey,
             store: store,
+            userData: StoreProvider.of(context).userDataStore,
             avatarUrl: widget.avatarUrl,
             query: _findOpen ? _query : null,
+            onPosition: (ts) => StoreProvider.of(context)
+                .userDataStore
+                .setPosition(widget.collection, ts),
           ),
           if (store.isLoading)
             const Positioned(

@@ -4,6 +4,7 @@ import 'collection_store.dart';
 import 'message_store.dart';
 import 'theme_store.dart';
 import 'gallery_store.dart';
+import 'user_data_store.dart';
 
 /// A provider for MobX stores throughout the application
 class StoreProvider extends InheritedWidget {
@@ -12,6 +13,7 @@ class StoreProvider extends InheritedWidget {
   final MessageStore messageStore;
   final ThemeStore themeStore;
   final GalleryStore galleryStore;
+  final UserDataStore userDataStore;
 
   const StoreProvider({
     super.key,
@@ -20,6 +22,7 @@ class StoreProvider extends InheritedWidget {
     required this.messageStore,
     required this.themeStore,
     required this.galleryStore,
+    required this.userDataStore,
     required super.child,
   });
 
@@ -36,7 +39,8 @@ class StoreProvider extends InheritedWidget {
         collectionStore != oldWidget.collectionStore ||
         messageStore != oldWidget.messageStore ||
         themeStore != oldWidget.themeStore ||
-        galleryStore != oldWidget.galleryStore;
+        galleryStore != oldWidget.galleryStore ||
+        userDataStore != oldWidget.userDataStore;
   }
 }
 
@@ -46,6 +50,7 @@ class Stores {
   static final messageStore = MessageStore();
   static final themeStore = ThemeStore();
   static final galleryStore = GalleryStore();
+  static final userDataStore = UserDataStore();
 
   static final profilePhotoStore = ProfilePhotoStore();
 }

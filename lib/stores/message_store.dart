@@ -102,17 +102,39 @@ abstract class MessageStoreBase with Store {
 
   /// Opens a conversation at its newest messages.
   @action
-  Future<void> open(String name) async {
+
+  /// Opens a conversation at its newest messages, or around [at] (a
+  /// remembered reading position) without highlighting anything.
+  Future<void> open(String name, {int? at}) async {
     collection = name;
     stats = null;
     _statsFuture = null;
     loadStats().ignore();
+    if (at != null) {
+      total = await source.count(name);
+      if (name != collection) return;
+      await _replaceWindow(
+          () => _windowAt(name, at, highlight: false, countHit: true));
+      return;
+    }
     await _replaceWindow(() async {
       total = await source.count(name);
       final first = max(0, total - pageSize);
       final page = await source.page(name,
           offset: first, limit: pageSize, countHit: true);
       return (first, page, page.length, null);
+    });
+  }
+
+  /// Shows the message at absolute [offset] near the top of the screen.
+  @action
+  Future<void> jumpToOffset(int offset) async {
+    final name = collection;
+    if (name == null) return;
+    await _replaceWindow(() async {
+      final first = max(0, min(offset, total - 1) - pageSize ~/ 4);
+      final page = await source.page(name, offset: first, limit: pageSize);
+      return (first, page, min(offset - first, page.length), null);
     });
   }
 
@@ -162,20 +184,32 @@ abstract class MessageStoreBase with Store {
   Future<void> jumpTo(int timestamp, {String? id}) async {
     final name = collection;
     if (name == null) return;
-    await _replaceWindow(() async {
-      final offset = await offsetOf(timestamp);
-      final first = max(0, offset - pageSize ~/ 4);
-      final page = await source.page(name, offset: first, limit: pageSize);
-      var target = id == null ? -1 : page.indexWhere((m) => m['_id'] == id);
-      if (target < 0) {
-        target = page
-            .indexWhere((m) => (m['timestamp_ms'] as int? ?? 0) >= timestamp);
-      }
-      if (target < 0) target = page.length;
-      final highlight =
-          target < page.length ? page[target]['_id'] as String? : null;
-      return (first, page, target, highlight);
-    });
+    await _replaceWindow(() => _windowAt(name, timestamp, id: id));
+  }
+
+  /// A page around the message at [timestamp] (and [id], if known), with
+  /// the anchor on it.
+  Future<(int, List<Map<String, dynamic>>, int, String?)> _windowAt(
+    String name,
+    int timestamp, {
+    String? id,
+    bool highlight = true,
+    bool countHit = false,
+  }) async {
+    final offset = await offsetOf(timestamp);
+    final first = max(0, offset - pageSize ~/ 4);
+    final page = await source.page(name,
+        offset: first, limit: pageSize, countHit: countHit);
+    var target = id == null ? -1 : page.indexWhere((m) => m['_id'] == id);
+    if (target < 0) {
+      target =
+          page.indexWhere((m) => (m['timestamp_ms'] as int? ?? 0) >= timestamp);
+    }
+    if (target < 0) target = page.length;
+    final highlighted = highlight && target < page.length
+        ? page[target]['_id'] as String?
+        : null;
+    return (first, page, target, highlighted);
   }
 
   /// Number of messages older than [timestamp].
