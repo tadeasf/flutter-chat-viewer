@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../stores/store_provider.dart';
+import '../screens/gallery/photo_gallery.dart';
 import './profile_photo/profile_photo.dart';
 
 class AppDrawer extends StatefulWidget {
@@ -8,6 +9,9 @@ class AppDrawer extends StatefulWidget {
   final bool isProfilePhotoVisible;
   final VoidCallback onDrawerClosed;
   final VoidCallback onFontSizeChanged;
+
+  /// Called after the profile photo was uploaded or deleted.
+  final VoidCallback onProfilePhotoChanged;
   final String? profilePhotoUrl;
 
   const AppDrawer({
@@ -17,6 +21,7 @@ class AppDrawer extends StatefulWidget {
     this.isProfilePhotoVisible = true,
     required this.onDrawerClosed,
     required this.onFontSizeChanged,
+    required this.onProfilePhotoChanged,
     this.profilePhotoUrl,
   });
 
@@ -50,13 +55,10 @@ class _AppDrawerState extends State<AppDrawer> {
         final success =
             await galleryStore.uploadPhoto(context, currentCollection);
 
-        if (!mounted) return;
-
-        if (success) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('Photo uploaded successfully')),
-          );
-        }
+        if (!mounted || !success) return;
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Photo uploaded')),
+        );
       } else {
         // Show confirmation dialog before deleting
         final bool? confirmed = await showDialog<bool>(
@@ -102,16 +104,8 @@ class _AppDrawerState extends State<AppDrawer> {
         }
       }
 
-      // Clear cache and refresh after upload/delete
-      if (!mounted) return;
-
-      profileStore.clearCache(currentCollection);
-      await profileStore.getProfilePhotoUrl(currentCollection);
-
-      if (!mounted) return;
-      setState(() {
-        // Update the state to reflect changes
-      });
+      profileStore.photoChanged(currentCollection);
+      widget.onProfilePhotoChanged();
     } catch (e) {
       if (!mounted) return;
 
@@ -128,7 +122,6 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final themeStore = StoreProvider.of(context).themeStore;
-    final photoStore = StoreProvider.of(context).photoStore;
 
     // Darker color for the drawer background
     final darkGreyColor = Color(0xFF121214);
@@ -219,8 +212,7 @@ class _AppDrawerState extends State<AppDrawer> {
                         onTap: () {
                           Navigator.pop(context);
                           if (selectedCollection != null) {
-                            photoStore.showAllPhotos(
-                                context, selectedCollection);
+                            PhotoGallery.open(context, selectedCollection!);
                           }
                         },
                       ),

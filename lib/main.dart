@@ -96,7 +96,6 @@ void main() async {
       collectionStore: Stores.collectionStore,
       messageStore: Stores.messageStore,
       themeStore: Stores.themeStore,
-      photoStore: Stores.photoStore,
       galleryStore: Stores.galleryStore,
       child: const MyApp(),
     ),

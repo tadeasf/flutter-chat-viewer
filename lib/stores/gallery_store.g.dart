@@ -16,13 +16,6 @@ mixin _$GalleryStore on GalleryStoreBase, Store {
       (_$hasTargetPhotoComputed ??= Computed<bool>(() => super.hasTargetPhoto,
               name: 'GalleryStoreBase.hasTargetPhoto'))
           .value;
-  Computed<Map<String, dynamic>?>? _$currentPhotoComputed;
-
-  @override
-  Map<String, dynamic>? get currentPhoto => (_$currentPhotoComputed ??=
-          Computed<Map<String, dynamic>?>(() => super.currentPhoto,
-              name: 'GalleryStoreBase.currentPhoto'))
-      .value;
 
   late final _$photosAtom =
       Atom(name: 'GalleryStoreBase.photos', context: context);
@@ -56,19 +49,19 @@ mixin _$GalleryStore on GalleryStoreBase, Store {
     });
   }
 
-  late final _$currentCollectionAtom =
-      Atom(name: 'GalleryStoreBase.currentCollection', context: context);
+  late final _$errorAtom =
+      Atom(name: 'GalleryStoreBase.error', context: context);
 
   @override
-  String? get currentCollection {
-    _$currentCollectionAtom.reportRead();
-    return super.currentCollection;
+  String? get error {
+    _$errorAtom.reportRead();
+    return super.error;
   }
 
   @override
-  set currentCollection(String? value) {
-    _$currentCollectionAtom.reportWrite(value, super.currentCollection, () {
-      super.currentCollection = value;
+  set error(String? value) {
+    _$errorAtom.reportWrite(value, super.error, () {
+      super.error = value;
     });
   }
 
@@ -126,30 +119,9 @@ mixin _$GalleryStore on GalleryStoreBase, Store {
 
   @override
   Future<void> setupGalleryForCollection(
-      String collectionName, Map<String, dynamic>? targetPhoto,
-      {String? sender}) {
-    return _$setupGalleryForCollectionAsyncAction.run(() => super
-        .setupGalleryForCollection(collectionName, targetPhoto,
-            sender: sender));
-  }
-
-  late final _$loadPhotosAsyncAction =
-      AsyncAction('GalleryStoreBase.loadPhotos', context: context);
-
-  @override
-  Future<void> loadPhotos(String collectionName,
-      {bool clearExisting = true, String? sender}) {
-    return _$loadPhotosAsyncAction.run(() => super.loadPhotos(collectionName,
-        clearExisting: clearExisting, sender: sender));
-  }
-
-  late final _$loadMorePhotosAsyncAction =
-      AsyncAction('GalleryStoreBase.loadMorePhotos', context: context);
-
-  @override
-  Future<void> loadMorePhotos({String? sender}) {
-    return _$loadMorePhotosAsyncAction
-        .run(() => super.loadMorePhotos(sender: sender));
+      String collectionName, Map<String, dynamic>? target) {
+    return _$setupGalleryForCollectionAsyncAction
+        .run(() => super.setupGalleryForCollection(collectionName, target));
   }
 
   late final _$uploadPhotoAsyncAction =
@@ -196,38 +168,15 @@ mixin _$GalleryStore on GalleryStoreBase, Store {
   }
 
   @override
-  void nextPhoto() {
-    final _$actionInfo = _$GalleryStoreBaseActionController.startAction(
-        name: 'GalleryStoreBase.nextPhoto');
-    try {
-      return super.nextPhoto();
-    } finally {
-      _$GalleryStoreBaseActionController.endAction(_$actionInfo);
-    }
-  }
-
-  @override
-  void previousPhoto() {
-    final _$actionInfo = _$GalleryStoreBaseActionController.startAction(
-        name: 'GalleryStoreBase.previousPhoto');
-    try {
-      return super.previousPhoto();
-    } finally {
-      _$GalleryStoreBaseActionController.endAction(_$actionInfo);
-    }
-  }
-
-  @override
   String toString() {
     return '''
 photos: ${photos},
 isLoading: ${isLoading},
-currentCollection: ${currentCollection},
+error: ${error},
 currentPhotoIndex: ${currentPhotoIndex},
 targetPhoto: ${targetPhoto},
 targetPhotoIndex: ${targetPhotoIndex},
-hasTargetPhoto: ${hasTargetPhoto},
-currentPhoto: ${currentPhoto}
+hasTargetPhoto: ${hasTargetPhoto}
     ''';
   }
 }

@@ -10,6 +10,13 @@ import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:mobx/mobx.dart';
 
 class PhotoGallery extends StatefulWidget {
+  static void open(BuildContext context, String collectionName) =>
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => PhotoGallery(collectionName: collectionName)),
+      );
+
   final String collectionName;
   final Map<String, dynamic>? targetPhoto;
 
@@ -31,7 +38,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_scrollListener);
 
     // Load photos through store when component is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -62,7 +68,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
 
     // Dispose of all reactions
@@ -71,15 +76,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
     }
 
     super.dispose();
-  }
-
-  void _scrollListener() {
-    if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent) {
-      // Load more photos through the store
-      final galleryStore = StoreProvider.of(context).galleryStore;
-      galleryStore.loadMorePhotos();
-    }
   }
 
   Future<void> _scrollToTargetPhoto() async {

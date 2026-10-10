@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
+import '../ui_utils/media_unavailable.dart';
 import '../../screens/gallery/photo_view_gallery.dart';
 import 'audio_message_player.dart';
 import '../../screens/media/video_player_screen.dart';
@@ -145,16 +146,8 @@ class MessageItemState extends State<MessageItem> {
                       ),
                     ),
                   ),
-                  errorWidget: (context, url, error) => SizedBox(
-                    width: displayWidth,
-                    height: displayWidth,
-                    child: Center(
-                      child: Icon(
-                        Icons.error,
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
-                  ),
+                  errorWidget: (context, url, error) => const MediaUnavailable(
+                      width: displayWidth, height: displayWidth / 2),
                 ),
               ),
             );

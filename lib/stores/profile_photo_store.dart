@@ -1,68 +1,38 @@
 import 'package:mobx/mobx.dart';
+
 import '../utils/api_db/api_service.dart';
-// Include the generated file
+
 part 'profile_photo_store.g.dart';
 
-// This is the class used by rest of the codebase
 class ProfilePhotoStore = ProfilePhotoStoreBase with _$ProfilePhotoStore;
 
-// The store class
+/// Profile photo URLs per conversation (null when there is no photo).
 abstract class ProfilePhotoStoreBase with Store {
-  // Observable map to store URLs by collection name
   @observable
   ObservableMap<String, String?> profilePhotoUrls =
       ObservableMap<String, String?>();
 
-  // Observable for loading states
-  @observable
-  ObservableMap<String, bool> loadingStates = ObservableMap<String, bool>();
+  /// Bumped when a photo is uploaded or deleted. It is part of the URL, so
+  /// image caches never show the previous photo.
+  final Map<String, int> _versions = {};
 
-  // Observable for error states
-  @observable
-  ObservableMap<String, bool> errorStates = ObservableMap<String, bool>();
-
-  // Action to fetch profile photo
   @action
   Future<String?> getProfilePhotoUrl(String collectionName) async {
-    // Check if we have the URL cached
     if (profilePhotoUrls.containsKey(collectionName)) {
       return profilePhotoUrls[collectionName];
     }
-
-    loadingStates[collectionName] = true;
     final exists = await ApiService.profilePhotoExists(collectionName);
-    loadingStates[collectionName] = false;
-    errorStates[collectionName] = !exists;
-    if (!exists) return null;
-
-    final url = ApiService.profilePhotoUrl(collectionName);
+    final version = _versions[collectionName] ?? 0;
+    final base = ApiService.profilePhotoUrl(collectionName);
+    final url = exists ? (version == 0 ? base : '$base?v=$version') : null;
     profilePhotoUrls[collectionName] = url;
     return url;
   }
 
-  // Action to clear cache for a specific collection
+  /// Call after an upload or delete; the next lookup asks the server again.
   @action
-  void clearCache(String collectionName) {
+  void photoChanged(String collectionName) {
+    _versions[collectionName] = (_versions[collectionName] ?? 0) + 1;
     profilePhotoUrls.remove(collectionName);
-    loadingStates.remove(collectionName);
-    errorStates.remove(collectionName);
-  }
-
-  // Action to clear all cache
-  @action
-  void clearAllCache() {
-    profilePhotoUrls.clear();
-    loadingStates.clear();
-    errorStates.clear();
-  }
-
-  // Helper to get loading state
-  bool isLoading(String collectionName) {
-    return loadingStates[collectionName] ?? false;
-  }
-
-  // Helper to get error state
-  bool hasError(String collectionName) {
-    return errorStates[collectionName] ?? false;
   }
 }

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'message_list.dart';
 import 'message_item.dart';
+import '../../screens/gallery/photo_gallery.dart';
 import '../../utils/api_db/api_service.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
@@ -180,8 +181,6 @@ class MessageSelectorState extends State<MessageSelector> {
 
   Future<void> _changeCollection(String? newValue) async {
     final messageStore = StoreProvider.of(context).messageStore;
-    final photoStore = StoreProvider.of(context).photoStore;
-    final profilePhotoStore = StoreProvider.of(context).profilePhotoStore;
 
     setState(() {
       selectedCollection = newValue;
@@ -196,17 +195,21 @@ class MessageSelectorState extends State<MessageSelector> {
     if (newValue == null) return;
 
     setLoading(true);
-    final photoAvailable = photoStore.checkPhotoAvailability(newValue);
-    final photoUrl = profilePhotoStore.getProfilePhotoUrl(newValue);
-    await messageStore.open(newValue);
-    final available = await photoAvailable;
-    final url = await photoUrl;
-    if (!mounted) return;
-    setState(() {
-      isPhotoAvailable = available;
-      profilePhotoUrl = url;
-    });
+    await Future.wait([messageStore.open(newValue), _reloadProfilePhoto()]);
     setLoading(false);
+  }
+
+  Future<void> _reloadProfilePhoto() async {
+    final collection = selectedCollection;
+    if (collection == null) return;
+    final url = await StoreProvider.of(context)
+        .profilePhotoStore
+        .getProfilePhotoUrl(collection);
+    if (!mounted || collection != selectedCollection) return;
+    setState(() {
+      profilePhotoUrl = url;
+      isPhotoAvailable = url != null;
+    });
   }
 
   void _setVisibilityState(VisibilityState newState) {
@@ -326,9 +329,7 @@ class MessageSelectorState extends State<MessageSelector> {
       },
       onGalleryOpen: () {
         if (selectedCollection != null) {
-          StoreProvider.of(context)
-              .photoStore
-              .showAllPhotos(context, selectedCollection);
+          PhotoGallery.open(context, selectedCollection!);
         }
       },
       onCollectionSelectorToggle: toggleCollectionSelector,
@@ -340,6 +341,7 @@ class MessageSelectorState extends State<MessageSelector> {
             isProfilePhotoVisible: _isProfilePhotoVisible,
             profilePhotoUrl: profilePhotoUrl,
             onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
+            onProfilePhotoChanged: _reloadProfilePhoto,
             onFontSizeChanged: () {
               setState(() {
                 // This will trigger a rebuild with the new font size
@@ -442,11 +444,11 @@ class MessageSelectorState extends State<MessageSelector> {
                               onCollectionChanged: _changeCollection,
                             ),
                           ),
-                        if (isPhotoAvailable && selectedCollection != null)
+                        if (profilePhotoUrl != null)
                           Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Image.network(
-                              ApiService.profilePhotoUrl(selectedCollection!),
+                              profilePhotoUrl!,
                               headers: ApiService.headers,
                               height: 100,
                               errorBuilder: (context, error, stackTrace) {
