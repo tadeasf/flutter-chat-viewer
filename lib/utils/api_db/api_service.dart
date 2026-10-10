@@ -171,6 +171,13 @@ class ApiService {
   }
 
   /// Photo messages not sent by the owner, each with a `photos` list.
+  /// Messages carrying [type] media (`photos`, `videos` or `audio_files`),
+  /// newest first, with only `_id`, `sender_name`, `timestamp_ms` and [type].
+  static Future<List<Map<String, dynamic>>> fetchMedia(
+          String collectionName, String type) async =>
+      _list(await _send('GET', '/media/${_c(collectionName)}',
+          query: {'type': type}));
+
   static Future<List<Map<String, dynamic>>> fetchPhotos(
           String collectionName) async =>
       _list(await _send('GET', '/photos/${_c(collectionName)}'));

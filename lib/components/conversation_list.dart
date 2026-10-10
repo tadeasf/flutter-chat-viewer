@@ -12,7 +12,7 @@ import 'avatar.dart';
 /// Sidebar: filter, sort and the list of conversations.
 class ConversationList extends StatelessWidget {
   final String? selected;
-  final ValueChanged<String> onSelect;
+  final void Function(String name, {int? timestamp, String? id}) onSelect;
   final VoidCallback onSearchAll;
   final VoidCallback onSettings;
   final FocusNode filterFocus;
@@ -159,6 +159,8 @@ class ConversationList extends StatelessWidget {
                         pinned: pinned.contains(name),
                         onTap: () => onSelect(name),
                         onTogglePin: () => userData.togglePin(name),
+                        onShowInChat: (ts, id) =>
+                            onSelect(name, timestamp: ts, id: id),
                       ),
                     );
                   },
@@ -180,6 +182,7 @@ class _Row extends StatelessWidget {
   final bool pinned;
   final VoidCallback onTap;
   final VoidCallback onTogglePin;
+  final void Function(int timestamp, String? id) onShowInChat;
 
   const _Row({
     required this.name,
@@ -189,6 +192,7 @@ class _Row extends StatelessWidget {
     required this.pinned,
     required this.onTap,
     required this.onTogglePin,
+    required this.onShowInChat,
   });
 
   Future<void> _menu(BuildContext context, Offset position) async {
@@ -201,7 +205,7 @@ class _Row extends StatelessWidget {
         const PopupMenuItem(value: 'open', child: Text('Open')),
         PopupMenuItem(
             value: 'pin', child: Text(pinned ? 'Unpin' : 'Pin to top')),
-        const PopupMenuItem(value: 'photos', child: Text('Open photos')),
+        const PopupMenuItem(value: 'photos', child: Text('Open media')),
         const PopupMenuItem(value: 'copy', child: Text('Copy name')),
       ],
     );
@@ -212,7 +216,7 @@ class _Row extends StatelessWidget {
       case 'pin':
         onTogglePin();
       case 'photos':
-        PhotoGallery.open(context, name);
+        PhotoGallery.open(context, name, onShowInChat: onShowInChat);
       case 'copy':
         Clipboard.setData(ClipboardData(text: name));
     }

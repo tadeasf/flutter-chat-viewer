@@ -117,8 +117,8 @@ class ChatViewState extends State<ChatView> {
   void showOldest() => _store.jumpToStart();
   void pageUp() => _listKey.currentState?.scrollByPage(-1);
   void pageDown() => _listKey.currentState?.scrollByPage(1);
-  void openPhotos() =>
-      PhotoGallery.open(context, widget.collection, title: _title());
+  void openPhotos() => PhotoGallery.open(context, widget.collection,
+      title: _title(), onShowInChat: (ts, id) => _store.jumpTo(ts, id: id));
 
   Future<void> openJumpToDate() async {
     final store = _store;
@@ -292,7 +292,7 @@ class ChatViewState extends State<ChatView> {
               icon: const Icon(Icons.calendar_month_outlined),
             ),
             IconButton(
-              tooltip: 'Photos (Ctrl+P)',
+              tooltip: 'Media (Ctrl+P)',
               onPressed: openPhotos,
               icon: const Icon(Icons.photo_library_outlined),
             ),

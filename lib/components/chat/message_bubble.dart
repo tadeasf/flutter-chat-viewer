@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../screens/gallery/photo_view_gallery.dart';
-import '../../screens/media/video_player_screen.dart';
 import '../../theme.dart';
 import '../../utils/api_db/api_service.dart';
 import '../../utils/download.dart';
 import '../../utils/text_match.dart';
 import 'audio_message_player.dart';
+import 'video_tile.dart';
 import '../avatar.dart';
 import '../ui_utils/media_unavailable.dart';
 
@@ -149,7 +149,7 @@ class MessageBubble extends StatelessWidget {
           ),
         ),
       if (photos.isNotEmpty) _photoGrid(context, photos),
-      for (final v in videos) _videoTile(context, v),
+      for (final v in videos) VideoTile(uri: v['uri'] as String),
       for (final a in audio)
         AudioMessagePlayer(key: ValueKey(a['uri']), uri: a['uri'] as String),
     ];
@@ -268,38 +268,6 @@ class MessageBubble extends StatelessWidget {
           spacing: 3,
           runSpacing: 3,
           children: [for (var i = 0; i < photos.length; i++) image(i)],
-        ),
-      ),
-    );
-  }
-
-  Widget _videoTile(BuildContext context, Map<String, dynamic> video) {
-    final url = ApiService.mediaUrl(video['uri'] as String);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => VideoPlayerScreen(videoUrl: url))),
-        child: Container(
-          width: 300,
-          height: 188,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Radii.bubble),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2D3A4A), Color(0xFF11161C)],
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: const BoxDecoration(
-                color: Color(0xE6FFFFFF), shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded,
-                size: 32, color: Color(0xFF11161C)),
-          ),
         ),
       ),
     );
