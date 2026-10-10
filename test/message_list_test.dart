@@ -44,7 +44,7 @@ void main() {
             countHit = false}) async {
           if (gate != null) {
             held++;
-            await gate!.future;
+            await gate.future;
           }
           return conv.page(c, offset: offset, limit: limit);
         },
@@ -64,7 +64,7 @@ void main() {
         tester.widget<Text>(find.textContaining(RegExp(r'^\d+$')).first).data!;
     final before = tester.getTopLeft(find.text(visible));
 
-    gate!.complete();
+    gate.complete();
     await tester.pumpAndSettle();
     expect(store.messages.length, greaterThan(100));
     expect(tester.getTopLeft(find.text(visible)), before);
