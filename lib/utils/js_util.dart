@@ -1,26 +1,10 @@
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:logging/logging.dart';
 import 'js_bridge.dart';
 
 // Use a different approach for JS interop that's more compatible
 
 final _logger = Logger('JSUtil');
-
-// Web-specific API key access
-/// Gets the API key from window.FLUTTER_ENV.X_API_KEY
-String? getApiKey() {
-  if (!kIsWeb) return null;
-
-  try {
-    final apiKey = JsBridge.getWindowProperty('FLUTTER_ENV.X_API_KEY');
-    return apiKey?.toString();
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error accessing window.FLUTTER_ENV: $e');
-    }
-    return null;
-  }
-}
 
 /// Download a file using browser functionality on web
 /// This function is safe to call from any platform, but only does something on web

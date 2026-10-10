@@ -34,7 +34,6 @@ dependencies:
   flutter_plugin_android_lifecycle: ^2.0.17
   path_provider: ^2.1.5
   sqflite: ^2.3.2
-  flutter_dotenv: ^5.0.2
   logging: ^1.1.0
   build_runner: ^2.4.15
   photo_view: ^0.15.0
@@ -78,8 +77,6 @@ flutter:
           weight: 700
           style: italic
 
-  assets:
-    - .env
 
 flutter_native_splash:
   color: "#42a5f5"

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -12,7 +11,6 @@ import '../../screens/media/video_player_screen.dart';
 import 'package:intl/intl.dart';
 import '../../stores/store_provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
-import '../../stores/file_store.dart';
 import '../../stores/theme_store.dart';
 
 class MessageItem extends StatefulWidget {
@@ -59,26 +57,6 @@ class MessageItemState extends State<MessageItem> {
     }
   }
 
-  String _generateFullUri(String uri) {
-    // If it's already a full URL, return it
-    if (uri.startsWith('http')) return uri;
-
-    // Get the collection name from message or selected collection
-    final collectionName = widget.isCrossCollectionSearch
-        ? widget.message['collectionName'] ?? widget.selectedCollectionName
-        : widget.selectedCollectionName;
-
-    // Get FileStore from provider
-    final fileStore = StoreProvider.of(context).fileStore;
-
-    // Use FileStore to format the photo URL
-    return fileStore.formatMediaUrl(
-      uri: uri,
-      type: MediaType.image,
-      collectionName: collectionName,
-    );
-  }
-
   void _handlePhotoTap(BuildContext context, int index, List<dynamic> photos) {
     // Cast to Map<String, dynamic> to avoid type issues
     final photosAsMaps = List<Map<String, dynamic>>.from(
@@ -100,19 +78,7 @@ class MessageItemState extends State<MessageItem> {
   }
 
   void _handleVideoTap(BuildContext context, String videoUri) {
-    final collectionName = widget.isCrossCollectionSearch
-        ? widget.message['collectionName'] ?? widget.selectedCollectionName
-        : widget.selectedCollectionName;
-
-    // Get FileStore from provider
-    final fileStore = StoreProvider.of(context).fileStore;
-
-    // Use FileStore and MediaType enum to format the video URL
-    final videoUrl = fileStore.formatMediaUrl(
-      uri: videoUri,
-      type: MediaType.video,
-      collectionName: collectionName,
-    );
+    final videoUrl = ApiService.mediaUrl(videoUri);
 
     Navigator.push(
       context,
@@ -123,21 +89,8 @@ class MessageItemState extends State<MessageItem> {
   }
 
   void _handleAudioTap(Map<String, dynamic> audio) {
-    final collectionName = widget.isCrossCollectionSearch
-        ? widget.message['collectionName'] ?? widget.selectedCollectionName
-        : widget.selectedCollectionName;
-
     final audioUri = audio['uri'] as String;
-
-    // Get FileStore from provider
-    final fileStore = StoreProvider.of(context).fileStore;
-
-    // Use FileStore to get audio URL
-    final audioUrl = fileStore.formatMediaUrl(
-      uri: audioUri,
-      type: MediaType.audio,
-      collectionName: collectionName,
-    );
+    final audioUrl = ApiService.mediaUrl(audioUri);
 
     // Check if this audio player exists
     if (!_audioPlayers.containsKey(audioUri)) {
@@ -151,7 +104,9 @@ class MessageItemState extends State<MessageItem> {
       player.pause();
     } else {
       // Load and play the audio
-      player.setUrl(audioUrl).then((_) {
+      player
+          .setUrl(audioUrl, headers: ApiService.headersFor(audioUrl))
+          .then((_) {
         player.play();
       });
     }
@@ -217,8 +172,9 @@ class MessageItemState extends State<MessageItem> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: CachedNetworkImage(
-                  imageUrl: _generateFullUri(photo['uri']),
-                  httpHeaders: ApiService.headers,
+                  imageUrl: ApiService.mediaUrl(photo['uri']),
+                  httpHeaders: ApiService.headersFor(
+                      ApiService.mediaUrl(photo['uri'])),
                   width: displayWidth,
                   fit: BoxFit.cover,
                   memCacheWidth: (displayWidth * 2).toInt(),
@@ -275,8 +231,9 @@ class MessageItemState extends State<MessageItem> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: CachedNetworkImage(
-                          imageUrl: _generateFullUri(video['thumbnail_url']),
-                          httpHeaders: ApiService.headers,
+                          imageUrl: ApiService.mediaUrl(video['thumbnail_url']),
+                          httpHeaders: ApiService.headersFor(
+                              ApiService.mediaUrl(video['thumbnail_url'])),
                           width: displayWidth,
                           height: 200,
                           fit: BoxFit.cover,
@@ -354,101 +311,10 @@ class MessageItemState extends State<MessageItem> {
     );
   }
 
-  Future<void> _handleLongPress(BuildContext context) async {
-    if (!mounted || !widget.isCrossCollectionSearch) return;
-
+  void _handleLongPress() {
     final collectionName = widget.message['collectionName'];
-    if (collectionName == null) return;
-
-    bool collectionReady = false;
-    int maxAttempts = 3;
-    int currentAttempt = 0;
-
-    final errorColor = Theme.of(context).colorScheme.error;
-    final onErrorColor = Theme.of(context).colorScheme.onError;
-
-    final navigatorState = Navigator.of(context);
-    final scaffoldMessengerState = ScaffoldMessenger.of(context);
-
-    if (!mounted) return;
-
-    final loadingDialog = AlertDialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      content: Center(
-        child: CircularProgressIndicator(
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) => loadingDialog,
-    ).then((_) {
-      // Dialog closed, nothing to do
-    });
-
-    try {
-      while (!collectionReady && currentAttempt < maxAttempts) {
-        try {
-          final messages = await ApiService.fetchMessages(collectionName);
-
-          if (!mounted) return;
-
-          final messageContent =
-              messages[0]['content']?.toString().toLowerCase() ?? '';
-          if (messages.length == 1 &&
-              messageContent.contains('please try loading collection again')) {
-            await Future.delayed(const Duration(seconds: 5));
-            currentAttempt++;
-            continue;
-          }
-
-          collectionReady = true;
-          break;
-        } catch (e) {
-          if (kDebugMode) {
-            print('Error switching to collection: $e');
-          }
-          currentAttempt++;
-        }
-      }
-
-      if (mounted) {
-        navigatorState.pop();
-
-        if (collectionReady) {
-          widget.onMessageTap(
-            collectionName,
-            widget.message['timestamp_ms'],
-          );
-        } else {
-          _showErrorSnackbar(scaffoldMessengerState, errorColor, onErrorColor,
-              'Collection is still being prepared. Please try again in a moment.');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        navigatorState.pop();
-        _showErrorSnackbar(scaffoldMessengerState, errorColor, onErrorColor,
-            'Error loading collection: $e');
-      }
-    }
-  }
-
-  void _showErrorSnackbar(ScaffoldMessengerState messenger, Color errorColor,
-      Color onErrorColor, String message) {
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: onErrorColor),
-        ),
-        backgroundColor: errorColor,
-      ),
-    );
+    if (!widget.isCrossCollectionSearch || collectionName == null) return;
+    widget.onMessageTap(collectionName, widget.message['timestamp_ms']);
   }
 
   @override
@@ -478,9 +344,7 @@ class MessageItemState extends State<MessageItem> {
     }
 
     return GestureDetector(
-      onLongPress: () {
-        _handleLongPress(context);
-      },
+      onLongPress: _handleLongPress,
       child: Align(
         alignment:
             widget.isAuthor ? Alignment.centerRight : Alignment.centerLeft,

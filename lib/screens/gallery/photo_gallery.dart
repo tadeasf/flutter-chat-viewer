@@ -303,7 +303,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
 
                 final photo = galleryStore.getPhotoAt(index);
                 final imageUrl =
-                    galleryStore.getPhotoUrl(photo, widget.collectionName);
+                    galleryStore.getPhotoUrl(photo);
 
                 return GestureDetector(
                   onTap: () {

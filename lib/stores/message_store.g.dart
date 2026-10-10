@@ -16,6 +16,13 @@ mixin _$MessageStore on MessageStoreBase, Store {
       (_$hasDateFilterComputed ??= Computed<bool>(() => super.hasDateFilter,
               name: 'MessageStoreBase.hasDateFilter'))
           .value;
+  Computed<Map<String, dynamic>>? _$cacheStatsComputed;
+
+  @override
+  Map<String, dynamic> get cacheStats => (_$cacheStatsComputed ??=
+          Computed<Map<String, dynamic>>(() => super.cacheStats,
+              name: 'MessageStoreBase.cacheStats'))
+      .value;
 
   late final _$messagesAtom =
       Atom(name: 'MessageStoreBase.messages', context: context);
@@ -145,101 +152,37 @@ mixin _$MessageStore on MessageStoreBase, Store {
     });
   }
 
-  late final _$searchResultsAtom =
-      Atom(name: 'MessageStoreBase.searchResults', context: context);
+  late final _$collectionCacheTimestampsAtom = Atom(
+      name: 'MessageStoreBase.collectionCacheTimestamps', context: context);
 
   @override
-  ObservableList<Map<String, dynamic>> get searchResults {
-    _$searchResultsAtom.reportRead();
-    return super.searchResults;
+  Map<String, DateTime> get collectionCacheTimestamps {
+    _$collectionCacheTimestampsAtom.reportRead();
+    return super.collectionCacheTimestamps;
   }
 
   @override
-  set searchResults(ObservableList<Map<String, dynamic>> value) {
-    _$searchResultsAtom.reportWrite(value, super.searchResults, () {
-      super.searchResults = value;
+  set collectionCacheTimestamps(Map<String, DateTime> value) {
+    _$collectionCacheTimestampsAtom
+        .reportWrite(value, super.collectionCacheTimestamps, () {
+      super.collectionCacheTimestamps = value;
     });
   }
 
-  late final _$isSearchActiveAtom =
-      Atom(name: 'MessageStoreBase.isSearchActive', context: context);
+  late final _$collectionCacheSizesAtom =
+      Atom(name: 'MessageStoreBase.collectionCacheSizes', context: context);
 
   @override
-  bool get isSearchActive {
-    _$isSearchActiveAtom.reportRead();
-    return super.isSearchActive;
+  Map<String, int> get collectionCacheSizes {
+    _$collectionCacheSizesAtom.reportRead();
+    return super.collectionCacheSizes;
   }
 
   @override
-  set isSearchActive(bool value) {
-    _$isSearchActiveAtom.reportWrite(value, super.isSearchActive, () {
-      super.isSearchActive = value;
-    });
-  }
-
-  late final _$searchQueryAtom =
-      Atom(name: 'MessageStoreBase.searchQuery', context: context);
-
-  @override
-  String? get searchQuery {
-    _$searchQueryAtom.reportRead();
-    return super.searchQuery;
-  }
-
-  @override
-  set searchQuery(String? value) {
-    _$searchQueryAtom.reportWrite(value, super.searchQuery, () {
-      super.searchQuery = value;
-    });
-  }
-
-  late final _$isCrossCollectionSearchingAtom = Atom(
-      name: 'MessageStoreBase.isCrossCollectionSearching', context: context);
-
-  @override
-  bool get isCrossCollectionSearching {
-    _$isCrossCollectionSearchingAtom.reportRead();
-    return super.isCrossCollectionSearching;
-  }
-
-  @override
-  set isCrossCollectionSearching(bool value) {
-    _$isCrossCollectionSearchingAtom
-        .reportWrite(value, super.isCrossCollectionSearching, () {
-      super.isCrossCollectionSearching = value;
-    });
-  }
-
-  late final _$crossCollectionResultsAtom =
-      Atom(name: 'MessageStoreBase.crossCollectionResults', context: context);
-
-  @override
-  ObservableList<Map<String, dynamic>> get crossCollectionResults {
-    _$crossCollectionResultsAtom.reportRead();
-    return super.crossCollectionResults;
-  }
-
-  @override
-  set crossCollectionResults(ObservableList<Map<String, dynamic>> value) {
-    _$crossCollectionResultsAtom
-        .reportWrite(value, super.crossCollectionResults, () {
-      super.crossCollectionResults = value;
-    });
-  }
-
-  late final _$searchIndexAtom =
-      Atom(name: 'MessageStoreBase.searchIndex', context: context);
-
-  @override
-  ObservableMap<String, Map<String, List<int>>> get searchIndex {
-    _$searchIndexAtom.reportRead();
-    return super.searchIndex;
-  }
-
-  @override
-  set searchIndex(ObservableMap<String, Map<String, List<int>>> value) {
-    _$searchIndexAtom.reportWrite(value, super.searchIndex, () {
-      super.searchIndex = value;
+  set collectionCacheSizes(Map<String, int> value) {
+    _$collectionCacheSizesAtom.reportWrite(value, super.collectionCacheSizes,
+        () {
+      super.collectionCacheSizes = value;
     });
   }
 
@@ -271,36 +214,20 @@ mixin _$MessageStore on MessageStoreBase, Store {
         .run(() => super.fetchMessagesForDateRange(collectionName, from, to));
   }
 
-  late final _$searchMessagesAsyncAction =
-      AsyncAction('MessageStoreBase.searchMessages', context: context);
+  late final _$clearCacheAsyncAction =
+      AsyncAction('MessageStoreBase.clearCache', context: context);
 
   @override
-  Future<void> searchMessages(String query, {bool isCrossCollection = false}) {
-    return _$searchMessagesAsyncAction.run(() =>
-        super.searchMessages(query, isCrossCollection: isCrossCollection));
+  Future<void> clearCache(String collectionName) {
+    return _$clearCacheAsyncAction.run(() => super.clearCache(collectionName));
   }
 
-  late final _$searchAcrossCollectionsAsyncAction =
-      AsyncAction('MessageStoreBase.searchAcrossCollections', context: context);
+  late final _$_clearAllCacheAsyncAction =
+      AsyncAction('MessageStoreBase._clearAllCache', context: context);
 
   @override
-  Future<void> searchAcrossCollections(String query) {
-    return _$searchAcrossCollectionsAsyncAction
-        .run(() => super.searchAcrossCollections(query));
-  }
-
-  late final _$MessageStoreBaseActionController =
-      ActionController(name: 'MessageStoreBase', context: context);
-
-  @override
-  void clearSearch() {
-    final _$actionInfo = _$MessageStoreBaseActionController.startAction(
-        name: 'MessageStoreBase.clearSearch');
-    try {
-      return super.clearSearch();
-    } finally {
-      _$MessageStoreBaseActionController.endAction(_$actionInfo);
-    }
+  Future<void> _clearAllCache() {
+    return _$_clearAllCacheAsyncAction.run(() => super._clearAllCache());
   }
 
   @override
@@ -314,13 +241,10 @@ isLoading: ${isLoading},
 errorMessage: ${errorMessage},
 fromDate: ${fromDate},
 toDate: ${toDate},
-searchResults: ${searchResults},
-isSearchActive: ${isSearchActive},
-searchQuery: ${searchQuery},
-isCrossCollectionSearching: ${isCrossCollectionSearching},
-crossCollectionResults: ${crossCollectionResults},
-searchIndex: ${searchIndex},
-hasDateFilter: ${hasDateFilter}
+collectionCacheTimestamps: ${collectionCacheTimestamps},
+collectionCacheSizes: ${collectionCacheSizes},
+hasDateFilter: ${hasDateFilter},
+cacheStats: ${cacheStats}
     ''';
   }
 }

@@ -63,13 +63,11 @@ jobs:
           channel: 'stable'
           cache: true
 
-        #6 Install Dependencies & Create .env in parallel
+        #6 Install Dependencies
       - name: Parallel Setup
         run: |
           # Run tasks in parallel
-          (flutter pub get) &
-          (echo "X_API_KEY=${{ secrets.X_API_KEY }}" >> .env) &
-          wait
+          flutter pub get
 
         #7 Setup Keystore (combined steps for fewer operations)
       - name: Setup Keystore
@@ -90,7 +88,8 @@ jobs:
             --no-tree-shake-icons \
             --target-platform android-arm64 \
             --split-debug-info=./debug-info \
-            --obfuscate
+            --obfuscate \
+            --dart-define=API_KEY=${{ secrets.X_API_KEY }}
 
         #9 Version and Release (combined steps)
       - name: Version and Release

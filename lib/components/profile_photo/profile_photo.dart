@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../stores/store_provider.dart';
 import '../../utils/api_db/api_service.dart';
 
 class ProfilePhoto extends StatefulWidget {
@@ -45,7 +44,7 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
                   child: CachedNetworkImage(
                     imageUrl: widget.profilePhotoUrl!,
                     fit: BoxFit.cover,
-                    httpHeaders: {'x-api-key': ApiService.apiKey},
+                    httpHeaders: ApiService.headers,
                     placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(),
                     ),
@@ -76,59 +75,6 @@ class _ProfilePhotoState extends State<ProfilePhoto> {
                   width: 2,
                 ),
               ),
-            ),
-          ),
-        if (widget.showButtons &&
-            widget.profilePhotoUrl != null &&
-            widget.profilePhotoUrl!.isNotEmpty)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () async {
-                final profilePhotoStore =
-                    StoreProvider.of(context).profilePhotoStore;
-                final String collectionToDelete = widget.collectionName;
-                final VoidCallback? deleteCallback = widget.onPhotoDeleted;
-
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (BuildContext dialogContext) {
-                    return AlertDialog(
-                      title: const Text('Delete Profile Photo?'),
-                      content: const Text(
-                          'Are you sure you want to delete this profile photo?'),
-                      actions: <Widget>[
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-
-                if (confirmed == true) {
-                  await profilePhotoStore
-                      .deleteProfilePhoto(collectionToDelete);
-
-                  if (!mounted) return;
-
-                  if (deleteCallback != null) {
-                    deleteCallback();
-                  }
-                }
-              },
             ),
           ),
       ],

@@ -1,10 +1,8 @@
 import 'package:mobx/mobx.dart';
 import 'package:logging/logging.dart';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/api_db/api_service.dart';
-import '../utils/api_db/url_formatter.dart';
 
 // Include the generated file
 part 'gallery_store.g.dart';
@@ -35,10 +33,6 @@ abstract class GalleryStoreBase with Store {
 
   @observable
   int? targetPhotoIndex;
-
-  @observable
-  ObservableMap<String, bool> photoAvailabilityMap =
-      ObservableMap<String, bool>();
 
   // Computed property to check if there is a target photo
   @computed
@@ -101,7 +95,7 @@ abstract class GalleryStoreBase with Store {
 
     try {
       final loadedPhotos =
-          await ApiService.fetchPhotos(collectionName, senderName: sender);
+          await ApiService.fetchPhotos(collectionName);
       photos.addAll(loadedPhotos);
       _logger.info('Loaded ${loadedPhotos.length} photos for $collectionName');
 
@@ -123,30 +117,6 @@ abstract class GalleryStoreBase with Store {
     if (isLoading || currentCollection == null) return;
 
     await loadPhotos(currentCollection!, clearExisting: false, sender: sender);
-  }
-
-  // Action to check photo availability for a collection
-  @action
-  Future<bool> checkPhotoAvailability(String collectionName) async {
-    if (photoAvailabilityMap.containsKey(collectionName)) {
-      return photoAvailabilityMap[collectionName] ?? false;
-    }
-
-    try {
-      final response = await ApiService.get(
-        '/collection/has-photo/${Uri.encodeComponent(collectionName)}',
-        headers: {'x-api-key': ApiService.apiKey},
-      );
-      final result = json.decode(response.body);
-      final availability = result['hasPhoto'] ?? false;
-
-      photoAvailabilityMap[collectionName] = availability;
-      return availability;
-    } catch (e) {
-      _logger.warning('Error checking photo availability: $e');
-      photoAvailabilityMap[collectionName] = false;
-      return false;
-    }
   }
 
   // Action to set current photo index
@@ -237,26 +207,10 @@ abstract class GalleryStoreBase with Store {
     }
   }
 
-  // Get photo URL
-  String getPhotoUrl(Map<String, dynamic> photo, String defaultCollectionName) {
-    if (photo['fullUri'] != null) return photo['fullUri'] as String;
-
-    final uri = photo['uri'] as String;
-    String collectionName = defaultCollectionName;
-
-    // Extract collection name from path if available
-    if (uri.startsWith('messages/inbox/')) {
-      collectionName = uri.split('/')[2];
-    }
-
-    final filename = uri.split('/').last;
-    return UrlFormatter.formatUrl(
-      uri: filename,
-      type: MediaType.photo,
-      collectionName: collectionName,
-      source: MediaSource.message,
-    );
-  }
+  // Built from `uri`: the server's `fullUri` is derived from the request Host
+  // header, is cached per conversation and can point at an internal address.
+  String getPhotoUrl(Map<String, dynamic> photo) =>
+      ApiService.mediaUrl(photo['uri'] as String);
 
   // Get filename from photo
   String getFilename(Map<String, dynamic> photo) {
@@ -264,49 +218,21 @@ abstract class GalleryStoreBase with Store {
     return uri.split('/').last;
   }
 
-  // Upload photo
+  /// Picks an image and uploads it. Returns false if nothing was picked;
+  /// throws [ApiException] if the server rejects the upload.
   @action
   Future<bool> uploadPhoto(BuildContext context, String collectionName) async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return false;
+
     isLoading = true;
-
     try {
-      // Get image from gallery
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-      if (pickedFile == null) {
-        isLoading = false;
-        return false;
-      }
-
-      // Read image data
-      List<int> imageBytes = await pickedFile.readAsBytes();
-      String base64Image = base64Encode(imageBytes);
-
-      // Create request data
-      final photoData = {
-        'photo': base64Image,
-      };
-
-      // Make API call
-      await ApiService.post(
-        '/upload/photo/${Uri.encodeComponent(collectionName)}',
-        body: photoData,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ApiService.apiKey,
-        },
-      );
-
-      // Clear photo availability cache
-      photoAvailabilityMap.remove(collectionName);
-
-      isLoading = false;
+      await ApiService.uploadPhoto(
+          collectionName, await pickedFile.readAsBytes());
       return true;
-    } catch (e) {
-      _logger.warning('Error uploading photo: $e');
+    } finally {
       isLoading = false;
-      return false;
     }
   }
 
@@ -316,13 +242,9 @@ abstract class GalleryStoreBase with Store {
     isLoading = true;
 
     try {
-      final result = await ApiService.deletePhoto(collectionName);
-
-      // Clear photo availability cache
-      photoAvailabilityMap.remove(collectionName);
-
+      final message = await ApiService.deletePhoto(collectionName);
       isLoading = false;
-      return result;
+      return {'success': true, 'message': message};
     } catch (e) {
       _logger.warning('Error deleting photo: $e');
       isLoading = false;
@@ -331,10 +253,5 @@ abstract class GalleryStoreBase with Store {
         'message': 'Error deleting photo: ${e.toString()}',
       };
     }
-  }
-
-  // Get web download URL for direct browser downloads
-  String getWebDownloadUrl(String collectionName, String filename) {
-    return ApiService.getWebDownloadUrl(collectionName, filename);
   }
 }

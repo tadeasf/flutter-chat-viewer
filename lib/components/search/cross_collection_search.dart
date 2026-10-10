@@ -28,7 +28,7 @@ class CrossCollectionSearchDialogState
 
     try {
       final List<dynamic> rawResults =
-          await ApiService.performCrossCollectionSearch(_searchController.text);
+          await ApiService.search(_searchController.text);
 
       final List<Map<String, dynamic>> processedResults =
           rawResults.map((result) {

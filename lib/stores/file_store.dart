@@ -3,7 +3,6 @@ import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../utils/api_db/api_service.dart';
-import '../utils/api_db/url_formatter.dart' as url_formatter;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
@@ -21,16 +20,12 @@ class FileStore = FileStoreBase with _$FileStore;
 // The store class
 abstract class FileStoreBase with Store {
   final Logger _logger = Logger('FileStore');
-  final String baseUrl = 'https://backend.jevrej.cz';
 
   FileStoreBase();
 
   // Cache directories
   Directory? _cacheDir;
   bool _initialized = false;
-
-  // Get API key from ApiService
-  String get apiKey => ApiService.apiKey;
 
   // Observable maps to store URLs and file paths
   @observable
@@ -69,35 +64,6 @@ abstract class FileStoreBase with Store {
     }
   }
 
-  // Convert our MediaType to the UrlFormatter MediaType
-  url_formatter.MediaType _convertMediaType(MediaType type) {
-    switch (type) {
-      case MediaType.image:
-        return url_formatter.MediaType.photo;
-      case MediaType.video:
-        return url_formatter.MediaType.video;
-      case MediaType.audio:
-        return url_formatter.MediaType.audio;
-      case MediaType.document:
-        return url_formatter.MediaType.document;
-    }
-  }
-
-  // Format a media URL using the UrlFormatter
-  String formatMediaUrl({
-    required String uri,
-    required MediaType type,
-    String? collectionName,
-    url_formatter.MediaSource source = url_formatter.MediaSource.message,
-  }) {
-    return url_formatter.UrlFormatter.formatUrl(
-      uri: uri,
-      type: _convertMediaType(type),
-      collectionName: collectionName,
-      source: source,
-    );
-  }
-
   // Get file path based on media type
   String? _getFilePath(String url, MediaType type) {
     switch (type) {
@@ -133,18 +99,7 @@ abstract class FileStoreBase with Store {
 
   // Action to fetch and cache a file
   @action
-  Future<String?> getFile(String uri, MediaType type,
-      {String? collectionName,
-      url_formatter.MediaSource source =
-          url_formatter.MediaSource.message}) async {
-    // Format the URL using UrlFormatter
-    final url = formatMediaUrl(
-      uri: uri,
-      type: type,
-      collectionName: collectionName,
-      source: source,
-    );
-
+  Future<String?> getFile(String url, MediaType type) async {
     // Return from cache if available
     if (_getFilePath(url, type) != null) {
       final path = _getFilePath(url, type);
@@ -173,7 +128,7 @@ abstract class FileStoreBase with Store {
 
       // Fetch the file
       final response =
-          await http.get(Uri.parse(url), headers: ApiService.headers);
+          await http.get(Uri.parse(url), headers: ApiService.headersFor(url));
 
       if (response.statusCode == 200) {
         // Write the file to the cache
@@ -200,73 +155,6 @@ abstract class FileStoreBase with Store {
     }
   }
 
-  // Action to download media directly from a message
-  @action
-  Future<bool> downloadMediaFromMessage(BuildContext context,
-      Map<String, dynamic> message, String mediaUri, MediaType type) async {
-    try {
-      final collectionName =
-          message['collectionName'] ?? message['collection_name'];
-      if (collectionName == null) {
-        throw Exception('Collection name not found in message');
-      }
-
-      final url = formatMediaUrl(
-        uri: mediaUri,
-        type: type,
-        collectionName: collectionName,
-        source: url_formatter.MediaSource.message,
-      );
-
-      return await downloadFile(context, url, type);
-    } catch (e) {
-      _logger.warning('Error downloading media from message: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download media: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return false;
-    }
-  }
-
-  // Action to download photo from a photo object
-  @action
-  Future<bool> downloadPhoto(
-    BuildContext context,
-    Map<String, dynamic> photo,
-    String collectionName,
-  ) async {
-    try {
-      if (photo['uri'] == null) {
-        throw Exception('Photo URI not found');
-      }
-
-      final url = formatMediaUrl(
-        uri: photo['uri'],
-        type: MediaType.image,
-        collectionName: collectionName,
-        source: url_formatter.MediaSource.message,
-      );
-
-      return await downloadFile(context, url, MediaType.image);
-    } catch (e) {
-      _logger.warning('Error downloading photo: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download photo: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return false;
-    }
-  }
-
   // Action to download file to device storage or gallery
   @action
   Future<bool> downloadFile(
@@ -285,7 +173,7 @@ abstract class FileStoreBase with Store {
       }
 
       // Use the UrlFormatter to extract the filename
-      final fileName = url_formatter.UrlFormatter.extractFilename(url);
+      final fileName = Uri.parse(url).pathSegments.last;
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileNameWithoutExt = fileName.split('.').first;
       final extension = _getExtension(url, type);
@@ -360,7 +248,7 @@ abstract class FileStoreBase with Store {
 
     // If not in cache, fetch from network
     final response =
-        await http.get(Uri.parse(url), headers: ApiService.headers);
+        await http.get(Uri.parse(url), headers: ApiService.headersFor(url));
     if (response.statusCode == 200) {
       return response.bodyBytes;
     }
@@ -372,7 +260,7 @@ abstract class FileStoreBase with Store {
   String _getExtension(String url, MediaType type) {
     // Try to extract extension from URL
     try {
-      return '.${url_formatter.UrlFormatter.extractFilename(url).split('.').last}';
+      return '.${Uri.parse(url).pathSegments.last.split('.').last}';
     } catch (e) {
       // Default extensions if we can't extract from URL
       switch (type) {
@@ -555,58 +443,5 @@ abstract class FileStoreBase with Store {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
-  /// Check if media is available for a collection
-  Future<bool> checkMediaAvailability(
-      String collectionName, MediaType type) async {
-    try {
-      final encodedName = Uri.encodeComponent(collectionName);
-      final response = await http.head(
-        Uri.parse('$baseUrl/serve/${_getMediaTypeString(type)}/$encodedName'),
-        headers: ApiService.headers,
-      );
-
-      return response.statusCode == 200;
-    } catch (e) {
-      _logger.warning('Error checking media availability: $e');
-      return false;
-    }
-  }
-
-  /// Get URL for media
-  String getMediaUrl(String collectionName, String mediaId, MediaType type) {
-    final encodedName = Uri.encodeComponent(collectionName);
-    final encodedMediaId = Uri.encodeComponent(mediaId);
-
-    return '$baseUrl/serve/${_getMediaTypeString(type)}/$encodedName/$encodedMediaId';
-  }
-
-  /// Add method to delete media (needed by ProfilePhotoStore)
-  Future<bool> deleteMedia(String url, MediaType type) async {
-    try {
-      final response = await http.delete(
-        Uri.parse(url),
-        headers: ApiService.headers,
-      );
-      return response.statusCode >= 200 && response.statusCode < 300;
-    } catch (e) {
-      _logger.warning('Error deleting media: $e');
-      return false;
-    }
-  }
-
-  /// Helper to convert MediaType to string
-  String _getMediaTypeString(MediaType type) {
-    switch (type) {
-      case MediaType.image:
-        return 'photo';
-      case MediaType.video:
-        return 'video';
-      case MediaType.audio:
-        return 'audio';
-      case MediaType.document:
-        return 'document';
-    }
   }
 }

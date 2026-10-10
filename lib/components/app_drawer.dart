@@ -133,8 +133,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text(
-              'Failed to ${isUpload ? 'upload' : 'delete'} photo. Please try again.'),
+          content: Text('Failed to ${isUpload ? 'upload' : 'delete'} photo: $e'),
           backgroundColor: Colors.red,
         ),
       );

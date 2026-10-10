@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../utils/web_image_viewer.dart';
-import '../../stores/store_provider.dart';
+import '../../utils/api_db/api_service.dart';
 
 class PhotoThumbnail extends StatelessWidget {
   final String imageUrl;
@@ -18,8 +18,6 @@ class PhotoThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileStore = StoreProvider.of(context).fileStore;
-
     return Hero(
       tag: 'photo_$imageUrl',
       child: kIsWeb
@@ -31,7 +29,7 @@ class PhotoThumbnail extends StatelessWidget {
             )
           : CachedNetworkImage(
               imageUrl: imageUrl,
-              httpHeaders: {'x-api-key': fileStore.apiKey},
+              httpHeaders: ApiService.headersFor(imageUrl),
               fit: BoxFit.cover,
               placeholder: (context, url) => Container(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,

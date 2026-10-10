@@ -672,7 +672,8 @@ class MessageSelectorState extends State<MessageSelector> {
                           Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Image.network(
-                              'https://backend.jevrej.cz/serve/photo/${Uri.encodeComponent(selectedCollection!)}',
+                              ApiService.profilePhotoUrl(selectedCollection!),
+                              headers: ApiService.headers,
                               height: 100,
                               errorBuilder: (context, error, stackTrace) {
                                 return const Text(
@@ -954,7 +955,7 @@ class MessageSelectorState extends State<MessageSelector> {
       });
 
       try {
-        final results = await ApiService.performCrossCollectionSearch(query);
+        final results = await ApiService.search(query);
         if (!mounted) return;
 
         _handleCrossCollectionSearch(results);

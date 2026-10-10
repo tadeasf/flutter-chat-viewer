@@ -5,6 +5,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../file_store.dart';
 import '../collection_store.dart';
 import '../../utils/photo_handler.dart';
+import '../../utils/api_db/api_service.dart';
 
 // Include the generated file
 part 'photo_store.g.dart';
@@ -28,9 +29,7 @@ abstract class PhotoStoreBase with Store {
     if (collectionName == null) return false;
 
     try {
-      final isAvailable = await fileStore.checkMediaAvailability(
-          collectionName, MediaType.image);
-      return isAvailable;
+      return await ApiService.profilePhotoExists(collectionName);
     } catch (e) {
       _logger.warning('Error checking photo availability: $e');
       return false;

@@ -1,8 +1,6 @@
 import 'package:mobx/mobx.dart';
-import 'package:logging/logging.dart';
 import 'file_store.dart';
 import '../utils/api_db/api_service.dart';
-import 'package:http/http.dart' as http;
 // Include the generated file
 part 'profile_photo_store.g.dart';
 
@@ -11,9 +9,7 @@ class ProfilePhotoStore = ProfilePhotoStoreBase with _$ProfilePhotoStore;
 
 // The store class
 abstract class ProfilePhotoStoreBase with Store {
-  final Logger _logger = Logger('ProfilePhotoStore');
   final FileStore fileStore;
-  final String baseUrl = 'https://backend.jevrej.cz';
 
   ProfilePhotoStoreBase({
     required this.fileStore,
@@ -40,60 +36,15 @@ abstract class ProfilePhotoStoreBase with Store {
       return profilePhotoUrls[collectionName];
     }
 
-    try {
-      final encodedName = Uri.encodeComponent(collectionName);
-      final url = '$baseUrl/serve/photo/$encodedName';
+    loadingStates[collectionName] = true;
+    final exists = await ApiService.profilePhotoExists(collectionName);
+    loadingStates[collectionName] = false;
+    errorStates[collectionName] = !exists;
+    if (!exists) return null;
 
-      // Set loading state
-      loadingStates[collectionName] = true;
-      errorStates[collectionName] = false;
-
-      // Use GET request instead of HEAD to properly fetch the photo
-      final response = await http.get(
-        Uri.parse(url),
-        headers: ApiService.headers,
-      );
-
-      // Reset loading state
-      loadingStates[collectionName] = false;
-
-      if (response.statusCode != 200) {
-        errorStates[collectionName] = true;
-        return null;
-      }
-
-      // Store in cache
-      profilePhotoUrls[collectionName] = url;
-      return url;
-    } catch (e) {
-      _logger.warning('Error getting profile photo URL: $e');
-      return null;
-    }
-  }
-
-  // Method to delete a profile photo
-  @action
-  Future<bool> deleteProfilePhoto(String collectionName) async {
-    try {
-      final photoUrl = await getProfilePhotoUrl(collectionName);
-      if (photoUrl == null) {
-        _logger.warning('No profile photo URL found for $collectionName');
-        return false;
-      }
-
-      // Use the FileStore deleteMedia method
-      final result = await fileStore.deleteMedia(photoUrl, MediaType.image);
-      if (result) {
-        profilePhotoUrls[collectionName] = null;
-        return true;
-      } else {
-        _logger.warning('Failed to delete profile photo for $collectionName');
-        return false;
-      }
-    } catch (e) {
-      _logger.warning('Error deleting profile photo: $e');
-      return false;
-    }
+    final url = ApiService.profilePhotoUrl(collectionName);
+    profilePhotoUrls[collectionName] = url;
+    return url;
   }
 
   // Action to clear cache for a specific collection
@@ -122,5 +73,3 @@ abstract class ProfilePhotoStoreBase with Store {
     return errorStates[collectionName] ?? false;
   }
 }
-
-// Helper function to run JSON decode in an isolate

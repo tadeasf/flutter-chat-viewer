@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../utils/api_db/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -83,7 +84,6 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     final galleryStore = StoreProvider.of(context).galleryStore;
-    final fileStore = StoreProvider.of(context).fileStore;
 
     return KeyboardListener(
       focusNode: _focusNode,
@@ -124,12 +124,12 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                   builder: (BuildContext context, int index) {
                     final photo = widget.photos[index];
                     final imageUrl =
-                        galleryStore.getPhotoUrl(photo, widget.collectionName);
+                        galleryStore.getPhotoUrl(photo);
 
                     return PhotoViewGalleryPageOptions(
                       imageProvider: NetworkImage(
                         imageUrl,
-                        headers: {'x-api-key': fileStore.apiKey},
+                        headers: ApiService.headersFor(imageUrl),
                       ),
                       initialScale: PhotoViewComputedScale.contained,
                       minScale: PhotoViewComputedScale.contained,
@@ -176,8 +176,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
           },
           itemBuilder: (context, index) {
             final photo = widget.photos[index];
-            final imageUrl =
-                galleryStore.getPhotoUrl(photo, widget.collectionName);
+            final imageUrl = galleryStore.getPhotoUrl(photo);
 
             return Center(
               child: Hero(
@@ -212,8 +211,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     final galleryStore = StoreProvider.of(context).galleryStore;
     final fileStore = StoreProvider.of(context).fileStore;
     final photo = widget.photos[_currentIndex];
-    final imageUrl = galleryStore.getPhotoUrl(photo, widget.collectionName);
-    final filename = galleryStore.getFilename(photo);
+    final imageUrl = galleryStore.getPhotoUrl(photo);
 
     // Show a confirmation dialog
     final shouldDownload = await showDialog<bool>(
@@ -238,34 +236,17 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
 
     if (shouldDownload == true && mounted) {
       if (kIsWeb) {
-        _downloadForWeb(filename);
+        _downloadForWeb(imageUrl);
       } else {
         await fileStore.downloadFile(context, imageUrl, MediaType.image);
       }
     }
   }
 
-  void _downloadForWeb(String filename) {
+  void _downloadForWeb(String imageUrl) {
     try {
       if (kIsWeb) {
-        // Debug logging
-        if (kDebugMode) {
-          print('PhotoViewGallery._downloadForWeb');
-          print('Collection name: ${widget.collectionName}');
-          print('Filename: $filename');
-        }
-
-        final galleryStore = StoreProvider.of(context).galleryStore;
-        final webDownloadUrl =
-            galleryStore.getWebDownloadUrl(widget.collectionName, filename);
-
-        // Log the generated URL
-        if (kDebugMode) {
-          print('Generated URL: $webDownloadUrl');
-        }
-
-        // Open in new tab using the utility function
-        openInNewTab(webDownloadUrl);
+        openInNewTab(imageUrl);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Image opened in new tab')),

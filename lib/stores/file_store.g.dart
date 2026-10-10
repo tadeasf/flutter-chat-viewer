@@ -124,31 +124,8 @@ mixin _$FileStore on FileStoreBase, Store {
       AsyncAction('FileStoreBase.getFile', context: context);
 
   @override
-  Future<String?> getFile(String uri, MediaType type,
-      {String? collectionName,
-      url_formatter.MediaSource source = url_formatter.MediaSource.message}) {
-    return _$getFileAsyncAction.run(() => super
-        .getFile(uri, type, collectionName: collectionName, source: source));
-  }
-
-  late final _$downloadMediaFromMessageAsyncAction =
-      AsyncAction('FileStoreBase.downloadMediaFromMessage', context: context);
-
-  @override
-  Future<bool> downloadMediaFromMessage(BuildContext context,
-      Map<String, dynamic> message, String mediaUri, MediaType type) {
-    return _$downloadMediaFromMessageAsyncAction.run(
-        () => super.downloadMediaFromMessage(context, message, mediaUri, type));
-  }
-
-  late final _$downloadPhotoAsyncAction =
-      AsyncAction('FileStoreBase.downloadPhoto', context: context);
-
-  @override
-  Future<bool> downloadPhoto(
-      BuildContext context, Map<String, dynamic> photo, String collectionName) {
-    return _$downloadPhotoAsyncAction
-        .run(() => super.downloadPhoto(context, photo, collectionName));
+  Future<String?> getFile(String url, MediaType type) {
+    return _$getFileAsyncAction.run(() => super.getFile(url, type));
   }
 
   late final _$downloadFileAsyncAction =

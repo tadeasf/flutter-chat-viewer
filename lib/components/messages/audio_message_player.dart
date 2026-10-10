@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../stores/store_provider.dart';
+import '../../utils/api_db/api_service.dart';
 import '../../stores/file_store.dart';
 
 class AudioMessagePlayer extends StatefulWidget {
@@ -41,20 +42,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     }
   }
 
-  String _getFormattedUrl() {
-    // If it's already a full URL, return it
-    if (widget.audioUrl.startsWith('http')) return widget.audioUrl;
-
-    final fileStore = StoreProvider.of(context).fileStore;
-    final collectionName = widget.collectionName ?? 'default';
-
-    // Use FileStore to format the audio URL
-    return fileStore.formatMediaUrl(
-      uri: widget.audioUrl,
-      type: MediaType.audio,
-      collectionName: collectionName,
-    );
-  }
+  String _getFormattedUrl() => ApiService.mediaUrl(widget.audioUrl);
 
   Future<void> _initializePlayer() async {
     if (_isInitialized || _isLoading) return;
@@ -75,12 +63,12 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
         // For web, use URL directly
         await _audioPlayer!.setUrl(
           formattedUrl,
-          headers: {'x-api-key': fileStore.apiKey},
+          headers: ApiService.headersFor(formattedUrl),
         );
       } else {
         // Try to get from cache first
         final cachedPath =
-            await fileStore.getFile(widget.audioUrl, MediaType.audio);
+            await fileStore.getFile(formattedUrl, MediaType.audio);
 
         if (cachedPath != null) {
           // Use cached file
@@ -89,7 +77,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
           // Use the URL
           await _audioPlayer!.setUrl(
             formattedUrl,
-            headers: {'x-api-key': fileStore.apiKey},
+            headers: ApiService.headersFor(formattedUrl),
           );
         }
       }

@@ -116,7 +116,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _videoPlayerController = VideoPlayerController.networkUrl(
           Uri.parse(widget.videoUrl),
           videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-          httpHeaders: ApiService.headers,
+          httpHeaders: ApiService.headersFor(widget.videoUrl),
         );
       } else {
         if (cachedPath != null) {
@@ -134,7 +134,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           _videoPlayerController = VideoPlayerController.networkUrl(
             Uri.parse(widget.videoUrl),
             videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-            httpHeaders: ApiService.headers,
+            httpHeaders: ApiService.headersFor(widget.videoUrl),
           );
           fileStore.prefetchFile(widget.videoUrl, MediaType.video);
         }

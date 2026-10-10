@@ -120,23 +120,6 @@ mixin _$GalleryStore on GalleryStoreBase, Store {
     });
   }
 
-  late final _$photoAvailabilityMapAtom =
-      Atom(name: 'GalleryStoreBase.photoAvailabilityMap', context: context);
-
-  @override
-  ObservableMap<String, bool> get photoAvailabilityMap {
-    _$photoAvailabilityMapAtom.reportRead();
-    return super.photoAvailabilityMap;
-  }
-
-  @override
-  set photoAvailabilityMap(ObservableMap<String, bool> value) {
-    _$photoAvailabilityMapAtom.reportWrite(value, super.photoAvailabilityMap,
-        () {
-      super.photoAvailabilityMap = value;
-    });
-  }
-
   late final _$setupGalleryForCollectionAsyncAction = AsyncAction(
       'GalleryStoreBase.setupGalleryForCollection',
       context: context);
@@ -167,15 +150,6 @@ mixin _$GalleryStore on GalleryStoreBase, Store {
   Future<void> loadMorePhotos({String? sender}) {
     return _$loadMorePhotosAsyncAction
         .run(() => super.loadMorePhotos(sender: sender));
-  }
-
-  late final _$checkPhotoAvailabilityAsyncAction =
-      AsyncAction('GalleryStoreBase.checkPhotoAvailability', context: context);
-
-  @override
-  Future<bool> checkPhotoAvailability(String collectionName) {
-    return _$checkPhotoAvailabilityAsyncAction
-        .run(() => super.checkPhotoAvailability(collectionName));
   }
 
   late final _$uploadPhotoAsyncAction =
@@ -252,7 +226,6 @@ currentCollection: ${currentCollection},
 currentPhotoIndex: ${currentPhotoIndex},
 targetPhoto: ${targetPhoto},
 targetPhotoIndex: ${targetPhotoIndex},
-photoAvailabilityMap: ${photoAvailabilityMap},
 hasTargetPhoto: ${hasTargetPhoto},
 currentPhoto: ${currentPhoto}
     ''';

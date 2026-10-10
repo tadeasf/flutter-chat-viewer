@@ -3,7 +3,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:logging/logging.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -11,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 // Add this import
 import 'components/messages/message_selector.dart';
 import 'stores/store_provider.dart';
+import 'utils/api_db/api_service.dart';
 import 'stores/theme_store.dart';
 // Use JsBridge for JS interactions
 import 'utils/js_bridge.dart';
@@ -65,15 +65,6 @@ void main() async {
     const platform = MethodChannel('app.meta_elysia/js_interop');
     platform.setMethodCallHandler((call) async {
       switch (call.method) {
-        case 'getApiKey':
-          try {
-            // Access the API key from window.FLUTTER_ENV
-            final apiKey = JsBridge.getWindowProperty('FLUTTER_ENV.X_API_KEY');
-            return apiKey?.toString() ?? '';
-          } catch (e) {
-            Logger('JSInterop').warning('Error accessing API key: $e');
-            return '';
-          }
         case 'openInNewTab':
           try {
             final url = call.arguments['url'] as String;
@@ -92,25 +83,9 @@ void main() async {
     });
   }
 
-  // Load environment variables
-  if (kIsWeb) {
-    // For web, we'll set a dummy value initially
-    // The API key will be injected by the Dockerfile into window.FLUTTER_ENV
-    // and ApiService will read it directly from the HTML when needed
-
-    dotenv.testLoad(fileInput: "X_API_KEY=dummy api key");
-    if (kDebugMode) {
-      print(
-          "Web environment: API key will be read from window.FLUTTER_ENV at runtime");
-    }
-  } else {
-    // Load from .env file for native platforms
-    await dotenv.load(fileName: ".env");
-    if (kDebugMode) {
-      print("Native environment: Loaded API key from .env file");
-      // Log the API key to verify it loaded correctly
-      print("API Key from .env: ${dotenv.env['X_API_KEY'] ?? 'Not found'}");
-    }
+  if (ApiService.apiKey.isEmpty) {
+    Logger('main').severe(
+        'API_KEY is not set. Build with --dart-define-from-file=.env.json');
   }
 
   runApp(
