@@ -168,6 +168,22 @@ mixin _$MessageStore on MessageStoreBase, Store {
     });
   }
 
+  late final _$statsAtom =
+      Atom(name: 'MessageStoreBase.stats', context: context);
+
+  @override
+  Map<String, dynamic>? get stats {
+    _$statsAtom.reportRead();
+    return super.stats;
+  }
+
+  @override
+  set stats(Map<String, dynamic>? value) {
+    _$statsAtom.reportWrite(value, super.stats, () {
+      super.stats = value;
+    });
+  }
+
   late final _$openAsyncAction =
       AsyncAction('MessageStoreBase.open', context: context);
 
@@ -182,6 +198,14 @@ mixin _$MessageStore on MessageStoreBase, Store {
   @override
   Future<void> jumpToLatest() {
     return _$jumpToLatestAsyncAction.run(() => super.jumpToLatest());
+  }
+
+  late final _$jumpToStartAsyncAction =
+      AsyncAction('MessageStoreBase.jumpToStart', context: context);
+
+  @override
+  Future<void> jumpToStart() {
+    return _$jumpToStartAsyncAction.run(() => super.jumpToStart());
   }
 
   late final _$jumpToAsyncAction =
@@ -254,6 +278,7 @@ generation: ${generation},
 highlightId: ${highlightId},
 isLoading: ${isLoading},
 error: ${error},
+stats: ${stats},
 hasOlder: ${hasOlder},
 hasNewer: ${hasNewer}
     ''';

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobx/mobx.dart';
 
@@ -22,23 +21,8 @@ abstract class GalleryStoreBase with Store {
   @observable
   String? error;
 
-  @observable
-  int currentPhotoIndex = 0;
-
-  @observable
-  Map<String, dynamic>? targetPhoto;
-
-  @observable
-  int? targetPhotoIndex;
-
-  @computed
-  bool get hasTargetPhoto => targetPhoto != null;
-
   @action
-  Future<void> setupGalleryForCollection(
-      String collectionName, Map<String, dynamic>? target) async {
-    targetPhoto = target;
-    targetPhotoIndex = null;
+  Future<void> setupGalleryForCollection(String collectionName) async {
     photos.clear();
     isLoading = true;
     error = null;
@@ -53,27 +37,11 @@ abstract class GalleryStoreBase with Store {
             }
       ]..sort((a, b) => (a['message_timestamp'] as int? ?? 0)
           .compareTo(b['message_timestamp'] as int? ?? 0)));
-      final uri = target?['uri'];
-      if (uri != null) {
-        final index = photos.indexWhere((p) => p['uri'] == uri);
-        if (index >= 0) targetPhotoIndex = index;
-      }
     } catch (e) {
       error = '$e';
     } finally {
       isLoading = false;
     }
-  }
-
-  @action
-  void setTargetPhoto(Map<String, dynamic> photo) {
-    targetPhoto = photo;
-    targetPhotoIndex = null;
-  }
-
-  @action
-  void setCurrentPhotoIndex(int index) {
-    if (index >= 0 && index < photos.length) currentPhotoIndex = index;
   }
 
   Map<String, dynamic> getPhotoAt(int index) => photos[index];
@@ -88,7 +56,7 @@ abstract class GalleryStoreBase with Store {
   /// Picks an image and uploads it as the profile photo. Returns false if
   /// nothing was picked; throws [ApiException] if the server rejects it.
   @action
-  Future<bool> uploadPhoto(BuildContext context, String collectionName) async {
+  Future<bool> uploadPhoto(String collectionName) async {
     final pickedFile =
         await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile == null) return false;

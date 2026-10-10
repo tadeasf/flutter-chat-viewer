@@ -8,17 +8,14 @@ import 'package:logging/logging.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// Add this import
-import 'components/messages/message_selector.dart';
+import 'screens/home_screen.dart';
 import 'stores/store_provider.dart';
 import 'utils/api_db/api_service.dart';
-import 'stores/theme_store.dart';
+import 'theme.dart';
 // Use JsBridge for JS interactions
 import 'utils/js_bridge.dart';
 // Import web initialization
 import 'utils/web_init.dart' if (dart.library.io) 'utils/web_init_stub.dart';
-// Import the geometric background
-import 'components/ui_utils/geometric_background.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -110,62 +107,28 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final _light = buildTheme(Brightness.light);
+  final _dark = buildTheme(Brightness.dark);
+
   @override
   void initState() {
     super.initState();
     if (!kIsWeb && Platform.isAndroid) {
-      _requestPermissions();
-    }
-  }
-
-  Future<void> _requestPermissions() async {
-    if (await Permission.storage.request().isGranted) {
-      // Permission granted
-    } else {
-      // Handle the case when permission is not granted
+      Permission.storage.request();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final themeStore = StoreProvider.of(context).themeStore;
-
     return Observer(
       builder: (_) => MaterialApp(
         title: 'Meta Elysia',
-        theme: AppColors.getLightTheme(themeStore.fontSize),
-        darkTheme: AppColors.getDarkTheme(themeStore.fontSize),
+        debugShowCheckedModeBanner: false,
+        theme: _light,
+        darkTheme: _dark,
         themeMode: themeStore.themeMode,
-        home: GeometricBackground(
-          backgroundColor: AppColors.background,
-          patternColor: AppColors.surface1,
-          patternOpacity: 0.15,
-          patternDensity: 12,
-          child: FocusScope(
-            autofocus: true,
-            child: MessageSelectorShortcuts(
-              onSearchTriggered: () {
-                // Global handler
-              },
-              onPreviousResult: () {
-                // Global handler
-              },
-              onNextResult: () {
-                // Global handler
-              },
-              onGalleryOpen: () {
-                // Global handler
-              },
-              onCollectionSelectorToggle: () {
-                // Global handler
-              },
-              child: MessageSelector(
-                setThemeMode: (ThemeMode mode) => themeStore.setThemeMode(mode),
-                themeMode: themeStore.themeMode,
-              ),
-            ),
-          ),
-        ),
+        home: const HomeScreen(),
       ),
     );
   }

@@ -83,9 +83,14 @@ abstract class MessageStoreBase with Store {
   @observable
   String? error;
 
+  /// `/stats` of the open conversation (null until loaded): totals,
+  /// first/last message time, media counts, senders and `perMonth`.
+  @observable
+  Map<String, dynamic>? stats;
+
   bool _loadingOlder = false;
   bool _loadingNewer = false;
-  List<Map<String, dynamic>>? _perMonth;
+  Future<Map<String, dynamic>>? _statsFuture;
 
   int get end => start + messages.length;
 
@@ -99,7 +104,9 @@ abstract class MessageStoreBase with Store {
   @action
   Future<void> open(String name) async {
     collection = name;
-    _perMonth = null;
+    stats = null;
+    _statsFuture = null;
+    loadStats().ignore();
     await _replaceWindow(() async {
       total = await source.count(name);
       final first = max(0, total - pageSize);
@@ -119,6 +126,35 @@ abstract class MessageStoreBase with Store {
       final page = await source.page(name, offset: first, limit: pageSize);
       return (first, page, page.length, null);
     });
+  }
+
+  /// Shows the oldest messages.
+  @action
+  Future<void> jumpToStart() async {
+    final name = collection;
+    if (name == null) return;
+    await _replaceWindow(() async {
+      final page = await source.page(name, offset: 0, limit: pageSize);
+      return (0, page, 0, null);
+    });
+  }
+
+  /// Loads `/stats` once per opened conversation.
+  Future<Map<String, dynamic>> loadStats() {
+    final name = collection!;
+    final pending = _statsFuture;
+    if (pending != null) return pending;
+    final future = source.stats(name).then((value) {
+      if (name == collection) runInAction(() => stats = value);
+      return value;
+    });
+    _statsFuture = future;
+    // A failed request is not cached, so the next jump tries again.
+    future.catchError((_) {
+      if (identical(_statsFuture, future)) _statsFuture = null;
+      return const <String, dynamic>{};
+    });
+    return future;
   }
 
   /// Shows the message with [timestamp] (and [id], if known) in its context.
@@ -148,13 +184,13 @@ abstract class MessageStoreBase with Store {
   /// target month before [timestamp] need to be counted.
   Future<int> offsetOf(int timestamp) async {
     final name = collection!;
-    _perMonth ??= ((await source.stats(name))['perMonth'] as List)
-        .cast<Map<String, dynamic>>();
+    final perMonth =
+        ((await loadStats())['perMonth'] as List).cast<Map<String, dynamic>>();
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true);
     final month = '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}';
     var before = 0;
-    for (final m in _perMonth!) {
+    for (final m in perMonth) {
       if ((m['month'] as String).compareTo(month) >= 0) break;
       before += m['count'] as int;
     }

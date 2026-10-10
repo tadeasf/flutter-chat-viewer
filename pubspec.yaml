@@ -48,6 +48,18 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  fonts:
+    # IBM Plex, SIL Open Font License 1.1 (assets/fonts/OFL-IBMPlex.txt)
+    - family: IBM Plex Sans
+      fonts:
+        - asset: assets/fonts/IBMPlexSans-Variable.ttf
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+
 flutter_native_splash:
   color: "#42a5f5"
   image: assets/splash/splash.png

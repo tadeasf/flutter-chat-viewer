@@ -9,6 +9,8 @@ part 'collection_store.g.dart';
 
 class CollectionStore = CollectionStoreBase with _$CollectionStore;
 
+enum CollectionSort { mostOpened, largest, name }
+
 /// The list of conversations. The last list is kept in SharedPreferences so
 /// the app shows it immediately on start; it is then refreshed from the server.
 abstract class CollectionStoreBase with Store {
@@ -38,6 +40,9 @@ abstract class CollectionStoreBase with Store {
 
   @observable
   String filterQuery = '';
+
+  @observable
+  CollectionSort sort = CollectionSort.mostOpened;
 
   DateTime _lastFetch = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -95,33 +100,50 @@ abstract class CollectionStoreBase with Store {
   @action
   void clearFilter() => setFilterQuery('');
 
-  /// Most opened first, then largest. `unified_collection` (all chats merged,
-  /// stale) is not a conversation. The server's by-count route never works,
-  /// so sorting happens here.
+  @action
+  void setSort(CollectionSort value) {
+    sort = value;
+    _applyFilter();
+  }
+
+  /// `unified_collection` (all chats merged, stale) is not a conversation.
   @action
   void _setCollections(List<Map<String, dynamic>> list) {
-    final sorted = list.where((c) => c['name'] != 'unified_collection').toList()
-      ..sort((a, b) {
-        final byHits =
-            ((b['hits'] ?? 0) as int).compareTo((a['hits'] ?? 0) as int);
-        return byHits != 0
-            ? byHits
-            : ((b['messageCount'] ?? 0) as int)
-                .compareTo((a['messageCount'] ?? 0) as int);
-      });
     collections
       ..clear()
-      ..addAll(sorted);
+      ..addAll(list.where((c) => c['name'] != 'unified_collection'));
     _applyFilter();
+  }
+
+  static int _int(Map<String, dynamic> c, String key) => (c[key] ?? 0) as int;
+
+  /// The server's by-count route never works, so sorting happens here.
+  int _compare(Map<String, dynamic> a, Map<String, dynamic> b) {
+    int byName() => (a['name'] as String)
+        .toLowerCase()
+        .compareTo((b['name'] as String).toLowerCase());
+    int byCount() => _int(b, 'messageCount').compareTo(_int(a, 'messageCount'));
+    switch (sort) {
+      case CollectionSort.mostOpened:
+        final byHits = _int(b, 'hits').compareTo(_int(a, 'hits'));
+        return byHits != 0 ? byHits : byCount();
+      case CollectionSort.largest:
+        return byCount();
+      case CollectionSort.name:
+        return byName();
+    }
   }
 
   void _applyFilter() {
     final query = filterQuery.toLowerCase();
+    final list = (query.isEmpty
+        ? collections.toList()
+        : collections
+            .where((c) => (c['name'] as String).toLowerCase().contains(query))
+            .toList())
+      ..sort(_compare);
     filteredCollections
       ..clear()
-      ..addAll(query.isEmpty
-          ? collections
-          : collections.where(
-              (c) => (c['name'] as String).toLowerCase().contains(query)));
+      ..addAll(list);
   }
 }

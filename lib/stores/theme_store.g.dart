@@ -57,22 +57,6 @@ mixin _$ThemeStore on ThemeStoreBase, Store {
     return _$setFontSizeAsyncAction.run(() => super.setFontSize(size));
   }
 
-  late final _$increaseFontSizeAsyncAction =
-      AsyncAction('ThemeStoreBase.increaseFontSize', context: context);
-
-  @override
-  Future<void> increaseFontSize() {
-    return _$increaseFontSizeAsyncAction.run(() => super.increaseFontSize());
-  }
-
-  late final _$decreaseFontSizeAsyncAction =
-      AsyncAction('ThemeStoreBase.decreaseFontSize', context: context);
-
-  @override
-  Future<void> decreaseFontSize() {
-    return _$decreaseFontSizeAsyncAction.run(() => super.decreaseFontSize());
-  }
-
   @override
   String toString() {
     return '''

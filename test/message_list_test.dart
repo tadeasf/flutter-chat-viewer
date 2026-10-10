@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:meta_chat_viewer/components/messages/message_list.dart';
+import 'package:meta_chat_viewer/components/chat/message_list.dart';
 import 'package:meta_chat_viewer/stores/message_store.dart';
 import 'package:meta_chat_viewer/stores/store_provider.dart';
+import 'package:meta_chat_viewer/theme.dart';
 
 import 'message_store_test.dart' show FakeConversation;
 
@@ -15,8 +16,9 @@ Widget app(MessageStore store) => StoreProvider(
       themeStore: Stores.themeStore,
       galleryStore: Stores.galleryStore,
       child: MaterialApp(
+        theme: buildTheme(Brightness.light),
         home: Scaffold(
-          body: MessageList(store: store, profilePhotoUrl: null),
+          body: MessageList(store: store),
         ),
       ),
     );
@@ -58,8 +60,10 @@ void main() {
       await tester.drag(find.byType(CustomScrollView), const Offset(0, 300));
       await tester.pumpAndSettle();
     }
-    final visible =
-        tester.widget<Text>(find.textContaining(RegExp(r'^\d+$')).first).data!;
+    final visible = tester
+        .widget<Text>(find.textContaining(RegExp(r'^\d+$')).first)
+        .textSpan!
+        .toPlainText();
     final before = tester.getTopLeft(find.text(visible));
 
     gate.complete();

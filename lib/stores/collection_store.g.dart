@@ -105,6 +105,22 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
     });
   }
 
+  late final _$sortAtom =
+      Atom(name: 'CollectionStoreBase.sort', context: context);
+
+  @override
+  CollectionSort get sort {
+    _$sortAtom.reportRead();
+    return super.sort;
+  }
+
+  @override
+  set sort(CollectionSort value) {
+    _$sortAtom.reportWrite(value, super.sort, () {
+      super.sort = value;
+    });
+  }
+
   late final _$loadCollectionsAsyncAction =
       AsyncAction('CollectionStoreBase.loadCollections', context: context);
 
@@ -169,6 +185,17 @@ mixin _$CollectionStore on CollectionStoreBase, Store {
   }
 
   @override
+  void setSort(CollectionSort value) {
+    final _$actionInfo = _$CollectionStoreBaseActionController.startAction(
+        name: 'CollectionStoreBase.setSort');
+    try {
+      return super.setSort(value);
+    } finally {
+      _$CollectionStoreBaseActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   void _setCollections(List<Map<String, dynamic>> list) {
     final _$actionInfo = _$CollectionStoreBaseActionController.startAction(
         name: 'CollectionStoreBase._setCollections');
@@ -187,7 +214,8 @@ filteredCollections: ${filteredCollections},
 isLoading: ${isLoading},
 error: ${error},
 isMessageLoading: ${isMessageLoading},
-filterQuery: ${filterQuery}
+filterQuery: ${filterQuery},
+sort: ${sort}
     ''';
   }
 }
