@@ -700,16 +700,17 @@ class MessageSelectorState extends State<MessageSelector> {
     );
   }
 
-  void _handleSearchRequest(String query, bool isCrossCollection) {
+  void _handleSearchRequest(String query, bool isCrossCollection, bool fast) {
     if (mounted) {
       setState(() {
         _currentVisibility = VisibilityState.search;
       });
-      _processSearch(query, isCrossCollection);
+      _processSearch(query, isCrossCollection, fast: fast);
     }
   }
 
-  Future<void> _processSearch(String query, bool isCrossCollection) async {
+  Future<void> _processSearch(String query, bool isCrossCollection,
+      {bool fast = false}) async {
     if (!mounted) return;
 
     if (isCrossCollection) {
@@ -719,7 +720,7 @@ class MessageSelectorState extends State<MessageSelector> {
       });
 
       try {
-        final results = await ApiService.search(query);
+        final results = await ApiService.search(query, fast: fast);
         if (!mounted) return;
 
         _handleCrossCollectionSearch(results);

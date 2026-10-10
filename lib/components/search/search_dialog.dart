@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SearchDialog extends StatefulWidget {
-  final Function(String query, bool isCrossCollection) onSearch;
+  final Function(String query, bool isCrossCollection, bool fast) onSearch;
   final String? selectedCollection;
 
   const SearchDialog({
@@ -18,6 +18,7 @@ class SearchDialogState extends State<SearchDialog> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isCrossCollection = false;
+  bool _fast = false;
   bool _isSearching = false;
 
   @override
@@ -42,7 +43,7 @@ class SearchDialogState extends State<SearchDialog> {
         _isSearching = true;
       });
 
-      widget.onSearch(query, _isCrossCollection);
+      widget.onSearch(query, _isCrossCollection, _isCrossCollection && _fast);
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -114,11 +115,7 @@ class SearchDialogState extends State<SearchDialog> {
                     ? Color(0xFF17171B)
                     : theme.colorScheme.surface.withValues(alpha: 179),
               ),
-              onSubmitted: (_) {
-                if (!_isCrossCollection) {
-                  _handleSearch();
-                }
-              },
+              onSubmitted: (_) => _handleSearch(),
             ),
             const SizedBox(height: 16),
             SwitchListTile(
@@ -130,13 +127,25 @@ class SearchDialogState extends State<SearchDialog> {
                 ),
               ),
               value: _isCrossCollection,
-              activeColor: theme.colorScheme.secondary,
+              activeThumbColor: theme.colorScheme.secondary,
               onChanged: (bool value) {
                 setState(() {
                   _isCrossCollection = value;
                 });
               },
             ),
+            if (_isCrossCollection)
+              SwitchListTile(
+                title: Text('Fast: whole words only',
+                    style: theme.textTheme.bodyMedium),
+                subtitle: Text(
+                  'Under 2 s, best matches first (max 500), but misses '
+                  'other word forms and parts of words',
+                  style: theme.textTheme.bodySmall,
+                ),
+                value: _fast,
+                onChanged: (value) => setState(() => _fast = value),
+              ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

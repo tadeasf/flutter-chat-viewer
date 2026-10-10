@@ -17,7 +17,15 @@ class CrossCollectionSearchDialog extends StatefulWidget {
 class CrossCollectionSearchDialogState
     extends State<CrossCollectionSearchDialog> {
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   bool _isSearching = false;
+  bool _fast = false;
 
   Future<void> _performSearch() async {
     if (!mounted) return;
@@ -28,7 +36,7 @@ class CrossCollectionSearchDialogState
 
     try {
       final List<dynamic> rawResults =
-          await ApiService.search(_searchController.text);
+          await ApiService.search(_searchController.text, fast: _fast);
 
       final List<Map<String, dynamic>> processedResults =
           rawResults.map((result) {
@@ -106,6 +114,18 @@ class CrossCollectionSearchDialogState
                 fillColor: theme.colorScheme.surface.withValues(alpha: 0.7),
               ),
               onSubmitted: (_) => _performSearch(),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: Text('Fast: whole words only',
+                  style: theme.textTheme.bodyMedium),
+              subtitle: Text(
+                'Under 2 s, best matches first (max 500), but misses '
+                'other word forms and parts of words',
+                style: theme.textTheme.bodySmall,
+              ),
+              value: _fast,
+              onChanged: (value) => setState(() => _fast = value),
             ),
             const SizedBox(height: 24),
             Row(
