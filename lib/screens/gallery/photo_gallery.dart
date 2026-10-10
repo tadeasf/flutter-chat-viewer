@@ -5,7 +5,7 @@ import 'package:logging/logging.dart';
 import '../../screens/gallery/photo_view_gallery.dart';
 import '../../widgets/gallery/photo_thumbnail.dart';
 import '../../stores/store_provider.dart';
-import '../../stores/file_store.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:mobx/mobx.dart';
 
@@ -140,7 +140,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
   @override
   Widget build(BuildContext context) {
     final galleryStore = StoreProvider.of(context).galleryStore;
-    final fileStore = StoreProvider.of(context).fileStore;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return KeyboardListener(
@@ -161,8 +160,10 @@ class PhotoGalleryState extends State<PhotoGallery> {
             IconButton(
               icon: const Icon(Icons.settings_backup_restore),
               tooltip: 'Clear image cache',
-              onPressed: () {
-                fileStore.clearTypeCache(MediaType.image);
+              onPressed: () async {
+                await DefaultCacheManager().emptyCache();
+                PaintingBinding.instance.imageCache.clear();
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Image cache cleared')),
                 );

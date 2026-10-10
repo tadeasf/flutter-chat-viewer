@@ -1,5 +1,4 @@
 import 'package:mobx/mobx.dart';
-import 'file_store.dart';
 import '../utils/api_db/api_service.dart';
 // Include the generated file
 part 'profile_photo_store.g.dart';
@@ -9,12 +8,6 @@ class ProfilePhotoStore = ProfilePhotoStoreBase with _$ProfilePhotoStore;
 
 // The store class
 abstract class ProfilePhotoStoreBase with Store {
-  final FileStore fileStore;
-
-  ProfilePhotoStoreBase({
-    required this.fileStore,
-  });
-
   // Observable map to store URLs by collection name
   @observable
   ObservableMap<String, String?> profilePhotoUrls =

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:logging/logging.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // Add this import
@@ -22,6 +23,7 @@ import 'components/ui_utils/geometric_background.dart';
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
 
   // Initialize logging
   Logger.root.level = Level.INFO;
@@ -94,7 +96,6 @@ void main() async {
       collectionStore: Stores.collectionStore,
       messageStore: Stores.messageStore,
       themeStore: Stores.themeStore,
-      fileStore: Stores.fileStore,
       photoStore: Stores.photoStore,
       galleryStore: Stores.galleryStore,
       child: const MyApp(),

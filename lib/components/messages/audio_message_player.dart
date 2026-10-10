@@ -1,248 +1,141 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import '../../stores/store_provider.dart';
+import 'package:media_kit/media_kit.dart';
+
 import '../../utils/api_db/api_service.dart';
-import '../../stores/file_store.dart';
 
+/// Inline player for a voice message. Streams over HTTP (mpv seeks with range
+/// requests and detects the format itself, so `.aac` served as
+/// application/octet-stream plays fine). The player is created on first play.
 class AudioMessagePlayer extends StatefulWidget {
-  final String audioUrl;
-  final Function(String uri, AudioPlayer player) onPlayerCreated;
-  final Function(String uri) onPlayerDisposed;
-  final String? collectionName;
+  /// Message `uri` of the audio file.
+  final String uri;
 
-  const AudioMessagePlayer({
-    super.key,
-    required this.audioUrl,
-    required this.onPlayerCreated,
-    required this.onPlayerDisposed,
-    this.collectionName,
-  });
+  const AudioMessagePlayer({super.key, required this.uri});
 
   @override
   State<AudioMessagePlayer> createState() => _AudioMessagePlayerState();
 }
 
 class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
-  AudioPlayer? _audioPlayer;
-  bool _isInitialized = false;
-  bool _isPlaying = false;
-  Duration _duration = Duration.zero;
+  Player? _player;
+  final List<StreamSubscription> _subscriptions = [];
+  bool _playing = false;
+  bool _buffering = false;
   Duration _position = Duration.zero;
-  bool _isLoading = false;
-  String? _errorMessage;
-  bool _didInitialize = false;
+  Duration _duration = Duration.zero;
+  String? _error;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Only initialize once and when user clicks play
-    if (!_didInitialize && !_isInitialized && !_isLoading) {
-      _didInitialize = true;
+  Future<void> _start() async {
+    final url = ApiService.mediaUrl(widget.uri);
+    final player = Player();
+    _player = player;
+    _subscriptions.addAll([
+      player.stream.playing.listen((v) => _update(() => _playing = v)),
+      player.stream.buffering.listen((v) => _update(() => _buffering = v)),
+      player.stream.position.listen((v) => _update(() => _position = v)),
+      player.stream.duration.listen((v) => _update(() => _duration = v)),
+      player.stream.error.listen((e) => _update(() => _error = e)),
+      player.stream.completed.listen((done) {
+        if (done) player.seek(Duration.zero).then((_) => player.pause());
+      }),
+    ]);
+    await player.open(Media(url, httpHeaders: ApiService.headersFor(url)));
+  }
+
+  void _update(VoidCallback change) {
+    if (mounted) setState(change);
+  }
+
+  Future<void> _toggle() async {
+    final player = _player;
+    if (player == null) {
+      setState(() => _buffering = true);
+      await _start();
+    } else {
+      await player.playOrPause();
     }
-  }
-
-  String _getFormattedUrl() => ApiService.mediaUrl(widget.audioUrl);
-
-  Future<void> _initializePlayer() async {
-    if (_isInitialized || _isLoading) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      _audioPlayer = AudioPlayer();
-      widget.onPlayerCreated(widget.audioUrl, _audioPlayer!);
-
-      final fileStore = StoreProvider.of(context).fileStore;
-      final formattedUrl = _getFormattedUrl();
-
-      if (kIsWeb) {
-        // For web, use URL directly
-        await _audioPlayer!.setUrl(
-          formattedUrl,
-          headers: ApiService.headersFor(formattedUrl),
-        );
-      } else {
-        // Try to get from cache first
-        final cachedPath =
-            await fileStore.getFile(formattedUrl, MediaType.audio);
-
-        if (cachedPath != null) {
-          // Use cached file
-          await _audioPlayer!.setFilePath(cachedPath);
-        } else {
-          // Use the URL
-          await _audioPlayer!.setUrl(
-            formattedUrl,
-            headers: ApiService.headersFor(formattedUrl),
-          );
-        }
-      }
-
-      _audioPlayer!.durationStream.listen((duration) {
-        if (mounted) {
-          setState(() {
-            _duration = duration ?? Duration.zero;
-          });
-        }
-      });
-
-      _audioPlayer!.positionStream.listen((position) {
-        if (mounted) {
-          setState(() {
-            _position = position;
-          });
-        }
-      });
-
-      _audioPlayer!.playerStateStream.listen((state) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = state.playing;
-          });
-        }
-      });
-
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-          _isLoading = false;
-        });
-
-        // Start playing immediately after loading
-        _audioPlayer!.play();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Failed to load audio: $e';
-        });
-      }
-    }
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: _errorMessage != null
-          ? Row(
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  color: Colors.red,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.refresh,
-                    color: Colors.white70,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _errorMessage = null;
-                    });
-                    _initializePlayer();
-                  },
-                ),
-              ],
-            )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        _isLoading
-                            ? Icons.hourglass_empty
-                            : _isPlaying
-                                ? Icons.pause
-                                : Icons.play_arrow,
-                        color: Colors.white,
-                      ),
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              if (!_isInitialized) {
-                                _initializePlayer();
-                              } else if (_isPlaying) {
-                                _audioPlayer?.pause();
-                              } else {
-                                _audioPlayer?.play();
-                              }
-                            },
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          LinearProgressIndicator(
-                            value:
-                                _isInitialized && _duration.inMilliseconds > 0
-                                    ? _position.inMilliseconds /
-                                        _duration.inMilliseconds
-                                    : 0,
-                            backgroundColor: Colors.white24,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.white),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isInitialized
-                                ? '${_formatDuration(_position)} / ${_formatDuration(_duration)}'
-                                : '00:00 / 00:00',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontFamily: 'JetBrains Mono Nerd Font',
-                              fontStyle: FontStyle.normal,
-                              fontWeight: FontWeight.w300,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-    );
   }
 
   @override
   void dispose() {
-    if (_audioPlayer != null) {
-      _audioPlayer!.dispose();
-      widget.onPlayerDisposed(widget.audioUrl);
+    for (final s in _subscriptions) {
+      s.cancel();
     }
+    _player?.dispose();
     super.dispose();
+  }
+
+  static String _format(Duration d) =>
+      '${d.inMinutes.toString().padLeft(2, '0')}:'
+      '${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final max = _duration.inMilliseconds.toDouble();
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: _error != null
+          ? ListTile(
+              dense: true,
+              leading:
+                  Icon(Icons.error_outline, color: theme.colorScheme.error),
+              title: Text('Cannot play audio: $_error'),
+            )
+          : Row(
+              children: [
+                IconButton(
+                  tooltip: _playing ? 'Pause' : 'Play',
+                  onPressed: _toggle,
+                  icon: _buffering && !_playing
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(_playing ? Icons.pause : Icons.play_arrow),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 28,
+                        child: Slider(
+                          max: max > 0 ? max : 1,
+                          value: _position.inMilliseconds
+                              .clamp(0, max > 0 ? max : 1)
+                              .toDouble(),
+                          onChanged: max > 0
+                              ? (v) => setState(() =>
+                                  _position = Duration(milliseconds: v.round()))
+                              : null,
+                          onChangeEnd: max > 0
+                              ? (v) => _player
+                                  ?.seek(Duration(milliseconds: v.round()))
+                              : null,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 24),
+                        child: Text(
+                          '${_format(_position)} / ${_format(_duration)}',
+                          style: theme.textTheme.labelSmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+    );
   }
 }

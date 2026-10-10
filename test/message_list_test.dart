@@ -13,7 +13,6 @@ Widget app(MessageStore store) => StoreProvider(
       collectionStore: Stores.collectionStore,
       messageStore: store,
       themeStore: Stores.themeStore,
-      fileStore: Stores.fileStore,
       photoStore: Stores.photoStore,
       galleryStore: Stores.galleryStore,
       child: MaterialApp(

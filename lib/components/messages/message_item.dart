@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
 import '../../screens/gallery/photo_view_gallery.dart';
-import 'package:just_audio/just_audio.dart';
 import 'audio_message_player.dart';
 import '../../screens/media/video_player_screen.dart';
 import 'package:intl/intl.dart';
@@ -38,7 +37,6 @@ class MessageItem extends StatefulWidget {
 
 class MessageItemState extends State<MessageItem> {
   bool _isExpanded = false;
-  final Map<String, AudioPlayer> _audioPlayers = {};
 
   String _ensureDecoded(dynamic text) {
     if (text == null) return '';
@@ -79,39 +77,6 @@ class MessageItemState extends State<MessageItem> {
         builder: (context) => VideoPlayerScreen(videoUrl: videoUrl),
       ),
     );
-  }
-
-  void _handleAudioTap(Map<String, dynamic> audio) {
-    final audioUri = audio['uri'] as String;
-    final audioUrl = ApiService.mediaUrl(audioUri);
-
-    // Check if this audio player exists
-    if (!_audioPlayers.containsKey(audioUri)) {
-      _audioPlayers[audioUri] = AudioPlayer();
-    }
-
-    // Get the audio player
-    final player = _audioPlayers[audioUri]!;
-
-    if (player.playing) {
-      player.pause();
-    } else {
-      // Load and play the audio
-      player
-          .setUrl(audioUrl, headers: ApiService.headersFor(audioUrl))
-          .then((_) {
-        player.play();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    // Dispose all audio players
-    for (final player in _audioPlayers.values) {
-      player.dispose();
-    }
-    super.dispose();
   }
 
   Color getTextColor() {
@@ -276,21 +241,9 @@ class MessageItemState extends State<MessageItem> {
           spacing: 4,
           runSpacing: 4,
           children: audioFiles.map<Widget>((audio) {
-            return GestureDetector(
-              onTap: () => _handleAudioTap(Map<String, dynamic>.from(audio)),
-              child: AudioMessagePlayer(
-                key: ValueKey(audio['uri']),
-                audioUrl: audio['uri'],
-                collectionName: widget.isCrossCollectionSearch
-                    ? widget.message['collectionName']
-                    : widget.selectedCollectionName,
-                onPlayerCreated: (String uri, AudioPlayer player) {
-                  _audioPlayers[uri] = player;
-                },
-                onPlayerDisposed: (String uri) {
-                  _audioPlayers.remove(uri);
-                },
-              ),
+            return AudioMessagePlayer(
+              key: ValueKey(audio['uri']),
+              uri: audio['uri'] as String,
             );
           }).toList(),
         ),

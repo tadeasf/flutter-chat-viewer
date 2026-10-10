@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import '../../utils/js_util.dart';
 import '../../utils/web_image_viewer.dart';
 import '../../stores/store_provider.dart';
-import '../../stores/file_store.dart';
+import '../../utils/download.dart';
 
 class PhotoViewGalleryScreen extends StatefulWidget {
   final List<Map<String, dynamic>> photos;
@@ -208,7 +208,6 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
     if (!mounted) return;
 
     final galleryStore = StoreProvider.of(context).galleryStore;
-    final fileStore = StoreProvider.of(context).fileStore;
     final photo = widget.photos[_currentIndex];
     final imageUrl = galleryStore.getPhotoUrl(photo);
 
@@ -237,7 +236,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
       if (kIsWeb) {
         _downloadForWeb(imageUrl);
       } else {
-        await fileStore.downloadFile(context, imageUrl, MediaType.image);
+        await saveMedia(context, imageUrl);
       }
     }
   }

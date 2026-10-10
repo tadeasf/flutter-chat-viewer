@@ -3,7 +3,6 @@ import 'profile_photo_store.dart';
 import 'collection_store.dart';
 import 'message_store.dart';
 import 'theme_store.dart';
-import 'file_store.dart';
 import 'gallery_store.dart';
 import 'photo_store/photo_store.dart';
 
@@ -13,7 +12,6 @@ class StoreProvider extends InheritedWidget {
   final CollectionStore collectionStore;
   final MessageStore messageStore;
   final ThemeStore themeStore;
-  final FileStore fileStore;
   final GalleryStore galleryStore;
   final PhotoStore photoStore;
 
@@ -23,7 +21,6 @@ class StoreProvider extends InheritedWidget {
     required this.collectionStore,
     required this.messageStore,
     required this.themeStore,
-    required this.fileStore,
     required this.galleryStore,
     required this.photoStore,
     required super.child,
@@ -42,7 +39,6 @@ class StoreProvider extends InheritedWidget {
         collectionStore != oldWidget.collectionStore ||
         messageStore != oldWidget.messageStore ||
         themeStore != oldWidget.themeStore ||
-        fileStore != oldWidget.fileStore ||
         galleryStore != oldWidget.galleryStore ||
         photoStore != oldWidget.photoStore;
   }
@@ -50,20 +46,14 @@ class StoreProvider extends InheritedWidget {
 
 /// Utility class to manage global store instances
 class Stores {
-  static final fileStore = FileStore();
   static final collectionStore = CollectionStore();
   static final messageStore = MessageStore();
   static final themeStore = ThemeStore();
   static final galleryStore = GalleryStore();
 
   // PhotoStore depends on file store
-  static final photoStore = PhotoStore(
-    fileStore: fileStore,
-    collectionStore: collectionStore,
-  );
+  static final photoStore = PhotoStore();
 
   // ProfilePhotoStore depends on file store
-  static final profilePhotoStore = ProfilePhotoStore(
-    fileStore: fileStore,
-  );
+  static final profilePhotoStore = ProfilePhotoStore();
 }

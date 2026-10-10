@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobx/mobx.dart';
 import 'package:logging/logging.dart';
-import '../file_store.dart';
-import '../collection_store.dart';
 import '../../utils/photo_handler.dart';
 import '../../utils/api_db/api_service.dart';
 
@@ -15,14 +13,6 @@ class PhotoStore = PhotoStoreBase with _$PhotoStore;
 // The store class
 abstract class PhotoStoreBase with Store {
   final Logger _logger = Logger('PhotoStore');
-  final FileStore fileStore;
-  final CollectionStore collectionStore;
-
-  PhotoStoreBase({
-    required this.fileStore,
-    required this.collectionStore,
-  });
-
   // Check if photos are available for a collection
   Future<bool> checkPhotoAvailability(String? collectionName) async {
     if (collectionName == null) return false;
