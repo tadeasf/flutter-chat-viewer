@@ -30,8 +30,8 @@ dependencies:
   photo_view: ^0.15.0
   http: ^1.2.2
   image_gallery_saver_plus: ^4.0.1
-  mobx: ^2.5.0
-  flutter_mobx: ^2.3.0
+  mobx: ^2.7.0
+  flutter_mobx: ^2.4.0
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
