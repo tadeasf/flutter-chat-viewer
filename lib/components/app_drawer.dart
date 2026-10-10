@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import '../stores/store_provider.dart';
 import './profile_photo/profile_photo.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class AppDrawer extends StatefulWidget {
   final String? selectedCollection;
   final bool isPhotoAvailable;
   final bool isProfilePhotoVisible;
-  final DateTime? fromDate;
-  final DateTime? toDate;
-  final List<Map<dynamic, dynamic>> messages;
-  final ItemScrollController itemScrollController;
   final VoidCallback onDrawerClosed;
   final VoidCallback onFontSizeChanged;
   final String? profilePhotoUrl;
@@ -20,10 +15,6 @@ class AppDrawer extends StatefulWidget {
     this.selectedCollection,
     this.isPhotoAvailable = false,
     this.isProfilePhotoVisible = true,
-    this.fromDate,
-    this.toDate,
-    required this.messages,
-    required this.itemScrollController,
     required this.onDrawerClosed,
     required this.onFontSizeChanged,
     this.profilePhotoUrl,
@@ -37,8 +28,6 @@ class _AppDrawerState extends State<AppDrawer> {
   String? get selectedCollection => widget.selectedCollection;
   bool get isPhotoAvailable => widget.isPhotoAvailable;
   bool get isProfilePhotoVisible => widget.isProfilePhotoVisible;
-  List<Map<dynamic, dynamic>> get messages => widget.messages;
-  ItemScrollController get itemScrollController => widget.itemScrollController;
   VoidCallback get onDrawerClosed => widget.onDrawerClosed;
   VoidCallback get onFontSizeChanged => widget.onFontSizeChanged;
   String? get profilePhotoUrl => widget.profilePhotoUrl;
@@ -53,7 +42,6 @@ class _AppDrawerState extends State<AppDrawer> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final galleryStore = StoreProvider.of(context).galleryStore;
     final profileStore = StoreProvider.of(context).profilePhotoStore;
-    final messageStore = StoreProvider.of(context).messageStore;
     final String currentCollection = selectedCollection!;
 
     try {
@@ -120,10 +108,6 @@ class _AppDrawerState extends State<AppDrawer> {
       profileStore.clearCache(currentCollection);
       await profileStore.getProfilePhotoUrl(currentCollection);
 
-      // Reload the collection to reflect changes
-      if (!mounted) return;
-      await messageStore.setCollection(currentCollection);
-
       if (!mounted) return;
       setState(() {
         // Update the state to reflect changes
@@ -133,7 +117,8 @@ class _AppDrawerState extends State<AppDrawer> {
 
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text('Failed to ${isUpload ? 'upload' : 'delete'} photo: $e'),
+          content:
+              Text('Failed to ${isUpload ? 'upload' : 'delete'} photo: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -235,11 +220,7 @@ class _AppDrawerState extends State<AppDrawer> {
                           Navigator.pop(context);
                           if (selectedCollection != null) {
                             photoStore.showAllPhotos(
-                              context,
-                              selectedCollection,
-                              messages: messages,
-                              itemScrollController: itemScrollController,
-                            );
+                                context, selectedCollection);
                           }
                         },
                       ),

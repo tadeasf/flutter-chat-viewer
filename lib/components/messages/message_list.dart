@@ -1,34 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import 'message_item.dart';
-import '../ui_utils/custom_scroll_behavior.dart';
-import '../../stores/store_provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 
+import '../../stores/message_store.dart';
+import '../ui_utils/custom_scroll_behavior.dart';
+import 'message_item.dart';
+
+const ownerName = 'Tadeáš Fořt';
+
+/// The loaded window of a conversation.
+///
+/// Messages before the store's anchor are laid out upwards from it and the
+/// rest downwards, so pages loaded at either end never move what is on
+/// screen. Scrolling near either end loads the next page.
 class MessageList extends StatefulWidget {
-  final List<Map<dynamic, dynamic>> messages;
-  final List<int> searchResults;
-  final int currentSearchIndex;
-  final ItemScrollController itemScrollController;
-  final ItemPositionsListener itemPositionsListener;
-  final bool isSearchActive;
-  final String selectedCollectionName;
+  final MessageStore store;
   final String? profilePhotoUrl;
-  final bool isCrossCollectionSearch;
-  final Function(String collectionName, int timestamp) onMessageTap;
 
   const MessageList({
     super.key,
-    required this.messages,
-    required this.searchResults,
-    required this.currentSearchIndex,
-    required this.itemScrollController,
-    required this.itemPositionsListener,
-    required this.isSearchActive,
-    required this.selectedCollectionName,
+    required this.store,
     required this.profilePhotoUrl,
-    required this.isCrossCollectionSearch,
-    required this.onMessageTap,
   });
 
   @override
@@ -36,67 +27,73 @@ class MessageList extends StatefulWidget {
 }
 
 class _MessageListState extends State<MessageList> {
+  static const _centerKey = ValueKey('anchor');
+  static const _loadAhead = 1500.0;
+  final _controller = ScrollController();
+
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  bool isHighlighted(int index) {
-    if (!widget.isSearchActive ||
-        widget.searchResults.isEmpty ||
-        widget.currentSearchIndex < 0) {
-      return false;
-    }
-
-    final targetIndex = widget.searchResults[widget.currentSearchIndex];
-    return index == targetIndex;
+  bool _onScroll(ScrollNotification n) {
+    final m = n.metrics;
+    if (m.pixels - m.minScrollExtent < _loadAhead) widget.store.loadOlder();
+    if (m.maxScrollExtent - m.pixels < _loadAhead) widget.store.loadNewer();
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get the MessageIndexStore from provider
-    final messageIndexStore = StoreProvider.of(context).messageIndexStore;
+    return Observer(builder: (_) {
+      final store = widget.store;
+      final messages = store.messages;
+      final anchor = store.anchor;
+      final count = messages.length;
+      final highlightId = store.highlightId;
 
-    // Update messages in the store
-    messageIndexStore.updateMessagesFromRaw(widget.messages);
+      Widget item(int i) {
+        final message = messages[i];
+        return MessageItem(
+          key: ValueKey(message['_id'] ?? i),
+          message: message,
+          isAuthor: message['sender_name'] == ownerName,
+          isHighlighted: highlightId != null && message['_id'] == highlightId,
+          selectedCollectionName: store.collection ?? '',
+          profilePhotoUrl: widget.profilePhotoUrl,
+          isCrossCollectionSearch: false,
+          onMessageTap: (_, __) {},
+        );
+      }
 
-    return ScrollConfiguration(
-      behavior: CustomScrollBehavior(),
-      child: Observer(
-        builder: (_) => ScrollablePositionedList.builder(
-          itemCount: widget.messages.length,
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemBuilder: (context, index) {
-            final message = Map<String, dynamic>.from(widget.messages[index]);
-            final collectionName = widget.isCrossCollectionSearch
-                ? message['collectionName']
-                : widget.selectedCollectionName;
-
-            return MessageItem(
-              message: Map<String, dynamic>.from({
-                ...message,
-                'is_instagram': message['is_instagram'] ??
-                    message.containsKey('is_geoblocked_for_viewer'),
-              }),
-              isAuthor: message['sender_name'] == 'Tadeáš Fořt',
-              isHighlighted: isHighlighted(index),
-              isSearchActive: widget.isSearchActive,
-              selectedCollectionName: collectionName,
-              profilePhotoUrl: widget.profilePhotoUrl,
-              isCrossCollectionSearch: widget.isCrossCollectionSearch,
-              onMessageTap: widget.onMessageTap,
-              messages: widget.messages,
-              itemScrollController: widget.itemScrollController,
-            );
-          },
-          itemScrollController: widget.itemScrollController,
-          itemPositionsListener: widget.itemPositionsListener,
-          // Add performance optimizations
-          minCacheExtent: 800, // Cache more items for smoother scrolling
-          addAutomaticKeepAlives: true,
-          addRepaintBoundaries: true,
+      return NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: ScrollConfiguration(
+          behavior: CustomScrollBehavior(),
+          child: CustomScrollView(
+            key: ValueKey(store.generation),
+            controller: _controller,
+            center: _centerKey,
+            anchor: store.anchoredAtBottom ? 1.0 : 0.2,
+            slivers: [
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => item(anchor - 1 - i),
+                  childCount: anchor,
+                ),
+              ),
+              SliverList(
+                key: _centerKey,
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => item(anchor + i),
+                  childCount: count - anchor,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

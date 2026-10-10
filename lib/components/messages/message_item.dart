@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
 import '../../screens/gallery/photo_view_gallery.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:just_audio/just_audio.dart';
 import 'audio_message_player.dart';
 import '../../screens/media/video_player_screen.dart';
@@ -17,26 +16,20 @@ class MessageItem extends StatefulWidget {
   final Map<String, dynamic> message;
   final bool isAuthor;
   final bool isHighlighted;
-  final bool isSearchActive;
   final String selectedCollectionName;
   final String? profilePhotoUrl;
   final bool isCrossCollectionSearch;
   final Function(String collectionName, int timestamp) onMessageTap;
-  final List<Map<dynamic, dynamic>> messages;
-  final ItemScrollController itemScrollController;
 
   const MessageItem({
     super.key,
     required this.message,
     required this.isAuthor,
     required this.isHighlighted,
-    required this.isSearchActive,
     required this.selectedCollectionName,
     this.profilePhotoUrl,
     required this.isCrossCollectionSearch,
     required this.onMessageTap,
-    required this.messages,
-    required this.itemScrollController,
   });
 
   @override
@@ -173,8 +166,8 @@ class MessageItemState extends State<MessageItem> {
                 borderRadius: BorderRadius.circular(12),
                 child: CachedNetworkImage(
                   imageUrl: ApiService.mediaUrl(photo['uri']),
-                  httpHeaders: ApiService.headersFor(
-                      ApiService.mediaUrl(photo['uri'])),
+                  httpHeaders:
+                      ApiService.headersFor(ApiService.mediaUrl(photo['uri'])),
                   width: displayWidth,
                   fit: BoxFit.cover,
                   memCacheWidth: (displayWidth * 2).toInt(),

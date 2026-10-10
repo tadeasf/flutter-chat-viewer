@@ -1,496 +1,250 @@
-import 'package:mobx/mobx.dart';
-import 'package:logging/logging.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/api_db/api_service.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'dart:math';
 
-// Include the generated file
+import 'package:mobx/mobx.dart';
+
+import '../utils/api_db/api_service.dart';
+
 part 'message_store.g.dart';
 
-// This is the class used by rest of the codebase
+typedef PageFetcher = Future<List<Map<String, dynamic>>> Function(
+  String collection, {
+  required int offset,
+  required int limit,
+  int? fromDate,
+  int? toDate,
+  bool countHit,
+});
+
+/// The backend calls the store needs; replaceable in tests.
+class MessageSource {
+  final Future<int> Function(String collection) count;
+  final PageFetcher page;
+  final Future<Map<String, dynamic>> Function(String collection) stats;
+
+  const MessageSource({
+    required this.count,
+    required this.page,
+    required this.stats,
+  });
+
+  static const api = MessageSource(
+    count: ApiService.fetchMessageCount,
+    page: ApiService.fetchMessages,
+    stats: ApiService.fetchStats,
+  );
+}
+
 class MessageStore = MessageStoreBase with _$MessageStore;
 
-// The store class
+/// A window of one conversation, loaded page by page.
+///
+/// `messages[i]` is the message at absolute offset `start + i` (messages are
+/// ordered by timestamp, oldest first). [anchor] is the index the chat list
+/// keeps fixed on screen: pages loaded above it never move what is visible.
 abstract class MessageStoreBase with Store {
-  final Logger _logger = Logger('MessageStore');
+  MessageStoreBase({this.source = MessageSource.api, this.pageSize = 200});
 
-  // Cache configuration
-  static const int cacheExpirationDays = 180; // Cache valid for 6 months
-  static const String cacheVersionKey = 'message_cache_version';
-  static const int currentCacheVersion =
-      1; // Increment when cache format changes
+  final MessageSource source;
+  final int pageSize;
 
-  // Observable lists for messages
   @observable
-  ObservableList<Map<String, dynamic>> messages =
+  String? collection;
+
+  /// Number of messages in the conversation.
+  @observable
+  int total = 0;
+
+  /// Absolute offset of `messages[0]`.
+  @observable
+  int start = 0;
+
+  final ObservableList<Map<String, dynamic>> messages =
       ObservableList<Map<String, dynamic>>();
 
-  // Observable list for filtered messages by date
   @observable
-  ObservableList<Map<String, dynamic>> filteredMessages =
-      ObservableList<Map<String, dynamic>>();
+  int anchor = 0;
 
-  // Current collection name
+  /// True when the window was opened at the newest messages (the list then
+  /// sticks to the bottom); false after a jump (target shown near the top).
   @observable
-  String? currentCollection;
+  bool anchoredAtBottom = true;
 
-  // Timestamp for last fetch
+  /// Incremented whenever the window is replaced, so the list can reset.
   @observable
-  DateTime lastMessageFetch = DateTime.fromMillisecondsSinceEpoch(0);
+  int generation = 0;
 
-  // Loading state
+  /// `_id` of the message to highlight (jump target, search hit).
+  @observable
+  String? highlightId;
+
   @observable
   bool isLoading = false;
 
-  // Error state
   @observable
-  String? errorMessage;
+  String? error;
 
-  // Date range filters
-  @observable
-  DateTime? fromDate;
+  bool _loadingOlder = false;
+  bool _loadingNewer = false;
+  List<Map<String, dynamic>>? _perMonth;
 
-  @observable
-  DateTime? toDate;
+  int get end => start + messages.length;
 
-  // Cache stats
-  @observable
-  Map<String, DateTime> collectionCacheTimestamps = {};
-
-  @observable
-  Map<String, int> collectionCacheSizes = {};
-
-  // Computed property for active date filtering
   @computed
-  bool get hasDateFilter => fromDate != null || toDate != null;
+  bool get hasOlder => start > 0;
 
-  // Constructor to initialize cache metadata
-  MessageStoreBase() {
-    _initCacheMetadata();
-  }
-
-  // Initialize cache metadata
-  Future<void> _initCacheMetadata() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cacheVersion = prefs.getInt(cacheVersionKey) ?? 0;
-
-      // If cache version doesn't match, clear old cache
-      if (cacheVersion < currentCacheVersion) {
-        await _clearAllCache();
-        await prefs.setInt(cacheVersionKey, currentCacheVersion);
-      }
-
-      // Load cache timestamps for all collections
-      final keys = prefs.getKeys();
-      for (final key in keys) {
-        if (key.startsWith('messages_') && key.endsWith('_timestamp')) {
-          final collectionKey =
-              key.replaceAll('_timestamp', '').replaceAll('messages_', '');
-          final timestamp = prefs.getInt(key) ?? 0;
-          collectionCacheTimestamps[collectionKey] =
-              DateTime.fromMillisecondsSinceEpoch(timestamp);
-
-          // Get cache size if available
-          final sizeKey = 'messages_${collectionKey}_size';
-          final size = prefs.getInt(sizeKey) ?? 0;
-          collectionCacheSizes[collectionKey] = size;
-        }
-      }
-    } catch (e) {
-      _logger.warning('Error initializing cache metadata: $e');
-    }
-  }
-
-  // Action to change collection and load messages
-  @action
-  Future<void> setCollection(String? collectionName) async {
-    if (collectionName == currentCollection && messages.isNotEmpty) {
-      return; // No need to reload if collection hasn't changed and we have messages
-    }
-
-    // Clear current messages and set loading state
-    messages.clear();
-    filteredMessages.clear();
-    errorMessage = null;
-    isLoading = true;
-    currentCollection = collectionName;
-
-    // Reset date filters
-    fromDate = null;
-    toDate = null;
-
-    if (collectionName == null) {
-      isLoading = false;
-      return;
-    }
-
-    try {
-      // Try to load from cache first
-      final cachedMessages = await _loadFromCache(collectionName);
-
-      if (cachedMessages.isNotEmpty) {
-        // Check if cache is fresh enough (within expiration period)
-        final isCacheFresh = _isCacheFresh(collectionName);
-
-        // Ensure messages are sorted by timestamp (ascending)
-        cachedMessages.sort((a, b) =>
-            (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
-
-        messages.addAll(cachedMessages);
-        filteredMessages.addAll(cachedMessages);
-
-        isLoading = false;
-
-        // If cache is old, refresh in background
-        if (!isCacheFresh) {
-          _logger.info(
-              'Cache for $collectionName is stale, refreshing in background');
-          _fetchMessages(collectionName,
-              forceRefresh: true, backgroundRefresh: true);
-        }
-      } else {
-        // No cache, fetch directly
-        await _fetchMessages(collectionName);
-      }
-    } catch (e) {
-      _logger.warning('Error setting collection: $e');
-      errorMessage = 'Failed to load messages: $e';
-      isLoading = false;
-    }
-  }
-
-  // Check if cache is fresh based on expiration period
-  bool _isCacheFresh(String collectionName) {
-    final normalizedName = collectionName.replaceAll(' ', '_');
-    final timestamp = collectionCacheTimestamps[normalizedName];
-
-    if (timestamp == null) return false;
-
-    final expirationDate =
-        DateTime.now().subtract(Duration(days: cacheExpirationDays));
-    return timestamp.isAfter(expirationDate);
-  }
-
-  // Action to refresh messages for current collection
-  @action
-  Future<void> refreshMessages() async {
-    if (currentCollection == null) return;
-
-    isLoading = true;
-    errorMessage = null;
-
-    try {
-      await _fetchMessages(currentCollection!, forceRefresh: true);
-    } catch (e) {
-      _logger.warning('Error refreshing messages: $e');
-      errorMessage = 'Failed to refresh messages: $e';
-      isLoading = false;
-    }
-  }
-
-  // Action to fetch messages with date range filtering
-  @action
-  Future<void> fetchMessagesForDateRange(
-      String collectionName, DateTime? from, DateTime? to) async {
-    isLoading = true;
-    errorMessage = null;
-    fromDate = from;
-    toDate = to;
-
-    // If collection has changed, clear and load new collection
-    if (collectionName != currentCollection) {
-      await setCollection(collectionName);
-    }
-
-    // Apply date filters to existing messages
-    _applyDateFilter();
-    isLoading = false;
-  }
-
-  // Private method to apply date filters to messages
-  void _applyDateFilter() {
-    filteredMessages.clear();
-
-    if (!hasDateFilter) {
-      // If no date filters, use all messages
-      filteredMessages.addAll(messages);
-      return;
-    }
-
-    // Filter messages by date range
-    final filtered = messages.where((message) {
-      final timestamp = message['timestamp_ms'] as int? ?? 0;
-      final messageDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
-
-      // Apply from date filter
-      if (fromDate != null) {
-        final fromStart =
-            DateTime(fromDate!.year, fromDate!.month, fromDate!.day);
-        if (messageDate.isBefore(fromStart)) {
-          return false;
-        }
-      }
-
-      // Apply to date filter
-      if (toDate != null) {
-        final toEnd =
-            DateTime(toDate!.year, toDate!.month, toDate!.day, 23, 59, 59);
-        if (messageDate.isAfter(toEnd)) {
-          return false;
-        }
-      }
-
-      return true;
-    }).toList();
-
-    filteredMessages.addAll(filtered);
-  }
-
-  // Private method to fetch messages from API
-  Future<void> _fetchMessages(String? collectionName,
-      {bool forceRefresh = false, bool backgroundRefresh = false}) async {
-    if (collectionName == null) return;
-
-    if (!backgroundRefresh) {
-      isLoading = true;
-    }
-
-    try {
-      // The paged endpoint reads straight from Mongo (never the cold-cache
-      // placeholder) and returns pages sorted by timestamp_ms ascending.
-      // 10000 is the server's maximum page size.
-      const pageSize = 10000;
-      final count = await ApiService.fetchMessageCount(collectionName);
-      final List<Map<String, dynamic>> processedMessages = [];
-      for (var offset = 0; offset < count; offset += pageSize) {
-        processedMessages.addAll(await ApiService.fetchMessages(collectionName,
-            offset: offset, limit: pageSize, countHit: offset == 0));
-      }
-
-      if (processedMessages.isNotEmpty) {
-        await _saveToCache(collectionName, processedMessages);
-      }
-
-      if (!backgroundRefresh) {
-        // Update UI
-        messages.clear();
-        messages.addAll(processedMessages);
-
-
-        // Apply date filters if active
-        _applyDateFilter();
-      }
-
-      lastMessageFetch = DateTime.now();
-      if (!backgroundRefresh) {
-        isLoading = false;
-      }
-
-      _logger.info(
-          'Loaded ${processedMessages.length} messages for $collectionName (background: $backgroundRefresh)');
-    } catch (e) {
-      _logger.warning('Error fetching messages: $e');
-      if (!backgroundRefresh) {
-        errorMessage = 'Failed to load messages: $e';
-        isLoading = false;
-
-        // Fall back to the local cache
-        if (messages.isEmpty) {
-          final cachedMessages = await _loadFromCache(collectionName);
-          if (cachedMessages.isNotEmpty) {
-            messages.addAll(cachedMessages);
-            // Apply date filters to cached messages too
-            _applyDateFilter();
-          }
-        }
-      }
-    }
-  }
-
-  // Cache operations - save messages to cache using both SharedPreferences for metadata
-  // and file storage for large message collections
-  Future<void> _saveToCache(
-      String collectionName, List<dynamic> messagesList) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final normalizedName = collectionName.replaceAll(' ', '_');
-
-      // Create cache keys
-      final metadataKey = 'messages_$normalizedName';
-      final timestampKey = '${metadataKey}_timestamp';
-      final sizeKey = '${metadataKey}_size';
-
-      // Convert messages to JSON
-      final messagesJson = json.encode(messagesList);
-      final jsonBytes = utf8.encode(messagesJson).length;
-
-      // Store messages in file for large collections
-      final directory = await getApplicationDocumentsDirectory();
-      final cacheDir = Directory('${directory.path}/message_cache');
-      if (!await cacheDir.exists()) {
-        await cacheDir.create(recursive: true);
-      }
-
-      final cacheFile = File('${cacheDir.path}/$normalizedName.json');
-      await cacheFile.writeAsString(messagesJson);
-
-      // Store metadata in SharedPreferences
-      final now = DateTime.now();
-      await prefs.setInt(timestampKey, now.millisecondsSinceEpoch);
-      await prefs.setInt(sizeKey, jsonBytes);
-
-      // Update observable cache metadata
-      collectionCacheTimestamps[normalizedName] = now;
-      collectionCacheSizes[normalizedName] = jsonBytes;
-
-      _logger.info(
-          'Saved ${messagesList.length} messages (${(jsonBytes / 1024).toStringAsFixed(2)} KB) to cache for $collectionName');
-    } catch (e) {
-      _logger.warning('Error saving messages to cache: $e');
-    }
-  }
-
-  // Load messages from cache - tries file cache first, falls back to SharedPreferences
-  Future<List<Map<String, dynamic>>> _loadFromCache(
-      String collectionName) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final normalizedName = collectionName.replaceAll(' ', '_');
-
-      // Create cache keys
-      final metadataKey = 'messages_$normalizedName';
-      final timestampKey = '${metadataKey}_timestamp';
-
-      // Check if we have timestamp metadata
-      final timestamp = prefs.getInt(timestampKey);
-      if (timestamp == null) {
-        return [];
-      }
-
-      // Try to load from file cache first
-      final directory = await getApplicationDocumentsDirectory();
-      final cacheFile =
-          File('${directory.path}/message_cache/$normalizedName.json');
-
-      String? cachedData;
-      if (await cacheFile.exists()) {
-        cachedData = await cacheFile.readAsString();
-      } else {
-        // Fall back to SharedPreferences
-        cachedData = prefs.getString(metadataKey);
-      }
-
-      if (cachedData != null) {
-        // Update last fetch time based on cache timestamp
-        lastMessageFetch = DateTime.fromMillisecondsSinceEpoch(timestamp);
-
-        _logger.info(
-            'Loaded messages from cache for $collectionName (cached on ${DateTime.fromMillisecondsSinceEpoch(timestamp)})');
-
-        // Decode and return messages
-        return List<Map<String, dynamic>>.from(
-            json.decode(cachedData).map((m) => Map<String, dynamic>.from(m)));
-      }
-    } catch (e) {
-      _logger.warning('Error loading messages from cache: $e');
-    }
-
-    return [];
-  }
-
-  // Clear cache for a specific collection
-  @action
-  Future<void> clearCache(String collectionName) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final normalizedName = collectionName.replaceAll(' ', '_');
-
-      // Remove from SharedPreferences
-      await prefs.remove('messages_$normalizedName');
-      await prefs.remove('messages_${normalizedName}_timestamp');
-      await prefs.remove('messages_${normalizedName}_size');
-
-      // Remove file cache
-      final directory = await getApplicationDocumentsDirectory();
-      final cacheFile =
-          File('${directory.path}/message_cache/$normalizedName.json');
-      if (await cacheFile.exists()) {
-        await cacheFile.delete();
-      }
-
-      // Update observables
-      collectionCacheTimestamps.remove(normalizedName);
-      collectionCacheSizes.remove(normalizedName);
-
-      _logger.info('Cleared cache for $collectionName');
-    } catch (e) {
-      _logger.warning('Error clearing cache: $e');
-    }
-  }
-
-  // Clear all cache
-  @action
-  Future<void> _clearAllCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Get all cache keys
-      final keys =
-          prefs.getKeys().where((key) => key.startsWith('messages_')).toList();
-
-      // Remove all cache keys from SharedPreferences
-      for (final key in keys) {
-        await prefs.remove(key);
-      }
-
-      // Remove all cache files
-      final directory = await getApplicationDocumentsDirectory();
-      final cacheDir = Directory('${directory.path}/message_cache');
-      if (await cacheDir.exists()) {
-        await cacheDir.delete(recursive: true);
-      }
-
-      // Clear observables
-      collectionCacheTimestamps.clear();
-      collectionCacheSizes.clear();
-
-      _logger.info('Cleared all message cache');
-    } catch (e) {
-      _logger.warning('Error clearing all cache: $e');
-    }
-  }
-
-  // Get cache stats
   @computed
-  Map<String, dynamic> get cacheStats {
-    int totalSize = 0;
-    int oldestTimestamp = DateTime.now().millisecondsSinceEpoch;
-    int newestTimestamp = 0;
-    int collectionCount = collectionCacheSizes.length;
+  bool get hasNewer => start + messages.length < total;
 
-    collectionCacheSizes.forEach((collection, size) {
-      totalSize += size;
-
-      final timestamp =
-          collectionCacheTimestamps[collection]?.millisecondsSinceEpoch ?? 0;
-      if (timestamp > 0) {
-        if (timestamp < oldestTimestamp) oldestTimestamp = timestamp;
-        if (timestamp > newestTimestamp) newestTimestamp = timestamp;
-      }
+  /// Opens a conversation at its newest messages.
+  @action
+  Future<void> open(String name) async {
+    collection = name;
+    _perMonth = null;
+    await _replaceWindow(() async {
+      total = await source.count(name);
+      final first = max(0, total - pageSize);
+      final page = await source.page(name,
+          offset: first, limit: pageSize, countHit: true);
+      return (first, page, page.length, null);
     });
+  }
 
-    return {
-      'totalSizeKB': totalSize / 1024,
-      'collectionCount': collectionCount,
-      'oldestCache': oldestTimestamp > 0
-          ? DateTime.fromMillisecondsSinceEpoch(oldestTimestamp)
-          : null,
-      'newestCache': newestTimestamp > 0
-          ? DateTime.fromMillisecondsSinceEpoch(newestTimestamp)
-          : null,
-    };
+  @action
+  Future<void> jumpToLatest() async {
+    final name = collection;
+    if (name == null) return;
+    await _replaceWindow(() async {
+      total = await source.count(name);
+      final first = max(0, total - pageSize);
+      final page = await source.page(name, offset: first, limit: pageSize);
+      return (first, page, page.length, null);
+    });
+  }
+
+  /// Shows the message with [timestamp] (and [id], if known) in its context.
+  @action
+  Future<void> jumpTo(int timestamp, {String? id}) async {
+    final name = collection;
+    if (name == null) return;
+    await _replaceWindow(() async {
+      final offset = await offsetOf(timestamp);
+      final first = max(0, offset - pageSize ~/ 4);
+      final page = await source.page(name, offset: first, limit: pageSize);
+      var target = id == null ? -1 : page.indexWhere((m) => m['_id'] == id);
+      if (target < 0) {
+        target = page
+            .indexWhere((m) => (m['timestamp_ms'] as int? ?? 0) >= timestamp);
+      }
+      if (target < 0) target = page.length;
+      final highlight =
+          target < page.length ? page[target]['_id'] as String? : null;
+      return (first, page, target, highlight);
+    });
+  }
+
+  /// Number of messages older than [timestamp].
+  ///
+  /// `/stats` gives per-month totals (UTC), so only the messages of the
+  /// target month before [timestamp] need to be counted.
+  Future<int> offsetOf(int timestamp) async {
+    final name = collection!;
+    _perMonth ??= ((await source.stats(name))['perMonth'] as List)
+        .cast<Map<String, dynamic>>();
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true);
+    final month = '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}';
+    var before = 0;
+    for (final m in _perMonth!) {
+      if ((m['month'] as String).compareTo(month) >= 0) break;
+      before += m['count'] as int;
+    }
+    final monthStart =
+        DateTime.utc(date.year, date.month).millisecondsSinceEpoch;
+    const maxPage = 10000;
+    for (var skip = 0;; skip += maxPage) {
+      final page = await source.page(name,
+          offset: skip,
+          limit: maxPage,
+          fromDate: monthStart,
+          toDate: timestamp - 1);
+      before += page.length;
+      if (page.length < maxPage) return before;
+    }
+  }
+
+  @action
+  Future<void> loadOlder() async {
+    final name = collection;
+    if (name == null || _loadingOlder || isLoading || !hasOlder) return;
+    _loadingOlder = true;
+    try {
+      final count = min(pageSize, start);
+      final page = await source.page(name, offset: start - count, limit: count);
+      if (name == collection) _prepend(page, start - count);
+    } catch (e) {
+      error = '$e';
+    } finally {
+      _loadingOlder = false;
+    }
+  }
+
+  @action
+  Future<void> loadNewer() async {
+    final name = collection;
+    if (name == null || _loadingNewer || isLoading || !hasNewer) return;
+    _loadingNewer = true;
+    try {
+      final page = await source.page(name, offset: end, limit: pageSize);
+      if (name == collection) _append(page);
+    } catch (e) {
+      error = '$e';
+    } finally {
+      _loadingNewer = false;
+    }
+  }
+
+  // Pages are joined by offset; messages already present (same `_id`) are
+  // skipped in case the server's order of equal timestamps ever shifts.
+  @action
+  void _prepend(List<Map<String, dynamic>> page, int newStart) {
+    final known = _ids(messages.take(page.length));
+    final fresh = page.where((m) => !known.contains(m['_id'])).toList();
+    messages.insertAll(0, fresh);
+    anchor += fresh.length;
+    start = newStart;
+  }
+
+  @action
+  void _append(List<Map<String, dynamic>> page) {
+    final known = _ids(messages.skip(max(0, messages.length - page.length)));
+    messages.addAll(page.where((m) => !known.contains(m['_id'])));
+  }
+
+  static Set<Object?> _ids(Iterable<Map<String, dynamic>> ms) =>
+      {for (final m in ms) m['_id']};
+
+  @action
+  Future<void> _replaceWindow(
+      Future<(int, List<Map<String, dynamic>>, int, String?)> Function()
+          load) async {
+    final name = collection;
+    isLoading = true;
+    error = null;
+    try {
+      final (first, page, anchorIndex, highlight) = await load();
+      if (name != collection) return;
+      start = first;
+      messages
+        ..clear()
+        ..addAll(page);
+      anchor = anchorIndex;
+      anchoredAtBottom = anchorIndex >= page.length;
+      highlightId = highlight;
+      generation++;
+    } catch (e) {
+      if (name == collection) error = '$e';
+    } finally {
+      if (name == collection) isLoading = false;
+    }
   }
 }

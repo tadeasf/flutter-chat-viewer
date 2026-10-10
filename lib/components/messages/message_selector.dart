@@ -2,23 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'message_list.dart';
+import 'message_item.dart';
 import '../../utils/api_db/api_service.dart';
-// ignore: unused_import
-import '../search/navigate_search.dart';
 import '../app_drawer.dart';
 import 'collection_selector.dart';
 import '../navbar.dart';
-import '../../utils/search/scroll_to_highlighted_message.dart';
-import '../search/search_messages.dart';
-import '../../utils/search/search_type.dart';
 import '../ui_utils/visibility_state.dart';
 import '../search/search_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import '../../stores/store_provider.dart';
+import '../../stores/message_store.dart';
 import '../../widgets/ui_utils/dark_geometric_background.dart';
 
 final searchKeySet = LogicalKeySet(
@@ -135,59 +130,29 @@ class MessageSelector extends StatefulWidget {
 
 class MessageSelectorState extends State<MessageSelector> {
   String? selectedCollection;
-  DateTime? fromDate;
-  DateTime? toDate;
-  List<Map<dynamic, dynamic>> messages = [];
   TextEditingController searchController = TextEditingController();
-  final picker = ImagePicker();
   bool isPhotoAvailable = false;
-  final ItemScrollController itemScrollController = ItemScrollController();
-  final ItemPositionsListener itemPositionsListener =
-      ItemPositionsListener.create();
-  List<dynamic> galleryPhotos = [];
-  bool isGalleryLoading = false;
-  List<int> searchResults = [];
+
+  /// Hits of the search inside the open conversation, oldest first.
+  List<Map<String, dynamic>> searchResults = [];
   int currentSearchIndex = -1;
-  bool isSearchVisible = false;
-  final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
   bool isSearchActive = false;
-  String? searchQueryInWidget;
   String? profilePhotoUrl;
   final bool _isProfilePhotoVisible = true;
-  int get maxCollectionIndex {
-    final store = StoreProvider.of(context).collectionStore;
-    final filteredList = store.filteredCollections;
-    return filteredList.isNotEmpty
-        ? filteredList
-            .map((c) => c['index'] as int? ?? 0)
-            .reduce((a, b) => a > b ? a : b)
-        : 0;
-  }
 
   bool isCollectionSelectorVisible = false;
   List<Map<dynamic, dynamic>> crossCollectionMessages = [];
   bool isCrossCollectionSearch = false;
-  bool isSearchBarVisible = false;
-  bool isGlobalLoading = false;
-  int currentFoundMatches = 0;
   VisibilityState _currentVisibility = VisibilityState.none;
   final FocusNode _searchFocusNode = FocusNode();
   bool isCrossCollectionLoading = false;
   String? currentSearchQuery;
 
   @override
-  void initState() {
-    super.initState();
-    // Get collections from the CollectionStore instead of loading directly
-    // The store will automatically load collections when it's initialized
-  }
-
-  @override
   void dispose() {
     _debounce?.cancel();
     searchController.dispose();
-    _scrollController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
@@ -199,76 +164,28 @@ class MessageSelectorState extends State<MessageSelector> {
     store.setMessageLoading(value);
   }
 
-  void setMessages(List<dynamic> rawMessages) {
-    if (rawMessages.isEmpty) return;
-
-    // Get the MessageStore instance
-    final messageStore = StoreProvider.of(context).messageStore;
-
-    // Process the loaded messages
-    final processedMessages = rawMessages.map((message) {
-      if (message is! Map) return <String, dynamic>{};
-      return Map<String, dynamic>.from(message);
-    }).toList();
-
-    // Sort messages by timestamp in ascending order (oldest first)
-    processedMessages.sort((a, b) => (a['timestamp_ms'] as int? ?? 0)
-        .compareTo(b['timestamp_ms'] as int? ?? 0));
-
-    // Clear existing messages and add all at once
-    messageStore.messages.clear();
-    messageStore.messages.addAll(processedMessages);
-  }
-
-  void updateCurrentSearchIndex(int index) {
-    if (index >= 0 && index < searchResults.length) {
-      setState(() {
-        currentSearchIndex = index;
-        isSearchActive = true;
-        isSearchVisible = true;
-      });
-
-      if (itemScrollController.isAttached) {
-        scrollToHighlightedMessage(
-          searchResults[index],
-          searchResults,
-          itemScrollController,
-          SearchType.searchWidget,
-        );
-      }
-    }
+  void _showSearchResult(int index) {
+    if (index < 0 || index >= searchResults.length) return;
+    final hit = searchResults[index];
+    setState(() => currentSearchIndex = index);
+    StoreProvider.of(context)
+        .messageStore
+        .jumpTo(hit['timestamp_ms'] as int, id: hit['_id'] as String?);
   }
 
   void _navigateSearch(int direction) {
-    // Create a wrapper that returns the expected type
-    dynamic scrollWrapper(int index, List<int> indices,
-        ItemScrollController controller, SearchType type) {
-      scrollToHighlightedMessage(index, indices, controller, type);
-      return true; // Return any non-null value
-    }
-
-    navigateSearch(
-      direction,
-      searchResults,
-      currentSearchIndex,
-      (index) {
-        setState(() {
-          currentSearchIndex = index;
-        });
-      },
-      scrollWrapper,
-      itemScrollController,
-    );
+    if (searchResults.isEmpty) return;
+    _showSearchResult((currentSearchIndex + direction) % searchResults.length);
   }
 
   Future<void> _changeCollection(String? newValue) async {
-    // Use MessageStore for collection change and message loading
     final messageStore = StoreProvider.of(context).messageStore;
     final photoStore = StoreProvider.of(context).photoStore;
+    final profilePhotoStore = StoreProvider.of(context).profilePhotoStore;
 
     setState(() {
       selectedCollection = newValue;
-      isCollectionSelectorVisible = false;
+      isCollectionSelectorVisible = newValue == null;
       isCrossCollectionSearch = false;
       crossCollectionMessages = [];
       searchResults = [];
@@ -276,42 +193,20 @@ class MessageSelectorState extends State<MessageSelector> {
       currentSearchIndex = -1;
       searchController.clear();
     });
+    if (newValue == null) return;
 
-    if (selectedCollection != null) {
-      // Set loading state
-      setLoading(true);
-
-      // Use MessageStore to load messages for the new collection
-      await messageStore.setCollection(selectedCollection);
-
-      if (!mounted) return;
-
-      // Check photo availability after collection is set
-      final isAvailable =
-          await photoStore.checkPhotoAvailability(selectedCollection);
-      setState(() {
-        isPhotoAvailable = isAvailable;
-      });
-
-      if (!mounted) return;
-
-      // Get profile photo URL
-      profilePhotoUrl = await StoreProvider.of(context)
-          .profilePhotoStore
-          .getProfilePhotoUrl(selectedCollection!);
-
-      // Update messages from store to local state for rendering
-      setState(() {
-        messages = messageStore.messages.toList();
-      });
-
-      // Turn off loading state
-      setLoading(false);
-    } else {
-      setState(() {
-        isCollectionSelectorVisible = true;
-      });
-    }
+    setLoading(true);
+    final photoAvailable = photoStore.checkPhotoAvailability(newValue);
+    final photoUrl = profilePhotoStore.getProfilePhotoUrl(newValue);
+    await messageStore.open(newValue);
+    final available = await photoAvailable;
+    final url = await photoUrl;
+    if (!mounted) return;
+    setState(() {
+      isPhotoAvailable = available;
+      profilePhotoUrl = url;
+    });
+    setLoading(false);
   }
 
   void _setVisibilityState(VisibilityState newState) {
@@ -321,7 +216,6 @@ class MessageSelectorState extends State<MessageSelector> {
 
       // Reset other states based on visibility
       if (_currentVisibility != VisibilityState.search) {
-        isSearchBarVisible = false;
         searchController.clear();
         searchResults.clear();
         currentSearchIndex = -1;
@@ -394,8 +288,6 @@ class MessageSelectorState extends State<MessageSelector> {
       }).toList();
 
       isCrossCollectionSearch = true;
-      isSearchActive = true;
-      messages = crossCollectionMessages;
     });
   }
 
@@ -405,73 +297,6 @@ class MessageSelectorState extends State<MessageSelector> {
       return utf8.decode(text.toString().codeUnits);
     } catch (e) {
       return text.toString();
-    }
-  }
-
-  void handleMessageTap(String collectionName, int timestamp) async {
-    if (collectionName != selectedCollection) {
-      setState(() {
-        messages = [];
-        selectedCollection = collectionName;
-        isCollectionSelectorVisible = false;
-        isCrossCollectionSearch = false;
-      });
-
-      try {
-        // Get stores from context
-        final messageStore = StoreProvider.of(context).messageStore;
-        final collectionStore = StoreProvider.of(context).collectionStore;
-
-        // Set message loading to true
-        collectionStore.setMessageLoading(true);
-
-        // Fetch messages directly using MessageStore
-        await messageStore.fetchMessagesForDateRange(
-            collectionName, fromDate, toDate);
-
-        if (!mounted) return;
-
-        // Process messages
-        final processedMessages = List<Map<dynamic, dynamic>>.from(messageStore
-            .filteredMessages
-            .map((m) => Map<dynamic, dynamic>.from(m)));
-
-        setState(() {
-          messages = processedMessages;
-        });
-
-        // Set message loading to false
-        collectionStore.setMessageLoading(false);
-
-        // Important: Wait for the next frame to ensure messages are rendered
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        if (!mounted) return;
-
-        // Now scroll to the target message
-        final messageIndexStore = StoreProvider.of(context).messageIndexStore;
-        messageIndexStore.updateMessagesFromRaw(messages);
-        final index = messageIndexStore.getIndexForTimestampRaw(timestamp);
-
-        if (index != null) {
-          scrollToHighlightedMessage(
-            index,
-            [index],
-            itemScrollController,
-            SearchType.crossCollection,
-          );
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error handling message tap: $e');
-        }
-
-        if (!mounted) return;
-
-        // Set message loading to false using the store
-        final store = StoreProvider.of(context).collectionStore;
-        store.setMessageLoading(false);
-      }
     }
   }
 
@@ -500,14 +325,10 @@ class MessageSelectorState extends State<MessageSelector> {
         }
       },
       onGalleryOpen: () {
-        if (selectedCollection != null && messages.isNotEmpty) {
-          final photoStore = StoreProvider.of(context).photoStore;
-          photoStore.showAllPhotos(
-            context,
-            selectedCollection,
-            messages: messages,
-            itemScrollController: itemScrollController,
-          );
+        if (selectedCollection != null) {
+          StoreProvider.of(context)
+              .photoStore
+              .showAllPhotos(context, selectedCollection);
         }
       },
       onCollectionSelectorToggle: toggleCollectionSelector,
@@ -517,12 +338,7 @@ class MessageSelectorState extends State<MessageSelector> {
             selectedCollection: selectedCollection,
             isPhotoAvailable: isPhotoAvailable,
             isProfilePhotoVisible: _isProfilePhotoVisible,
-            fromDate: fromDate,
-            toDate: toDate,
             profilePhotoUrl: profilePhotoUrl,
-            messages:
-                messages.map((m) => Map<String, dynamic>.from(m)).toList(),
-            itemScrollController: itemScrollController,
             onDrawerClosed: () => _setVisibilityState(VisibilityState.none),
             onFontSizeChanged: () {
               setState(() {
@@ -543,8 +359,8 @@ class MessageSelectorState extends State<MessageSelector> {
                     final collectionStore =
                         StoreProvider.of(context).collectionStore;
                     final isCollectionLoading = collectionStore.isLoading;
-                    final isMessageLoading = collectionStore.isMessageLoading;
                     final collections = collectionStore.collections;
+                    final messageStore = StoreProvider.of(context).messageStore;
 
                     if (collections.isEmpty && isCollectionLoading) {
                       return ListView(
@@ -606,56 +422,7 @@ class MessageSelectorState extends State<MessageSelector> {
                           ),
                         ),
                         Expanded(
-                          child: isMessageLoading || isCrossCollectionLoading
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const CircularProgressIndicator(),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        selectedCollection != null
-                                            ? 'Loading messages...'
-                                            : 'Select a collection',
-                                        style: const TextStyle(
-                                          fontFamily:
-                                              'JetBrains Mono Nerd Font',
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : messages.isEmpty && selectedCollection != null
-                                  ? const Center(
-                                      child: Text(
-                                        'No messages found',
-                                        style: TextStyle(
-                                          fontFamily:
-                                              'JetBrains Mono Nerd Font',
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    )
-                                  : MessageList(
-                                      messages: isCrossCollectionSearch
-                                          ? crossCollectionMessages
-                                          : messages,
-                                      searchResults: searchResults,
-                                      currentSearchIndex: currentSearchIndex,
-                                      itemScrollController:
-                                          itemScrollController,
-                                      itemPositionsListener:
-                                          itemPositionsListener,
-                                      isSearchActive: isSearchVisible,
-                                      selectedCollectionName:
-                                          selectedCollection ?? '',
-                                      profilePhotoUrl: profilePhotoUrl,
-                                      isCrossCollectionSearch:
-                                          isCrossCollectionSearch,
-                                      onMessageTap:
-                                          _handleCrossCollectionMessageTap,
-                                    ),
+                          child: _buildMessages(messageStore),
                         ),
                         if (isCollectionSelectorVisible ||
                             selectedCollection == null)
@@ -732,8 +499,6 @@ class MessageSelectorState extends State<MessageSelector> {
                                   })
                               .toList();
                           isCrossCollectionSearch = true;
-                          messages = crossCollectionMessages;
-                          isSearchActive = true;
                         });
                       },
                     )),
@@ -950,7 +715,6 @@ class MessageSelectorState extends State<MessageSelector> {
     if (isCrossCollection) {
       setState(() {
         isCrossCollectionLoading = true;
-        messages = [];
         crossCollectionMessages = [];
       });
 
@@ -983,50 +747,49 @@ class MessageSelectorState extends State<MessageSelector> {
   }
 
   void _handleRegularSearch(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
+    _debounce?.cancel();
     setState(() {
       searchController.text = query;
       currentSearchQuery = query;
       isSearchActive = true;
+      searchResults = [];
+      currentSearchIndex = -1;
     });
+    final collection = selectedCollection;
+    if (query.trim().isEmpty || collection == null) return;
 
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      searchMessages(
-        query,
-        _debounce,
-        setState,
-        messages,
-        (index) => scrollToHighlightedMessage(
-          index,
-          searchResults,
-          itemScrollController,
-          SearchType.searchWidget,
-        ),
-        (results) {
-          setState(() {
-            searchResults = results;
-            isSearchActive = true;
-          });
-        },
-        (index) {
-          setState(() {
-            currentSearchIndex = index;
-          });
-        },
-        (active) {
-          setState(() {
-            isSearchActive = active;
-          });
-        },
-        selectedCollection,
-      );
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final hits = await _searchInConversation(query.trim(), collection);
+        if (!mounted || currentSearchQuery != query) return;
+        setState(() {
+          searchResults = hits;
+          isSearchActive = true;
+        });
+        _showSearchResult(0);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Search error: $e')));
+      }
     });
   }
 
-  void _handleCrossCollectionMessageTap(
+  /// Substring search on the server (whole conversation, oldest first).
+  /// The keyword "photo" lists the other person's photos, as before.
+  Future<List<Map<String, dynamic>>> _searchInConversation(
+      String query, String collection) async {
+    if (query.toLowerCase() == 'photo') {
+      final photos = await ApiService.fetchPhotos(collection);
+      return photos.map((m) => {'timestamp_ms': m['timestamp_ms']}).toList()
+        ..sort((a, b) =>
+            (a['timestamp_ms'] as int).compareTo(b['timestamp_ms'] as int));
+    }
+    return ApiService.search(query, collectionName: collection);
+  }
+
+  Future<void> _handleCrossCollectionMessageTap(
       String collectionName, int timestamp) async {
-    // Reset search states before switching collection
     setState(() {
       isSearchActive = false;
       isCrossCollectionSearch = false;
@@ -1034,52 +797,59 @@ class MessageSelectorState extends State<MessageSelector> {
       currentSearchQuery = null;
       currentSearchIndex = -1;
     });
-
-    // Store selected timestamp before collection change
-    final targetTimestamp = timestamp;
-
-    // Switch collection and scroll to message
     await _changeCollection(collectionName);
     if (!mounted) return;
-
-    // Wait for messages to be loaded and UI to update
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    if (!mounted) return;
-
-    // Find the message index and scroll to it without triggering search UI
-    final messageIndexStore = StoreProvider.of(context).messageIndexStore;
-    messageIndexStore.updateMessagesFromRaw(messages);
-    final messageIndex =
-        messageIndexStore.getIndexForTimestampRaw(targetTimestamp);
-    if (messageIndex != null) {
-      // Use searchResults with single item to allow proper highlighting
-      setState(() {
-        searchResults = [messageIndex];
-        currentSearchIndex = 0;
-      });
-
-      scrollToHighlightedMessage(
-        messageIndex,
-        searchResults,
-        itemScrollController,
-        SearchType.crossCollection,
-      );
-    }
+    await StoreProvider.of(context).messageStore.jumpTo(timestamp);
   }
 
-  double getResponsiveFontSize(BuildContext context, double baseSize) {
-    // Get the screen width
-    double screenWidth = MediaQuery.of(context).size.width;
-
-    // Scale factor based on screen width
-    // Adjust these values based on your needs
-    double scaleFactor = screenWidth < 600
-        ? 0.9
-        : screenWidth < 1200
-            ? 1.0
-            : 1.1;
-
-    return baseSize * scaleFactor;
+  Widget _buildMessages(MessageStore messageStore) {
+    if (isCrossCollectionLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (isCrossCollectionSearch) {
+      return ListView.builder(
+        itemCount: crossCollectionMessages.length,
+        itemBuilder: (context, i) {
+          final message = Map<String, dynamic>.from(crossCollectionMessages[i]);
+          return MessageItem(
+            message: message,
+            isAuthor: message['sender_name'] == ownerName,
+            isHighlighted: false,
+            selectedCollectionName: message['collectionName'] ?? '',
+            profilePhotoUrl: null,
+            isCrossCollectionSearch: true,
+            onMessageTap: _handleCrossCollectionMessageTap,
+          );
+        },
+      );
+    }
+    if (selectedCollection == null) {
+      return const Center(child: Text('Select a collection'));
+    }
+    if (messageStore.isLoading && messageStore.messages.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (messageStore.error != null && messageStore.messages.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Could not load messages: ${messageStore.error}'),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => _changeCollection(selectedCollection),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (messageStore.messages.isEmpty) {
+      return const Center(child: Text('No messages found'));
+    }
+    return MessageList(
+      store: messageStore,
+      profilePhotoUrl: profilePhotoUrl,
+    );
   }
 }

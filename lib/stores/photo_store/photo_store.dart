@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobx/mobx.dart';
 import 'package:logging/logging.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../file_store.dart';
 import '../collection_store.dart';
 import '../../utils/photo_handler.dart';
@@ -37,21 +36,8 @@ abstract class PhotoStoreBase with Store {
   }
 
   // Show all photos in gallery
-  void showAllPhotos(
-    BuildContext context,
-    String? collectionName, {
-    required List<Map<dynamic, dynamic>> messages,
-    required ItemScrollController itemScrollController,
-  }) {
-    if (collectionName == null || messages.isEmpty) return;
-
-    // Use the PhotoHandler to navigate to PhotoGallery screen directly
-    PhotoHandler.handleShowAllPhotos(
-      context,
-      collectionName,
-      messages: messages,
-      itemScrollController: itemScrollController,
-    );
+  void showAllPhotos(BuildContext context, String? collectionName) {
+    PhotoHandler.handleShowAllPhotos(context, collectionName);
   }
 
   // Set state callback for photo availability

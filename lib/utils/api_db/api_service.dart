@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 
 /// Error from the backend, with a message that can be shown to the user.
 class ApiException implements Exception {
@@ -39,10 +40,11 @@ class ApiService {
   static const Map<String, String> headers = {'x-api-key': apiKey};
 
   static final http.Client _client = http.Client();
+  static final _log = Logger('api');
 
   /// Headers for loading [url]; the key is only ever sent to our backend.
   static Map<String, String> headersFor(String url) =>
-      url.startsWith(baseUrl) ? headers : const {};
+      url.startsWith('$baseUrl/') ? headers : const {};
 
   /// URL of a media file from a message `uri`
   /// (`messages/inbox/<dir>/<type>/<file>` is served at `/inbox/<dir>/<type>/<file>`).
@@ -77,11 +79,15 @@ class ApiService {
     }
 
     final http.Response response;
+    final watch = Stopwatch()..start();
     try {
       response = await http.Response.fromStream(await _client.send(request));
     } catch (e) {
       throw ApiException('Network error: $e');
     }
+    _log.info('$method ${uri.path}${uri.hasQuery ? '?${uri.query}' : ''} '
+        '-> ${response.statusCode} ${response.bodyBytes.length} B '
+        '${watch.elapsedMilliseconds} ms');
     if (response.statusCode != 200) {
       throw ApiException.fromStatus(response.statusCode);
     }
@@ -130,7 +136,8 @@ class ApiService {
           if (fromDate != null) 'fromDate': '$fromDate',
           if (toDate != null) 'toDate': '$toDate',
         },
-        extraHeaders: countHit && countHits ? const {'metrics': 'true'} : const {},
+        extraHeaders:
+            countHit && countHits ? const {'metrics': 'true'} : const {},
       ));
 
   static Future<int> fetchMessageCount(String collectionName) async =>
@@ -159,9 +166,8 @@ class ApiService {
   /// Whether a profile photo file exists (HEAD, so nothing is downloaded).
   static Future<bool> profilePhotoExists(String collectionName) async {
     try {
-      final response = await _client.head(
-          Uri.parse(profilePhotoUrl(collectionName)),
-          headers: headers);
+      final response = await _client
+          .head(Uri.parse(profilePhotoUrl(collectionName)), headers: headers);
       return response.statusCode == 200;
     } catch (_) {
       return false;

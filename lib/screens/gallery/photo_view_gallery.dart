@@ -123,8 +123,7 @@ class _PhotoViewGalleryScreenState extends State<PhotoViewGalleryScreen> {
                   scrollPhysics: const BouncingScrollPhysics(),
                   builder: (BuildContext context, int index) {
                     final photo = widget.photos[index];
-                    final imageUrl =
-                        galleryStore.getPhotoUrl(photo);
+                    final imageUrl = galleryStore.getPhotoUrl(photo);
 
                     return PhotoViewGalleryPageOptions(
                       imageProvider: NetworkImage(

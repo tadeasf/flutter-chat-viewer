@@ -5,8 +5,6 @@ import 'message_store.dart';
 import 'theme_store.dart';
 import 'file_store.dart';
 import 'gallery_store.dart';
-import 'message_index_store.dart';
-import 'navigation_store.dart';
 import 'photo_store/photo_store.dart';
 
 /// A provider for MobX stores throughout the application
@@ -17,8 +15,6 @@ class StoreProvider extends InheritedWidget {
   final ThemeStore themeStore;
   final FileStore fileStore;
   final GalleryStore galleryStore;
-  final MessageIndexStore messageIndexStore;
-  final NavigationStore navigationStore;
   final PhotoStore photoStore;
 
   const StoreProvider({
@@ -29,8 +25,6 @@ class StoreProvider extends InheritedWidget {
     required this.themeStore,
     required this.fileStore,
     required this.galleryStore,
-    required this.messageIndexStore,
-    required this.navigationStore,
     required this.photoStore,
     required super.child,
   });
@@ -50,8 +44,6 @@ class StoreProvider extends InheritedWidget {
         themeStore != oldWidget.themeStore ||
         fileStore != oldWidget.fileStore ||
         galleryStore != oldWidget.galleryStore ||
-        messageIndexStore != oldWidget.messageIndexStore ||
-        navigationStore != oldWidget.navigationStore ||
         photoStore != oldWidget.photoStore;
   }
 }
@@ -63,7 +55,6 @@ class Stores {
   static final messageStore = MessageStore();
   static final themeStore = ThemeStore();
   static final galleryStore = GalleryStore();
-  static final messageIndexStore = MessageIndexStore();
 
   // PhotoStore depends on file store
   static final photoStore = PhotoStore(
@@ -74,12 +65,5 @@ class Stores {
   // ProfilePhotoStore depends on file store
   static final profilePhotoStore = ProfilePhotoStore(
     fileStore: fileStore,
-  );
-
-  // NavigationStore depends on other stores
-  static final navigationStore = NavigationStore(
-    messageStore: messageStore,
-    collectionStore: collectionStore,
-    messageIndexStore: messageIndexStore,
   );
 }

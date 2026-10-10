@@ -3,10 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
 import '../../screens/gallery/photo_view_gallery.dart';
-import '../../utils/search/scroll_to_highlighted_message.dart';
-import '../../utils/search/search_type.dart';
 import '../../widgets/gallery/photo_thumbnail.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../stores/store_provider.dart';
 import '../../stores/file_store.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
@@ -14,15 +11,11 @@ import 'package:mobx/mobx.dart';
 
 class PhotoGallery extends StatefulWidget {
   final String collectionName;
-  final List<Map<dynamic, dynamic>> messages;
-  final ItemScrollController itemScrollController;
   final Map<String, dynamic>? targetPhoto;
 
   const PhotoGallery({
     super.key,
     required this.collectionName,
-    required this.messages,
-    required this.itemScrollController,
     this.targetPhoto,
   });
 
@@ -48,25 +41,8 @@ class PhotoGalleryState extends State<PhotoGallery> {
       _logger
           .info('Setting up gallery for collection: ${widget.collectionName}');
 
-      // Get the current user's name to filter out their photos
-      String? senderFilter;
-      if (widget.messages.isNotEmpty) {
-        // Find a message with sender_name that is not the author (you)
-        for (final message in widget.messages) {
-          if (message.containsKey('sender_name') &&
-              !message['sender_name'].toString().contains('Tadeáš Fořt')) {
-            senderFilter = message['sender_name'];
-            break;
-          }
-        }
-      }
-
-      _logger.info('Using sender filter: $senderFilter');
-
-      // Setup the gallery store for this collection with sender filter
       galleryStore.setupGalleryForCollection(
-          widget.collectionName, widget.targetPhoto,
-          sender: senderFilter);
+          widget.collectionName, widget.targetPhoto);
 
       // Set up reaction to scroll to target photo when photos are loaded
       _setupReactions();
@@ -118,68 +94,11 @@ class PhotoGalleryState extends State<PhotoGallery> {
   }
 
   void _handleJumpToMessage(Map<String, dynamic> photo) {
-    final messageIndexStore = StoreProvider.of(context).messageIndexStore;
-    messageIndexStore.updateMessagesFromRaw(widget.messages);
-
-    // Get the creation_timestamp from the photo data
-    final timestamp = photo['creation_timestamp'];
-    _logger.info('Photo data: $photo');
-    _logger.info('photo timestamp: ${photo['creation_timestamp']}');
-    _logger.info('Timestamp: $timestamp');
-
-    if (timestamp == null) {
-      _logger.warning('Error: creation_timestamp is null in photo data');
-      return;
-    }
-
-    // In PhotoModel.fromMessageJson, the creation_timestamp is multiplied by 1000
-    // We need to do the same here to match the timestamps
-    int photoTimestamp = (timestamp as int) * 1000;
-    _logger.info('Modified photo timestamp (x1000): $photoTimestamp');
-
-    // First try searching with the modified timestamp
-    var messageIndex = messageIndexStore.getIndexForTimestampRaw(
-      photoTimestamp,
-      isPhotoTimestamp: true,
-    );
-
-    // If not found, try with the original timestamp
-    if (messageIndex == null) {
-      _logger.info('Trying original timestamp as fallback');
-      messageIndex = messageIndexStore.getIndexForTimestampRaw(
-        timestamp,
-        isPhotoTimestamp: true,
-      );
-    }
-
-    _logger.info('Message index: $messageIndex');
-
-    if (messageIndex != null) {
-      Navigator.pop(context);
-      _logger.info('Closed photo gallery view');
-
-      Navigator.pop(context);
-      _logger.info('Closed app drawer');
-
-      scrollToHighlightedMessage(
-        messageIndex,
-        [messageIndex],
-        widget.itemScrollController,
-        SearchType.photoView,
-      );
-      _logger.info('Scrolled to message');
-    } else {
-      _logger.warning(
-          'Error: No message index found for timestamp: $timestamp (or modified: $photoTimestamp)');
-
-      // Show a snackbar to notify the user
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not find the original message for this photo'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
+    final timestamp = photo['message_timestamp'] as int?;
+    if (timestamp == null) return;
+    // Close the photo viewer and the gallery, then show the message.
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    StoreProvider.of(context).messageStore.jumpTo(timestamp);
   }
 
   void scrollToIndex(int index) {
@@ -203,8 +122,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
     BuildContext context,
     String collectionName,
     Map<String, dynamic> targetPhoto,
-    List<Map<dynamic, dynamic>> messages,
-    ItemScrollController itemScrollController,
   ) {
     // Get gallery store and set target photo before navigation
     final galleryStore = StoreProvider.of(context).galleryStore;
@@ -214,8 +131,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
       MaterialPageRoute(
         builder: (context) => PhotoGallery(
           collectionName: collectionName,
-          messages: messages,
-          itemScrollController: itemScrollController,
           targetPhoto: targetPhoto,
         ),
       ),
@@ -302,8 +217,7 @@ class PhotoGalleryState extends State<PhotoGallery> {
                 }
 
                 final photo = galleryStore.getPhotoAt(index);
-                final imageUrl =
-                    galleryStore.getPhotoUrl(photo);
+                final imageUrl = galleryStore.getPhotoUrl(photo);
 
                 return GestureDetector(
                   onTap: () {
@@ -324,8 +238,6 @@ class PhotoGalleryState extends State<PhotoGallery> {
                               context,
                               widget.collectionName,
                               currentPhoto,
-                              widget.messages,
-                              widget.itemScrollController,
                             );
                           },
                         ),

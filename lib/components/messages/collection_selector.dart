@@ -107,17 +107,12 @@ class CollectionSelectorState extends State<CollectionSelector> {
     if (!mounted) return;
 
     final store = StoreProvider.of(context).collectionStore;
-    final navigationStore = StoreProvider.of(context).navigationStore;
 
     // Show loading state
     setState(() {
       isOpen = false; // Close the selector
     });
 
-    // Use the navigation store to handle collection switching
-    await navigationStore.navigateToCollection(context, collectionName);
-
-    // Navigation is handled by the store now
     widget.onCollectionChanged(collectionName);
 
     // Only refresh collections if necessary - collection hit count may have changed

@@ -97,8 +97,6 @@ void main() async {
       fileStore: Stores.fileStore,
       photoStore: Stores.photoStore,
       galleryStore: Stores.galleryStore,
-      messageIndexStore: Stores.messageIndexStore,
-      navigationStore: Stores.navigationStore,
       child: const MyApp(),
     ),
   );

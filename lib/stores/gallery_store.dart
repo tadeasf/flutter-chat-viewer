@@ -94,8 +94,7 @@ abstract class GalleryStoreBase with Store {
         'Loading photos for collection: $collectionName, sender: $sender');
 
     try {
-      final loadedPhotos =
-          await ApiService.fetchPhotos(collectionName);
+      final loadedPhotos = await ApiService.fetchPhotos(collectionName);
       photos.addAll(loadedPhotos);
       _logger.info('Loaded ${loadedPhotos.length} photos for $collectionName');
 
