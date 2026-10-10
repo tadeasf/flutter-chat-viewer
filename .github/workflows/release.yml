@@ -1,10 +1,8 @@
 name: "Build"
 
+# Manual only: the APK carries the API key and is attached to a public release.
 on:
-  pull_request:
-    branches: [dev, test, main]
-  push:
-    branches: [dev, test, main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -59,7 +57,7 @@ jobs:
       - name: Set Up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.2'
+          flutter-version: '3.47.7'
           channel: 'stable'
           cache: true
 
