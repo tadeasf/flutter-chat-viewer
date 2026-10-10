@@ -82,6 +82,10 @@ class CollectionSelectorState extends State<CollectionSelector> {
       isOpen = !isOpen;
     });
     if (isOpen) {
+      // Start with an empty filter; the field and the store's filter used to
+      // disagree when the picker was reopened.
+      searchController.clear();
+      StoreProvider.of(context).collectionStore.clearFilter();
       _refreshCollections();
       Future.delayed(const Duration(milliseconds: 100), () {
         _searchFocusNode.requestFocus();
@@ -180,13 +184,11 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                     controller: searchController,
                                     focusNode: _searchFocusNode,
                                     onChanged: _applyFilter,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontFamily: 'JetBrains Mono Nerd Font',
-                                    ),
+                                    style:
+                                        theme.textTheme.bodyMedium?.copyWith(),
                                     decoration: InputDecoration(
                                       hintText: 'Search collections...',
                                       hintStyle: TextStyle(
-                                        fontFamily: 'JetBrains Mono Nerd Font',
                                         color: theme.colorScheme.onSurface
                                             .withValues(alpha: 0.6),
                                       ),
@@ -266,10 +268,7 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                     '${item['name']}: ',
                                                     style: theme
                                                         .textTheme.bodyMedium
-                                                        ?.copyWith(
-                                                      fontFamily:
-                                                          'JetBrains Mono Nerd Font',
-                                                    ),
+                                                        ?.copyWith(),
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                   ),
@@ -285,8 +284,6 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                                   style: theme
                                                       .textTheme.bodyMedium
                                                       ?.copyWith(
-                                                    fontFamily:
-                                                        'JetBrains Mono Nerd Font',
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 16,
                                                   ),
@@ -372,9 +369,8 @@ class CollectionSelectorState extends State<CollectionSelector> {
                                 child: Text(
                                   widget.selectedCollection ??
                                       'Select Collection',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                      fontFamily: 'JetBrains Mono Nerd Font',
-                                      fontWeight: FontWeight.w500),
+                                  style: theme.textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),

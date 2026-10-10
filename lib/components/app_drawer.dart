@@ -141,7 +141,6 @@ class _AppDrawerState extends State<AppDrawer> {
                     selectedCollection ?? 'No Collection Selected',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontSize: 18,
-                          fontFamily: 'JetBrains Mono Nerd Font',
                           color: Colors.white,
                         ),
                     textAlign: TextAlign.center,
@@ -204,7 +203,6 @@ class _AppDrawerState extends State<AppDrawer> {
                           'Gallery',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     color: Colors.white,
                                   ),
                           textAlign: TextAlign.center,
@@ -224,7 +222,6 @@ class _AppDrawerState extends State<AppDrawer> {
                           'Settings',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     color: Colors.white,
                                   ),
                           textAlign: TextAlign.center,

@@ -138,122 +138,123 @@ class PhotoGalleryState extends State<PhotoGallery> {
     final galleryStore = StoreProvider.of(context).galleryStore;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return KeyboardListener(
-      focusNode: FocusNode(),
-      autofocus: true,
-      onKeyEvent: (KeyEvent event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape) {
-          Navigator.of(context).pop();
-        }
+    // A new FocusNode was created on every build (leaked, and lost focus, so
+    // Esc did nothing). Focus(autofocus) owns its node.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(context).maybePop(),
       },
-      child: Scaffold(
-        backgroundColor: isDarkMode ? Color(0xFF121214) : null,
-        appBar: AppBar(
-          title: Text('Photos - ${widget.collectionName}'),
-          backgroundColor: isDarkMode ? Color(0xFF17171B) : null,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings_backup_restore),
-              tooltip: 'Clear image cache',
-              onPressed: () async {
-                await DefaultCacheManager().emptyCache();
-                PaintingBinding.instance.imageCache.clear();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Image cache cleared')),
-                );
-              },
-            ),
-          ],
-        ),
-        body: Observer(
-          builder: (_) {
-            if (galleryStore.isLoading && galleryStore.photos.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (galleryStore.photos.isEmpty && !galleryStore.isLoading) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.photo_library,
-                        size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No photos found',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'This collection does not have any photos',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return GridView.builder(
-              controller: _scrollController,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 4.0,
-                crossAxisSpacing: 4.0,
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: isDarkMode ? Color(0xFF121214) : null,
+          appBar: AppBar(
+            title: Text('Photos - ${widget.collectionName}'),
+            backgroundColor: isDarkMode ? Color(0xFF17171B) : null,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_backup_restore),
+                tooltip: 'Clear image cache',
+                onPressed: () async {
+                  await DefaultCacheManager().emptyCache();
+                  PaintingBinding.instance.imageCache.clear();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Image cache cleared')),
+                  );
+                },
               ),
-              itemCount:
-                  galleryStore.photos.length + (galleryStore.isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == galleryStore.photos.length &&
-                    galleryStore.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (index >= galleryStore.photos.length) {
-                  return Container();
-                }
+            ],
+          ),
+          body: Observer(
+            builder: (_) {
+              if (galleryStore.isLoading && galleryStore.photos.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-                final photo = galleryStore.getPhotoAt(index);
-                final imageUrl = galleryStore.getPhotoUrl(photo);
-
-                return GestureDetector(
-                  onTap: () {
-                    galleryStore.setCurrentPhotoIndex(index);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PhotoViewGalleryScreen(
-                          collectionName: widget.collectionName,
-                          initialIndex: index,
-                          photos: galleryStore.getPhotosForGallery(),
-                          showAppBar: true,
-                          onJumpToMessage: _handleJumpToMessage,
-                          onJumpToGallery: (currentIndex) {
-                            final currentPhoto =
-                                galleryStore.getPhotoAt(currentIndex);
-                            PhotoGalleryState.navigateToGalleryAndScroll(
-                              context,
-                              widget.collectionName,
-                              currentPhoto,
-                            );
-                          },
-                        ),
+              if (galleryStore.photos.isEmpty && !galleryStore.isLoading) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.photo_library,
+                          size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No photos found',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    );
-                  },
-                  child: Container(
-                    color: isDarkMode
-                        ? Color(0xFF1E1E24)
-                        : Theme.of(context).cardColor,
-                    child: PhotoThumbnail(
-                      imageUrl: imageUrl,
-                      collectionName: widget.collectionName,
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This collection does not have any photos',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                   ),
                 );
-              },
-            );
-          },
+              }
+
+              return GridView.builder(
+                controller: _scrollController,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 4.0,
+                  crossAxisSpacing: 4.0,
+                ),
+                itemCount: galleryStore.photos.length +
+                    (galleryStore.isLoading ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == galleryStore.photos.length &&
+                      galleryStore.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (index >= galleryStore.photos.length) {
+                    return Container();
+                  }
+
+                  final photo = galleryStore.getPhotoAt(index);
+                  final imageUrl = galleryStore.getPhotoUrl(photo);
+
+                  return GestureDetector(
+                    onTap: () {
+                      galleryStore.setCurrentPhotoIndex(index);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PhotoViewGalleryScreen(
+                            collectionName: widget.collectionName,
+                            initialIndex: index,
+                            photos: galleryStore.getPhotosForGallery(),
+                            showAppBar: true,
+                            onJumpToMessage: _handleJumpToMessage,
+                            onJumpToGallery: (currentIndex) {
+                              final currentPhoto =
+                                  galleryStore.getPhotoAt(currentIndex);
+                              PhotoGalleryState.navigateToGalleryAndScroll(
+                                context,
+                                widget.collectionName,
+                                currentPhoto,
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      color: isDarkMode
+                          ? Color(0xFF1E1E24)
+                          : Theme.of(context).cardColor,
+                      child: PhotoThumbnail(
+                        imageUrl: imageUrl,
+                        collectionName: widget.collectionName,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

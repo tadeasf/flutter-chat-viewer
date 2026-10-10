@@ -190,7 +190,6 @@ class AppColors {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      fontFamily: 'JetBrainsMono',
       scaffoldBackgroundColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF4A90A4),
@@ -215,7 +214,6 @@ class AppColors {
         iconTheme: IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontFamily: 'JetBrains Mono Nerd Font',
           fontSize: 20,
           fontWeight: FontWeight.w500,
         ),
@@ -229,42 +227,36 @@ class AppColors {
             TextStyle(color: Colors.black87, fontSize: fontSize + 2),
         headlineSmall: TextStyle(color: Colors.black87, fontSize: fontSize + 1),
         titleLarge: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
           fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black87,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: Colors.black54,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
@@ -319,7 +311,6 @@ class AppColors {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: 'JetBrainsMono',
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: ColorScheme.dark(
         primary: AppColors.blue,
@@ -353,7 +344,6 @@ class AppColors {
         shadowColor: Colors.black.withValues(alpha: 60),
         titleTextStyle: TextStyle(
           color: AppColors.text,
-          fontFamily: 'JetBrains Mono Nerd Font',
           fontSize: 20,
           fontWeight: FontWeight.w500,
         ),
@@ -367,42 +357,36 @@ class AppColors {
             TextStyle(color: AppColors.text, fontSize: fontSize + 2),
         headlineSmall: TextStyle(color: AppColors.text, fontSize: fontSize + 1),
         titleLarge: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w500,
           fontSize: fontSize + 2,
         ),
         titleMedium: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize + 1,
         ),
         titleSmall: TextStyle(
-          fontFamily: 'JetBrains Mono Nerd Font',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w400,
           fontSize: fontSize,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'CaskaydiaCoveNerdFontMono',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'CaskaydiaCoveNerdFontMono',
           color: AppColors.text,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,
           fontSize: fontSize - 1,
         ),
         bodySmall: TextStyle(
-          fontFamily: 'CaskaydiaCoveNerdFontMono',
           color: AppColors.subtext1,
           fontStyle: FontStyle.normal,
           fontWeight: FontWeight.w300,

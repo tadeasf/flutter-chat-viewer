@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/api_db/api_service.dart';
 import 'message_profile_photo.dart';
@@ -39,16 +38,6 @@ class MessageItem extends StatefulWidget {
 class MessageItemState extends State<MessageItem> {
   bool _isExpanded = false;
 
-  String _ensureDecoded(dynamic text) {
-    if (text == null) return '';
-    if (text is! String) return text.toString();
-    try {
-      return utf8.decode(text.runes.toList());
-    } catch (e) {
-      return text;
-    }
-  }
-
   void _handlePhotoTap(BuildContext context, int index, List<dynamic> photos) {
     // Cast to Map<String, dynamic> to avoid type issues
     final photosAsMaps = List<Map<String, dynamic>>.from(
@@ -80,14 +69,6 @@ class MessageItemState extends State<MessageItem> {
     );
   }
 
-  Color getTextColor() {
-    final theme = Theme.of(context);
-    if (widget.isHighlighted) {
-      return theme.colorScheme.onSurface;
-    }
-    return theme.colorScheme.onSurface;
-  }
-
   Widget buildMessageContent() {
     final theme = Theme.of(context);
     final themeStore = StoreProvider.of(context).themeStore;
@@ -104,9 +85,8 @@ class MessageItemState extends State<MessageItem> {
             constraints: const BoxConstraints(maxWidth: displayWidth),
             child: Observer(
               builder: (_) => Text(
-                _ensureDecoded(widget.message['content']),
+                widget.message['content'].toString(),
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'CaskaydiaCoveNerdFontMono',
                   fontSize: themeStore.fontSize,
                 ),
               ),
@@ -319,19 +299,16 @@ class MessageItemState extends State<MessageItem> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _ensureDecoded(
-                            widget.message['sender_name'] ?? 'Unknown sender'),
+                        (widget.message['sender_name'] ?? 'Unknown sender')
+                            .toString(),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontSize: 14,
                         ),
                       ),
                       if (widget.isCrossCollectionSearch)
                         Text(
-                          ' (${_ensureDecoded(widget.message['collectionName'] ?? 'Unknown collection')})',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontFamily: 'JetBrains Mono Nerd Font',
-                          ),
+                          ' (${widget.message['collectionName'] ?? 'Unknown collection'})',
+                          style: theme.textTheme.bodySmall?.copyWith(),
                         ),
                     ],
                   ),
@@ -367,9 +344,7 @@ class MessageItemState extends State<MessageItem> {
                               widget.message['timestamp_ms'],
                             ),
                           ),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontFamily: 'CaskaydiaCoveNerdFontMono',
-                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(),
                         ),
                       ],
                     ],

@@ -32,6 +32,8 @@ class PhotoThumbnail extends StatelessWidget {
               imageUrl: imageUrl,
               httpHeaders: ApiService.headersFor(imageUrl),
               fit: BoxFit.cover,
+              // Decode at tile size instead of full resolution.
+              memCacheWidth: 600,
               placeholder: (context, url) => Container(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Center(

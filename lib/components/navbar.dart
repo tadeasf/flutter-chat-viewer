@@ -63,7 +63,6 @@ class Navbar extends StatelessWidget {
                 Text(
                   'Search in ${selectedCollection?.split('_').join(' ')}',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'JetBrains Mono Nerd Font',
                     color: isDarkMode
                         ? Colors.white70
                         : theme.colorScheme.onSurface,
@@ -90,7 +89,6 @@ class Navbar extends StatelessWidget {
                 Text(
                   'Search All Collections',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'JetBrains Mono Nerd Font',
                     color: isDarkMode
                         ? Colors.white70
                         : theme.colorScheme.onSurface,

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'message_list.dart';
 import 'message_item.dart';
 import '../../screens/gallery/photo_gallery.dart';
@@ -279,9 +278,9 @@ class MessageSelectorState extends State<MessageSelector> {
             result.containsKey('is_geoblocked_for_viewer');
 
         return Map<dynamic, dynamic>.from({
-          'content': _decodeIfNeeded(result['content']),
-          'sender_name': _decodeIfNeeded(result['sender_name']),
-          'collectionName': _decodeIfNeeded(result['collectionName']),
+          'content': result['content'] ?? '',
+          'sender_name': result['sender_name'] ?? '',
+          'collectionName': result['collectionName'] ?? '',
           'timestamp_ms': result['timestamp_ms'] ?? 0,
           'photos': result['photos'] ?? [],
           'is_geoblocked_for_viewer': result['is_geoblocked_for_viewer'],
@@ -292,15 +291,6 @@ class MessageSelectorState extends State<MessageSelector> {
 
       isCrossCollectionSearch = true;
     });
-  }
-
-  String _decodeIfNeeded(dynamic text) {
-    if (text == null) return '';
-    try {
-      return utf8.decode(text.toString().codeUnits);
-    } catch (e) {
-      return text.toString();
-    }
   }
 
   @override
@@ -377,7 +367,6 @@ class MessageSelectorState extends State<MessageSelector> {
                                 Text(
                                   'Loading collections...',
                                   style: TextStyle(
-                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     fontSize: 12,
                                   ),
                                 ),
@@ -404,7 +393,6 @@ class MessageSelectorState extends State<MessageSelector> {
                                 const Text(
                                   'Pull down to refresh collections',
                                   style: TextStyle(
-                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     fontSize: 12,
                                   ),
                                 ),
@@ -425,7 +413,6 @@ class MessageSelectorState extends State<MessageSelector> {
                                 .textTheme
                                 .titleMedium
                                 ?.copyWith(
-                                  fontFamily: 'JetBrains Mono Nerd Font',
                                   fontSize: 12,
                                 ),
                           ),
@@ -455,7 +442,6 @@ class MessageSelectorState extends State<MessageSelector> {
                                 return const Text(
                                   'Failed to load image',
                                   style: TextStyle(
-                                    fontFamily: 'JetBrains Mono Nerd Font',
                                     fontSize: 12,
                                   ),
                                 );
@@ -561,7 +547,6 @@ class MessageSelectorState extends State<MessageSelector> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
-                        fontFamily: 'JetBrains Mono Nerd Font',
                         fontStyle: FontStyle.normal,
                         fontWeight: FontWeight.w300,
                       ),
@@ -570,7 +555,6 @@ class MessageSelectorState extends State<MessageSelector> {
                         hintStyle: const TextStyle(
                           color: Colors.white60,
                           fontSize: 11,
-                          fontFamily: 'JetBrains Mono Nerd Font',
                           fontStyle: FontStyle.normal,
                           fontWeight: FontWeight.w300,
                         ),
