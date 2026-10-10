@@ -48,26 +48,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  fonts:
-    - family: CaskaydiaCove Nerd Font
-      fonts:
-        - asset: assets/fonts/CaskaydiaCoveNerdFontMono-Light.ttf
-          weight: 300
-        - asset: assets/fonts/CaskaydiaCoveNerdFontMono-Regular.ttf
-          weight: 400
-    - family: JetBrainsMono Nerd Font
-      fonts:
-        - asset: assets/fonts/JetBrainsMonoNerdFont-Regular.ttf
-          weight: 300
-        - asset: assets/fonts/JetBrainsMonoNerdFont-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/JetBrainsMonoNerdFont-Italic.ttf
-          style: italic
-        - asset: assets/fonts/JetBrainsMonoNerdFont-BoldItalic.ttf
-          weight: 700
-          style: italic
-
-
 flutter_native_splash:
   color: "#42a5f5"
   image: assets/splash/splash.png
