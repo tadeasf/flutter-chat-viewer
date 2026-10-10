@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:math' show max;
 import '../../stores/store_provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:mobx/mobx.dart';
 
 class CollectionSelector extends StatefulWidget {
   final String? selectedCollection;
@@ -27,61 +26,20 @@ class CollectionSelectorState extends State<CollectionSelector> {
   final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _keyboardFocusNode = FocusNode();
-  final List<ReactionDisposer> _disposers = [];
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_scrollListener);
-
-    // Setup MobX reactions after the first frame is rendered
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupReactions();
-      _refreshCollections();
-    });
-  }
-
-  void _setupReactions() {
-    final store = StoreProvider.of(context).collectionStore;
-
-    // React to changes in the collection refresh state
-    _disposers
-        .add(reaction((_) => store.needsCollectionRefresh, (needsRefresh) {
-      if (needsRefresh) {
-        _refreshCollections();
-      }
-    }));
-
-    // React to loading state changes
-    _disposers.add(reaction((_) => store.isLoading, (isLoading) {
-      // We could update UI based on loading state if needed
-    }));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshCollections());
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     searchController.dispose();
     _searchFocusNode.dispose();
     _keyboardFocusNode.dispose();
-    // Dispose of all reactions
-    for (final disposer in _disposers) {
-      disposer();
-    }
     super.dispose();
-  }
-
-  void _scrollListener() {
-    if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent) {
-      _loadMoreCollections();
-    }
-  }
-
-  Future<void> _loadMoreCollections() async {
-    final store = StoreProvider.of(context).collectionStore;
-    await store.loadMoreCollections();
   }
 
   Future<void> _refreshCollections() async {
@@ -115,10 +73,8 @@ class CollectionSelectorState extends State<CollectionSelector> {
 
     widget.onCollectionChanged(collectionName);
 
-    // Only refresh collections if necessary - collection hit count may have changed
-    if (store.needsCollectionRefresh) {
-      await store.refreshCollections();
-    }
+    // The hit count of the opened conversation changed.
+    await store.refreshCollectionsIfNeeded();
   }
 
   void _toggleCollectionSelector() {

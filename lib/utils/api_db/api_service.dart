@@ -113,10 +113,6 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> fetchCollections() async =>
       _list(await _send('GET', '/collections'));
 
-  static Future<List<Map<String, dynamic>>>
-      fetchAlphabeticalCollections() async =>
-          _list(await _send('GET', '/collections/alphabetical'));
-
   /// One page of a conversation, oldest first. Always paged: the unpaged
   /// endpoint returns whole conversations (tens of MB).
   static Future<List<Map<String, dynamic>>> fetchMessages(

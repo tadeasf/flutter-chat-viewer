@@ -386,13 +386,20 @@ class MessageSelectorState extends State<MessageSelector> {
                       );
                     } else if (collections.isEmpty) {
                       return ListView(
-                        children: const [
-                          SizedBox(height: 200),
+                        children: [
+                          const SizedBox(height: 200),
                           Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
+                                if (collectionStore.error != null)
+                                  Text('Could not load conversations: '
+                                      '${collectionStore.error}'),
+                                TextButton(
+                                  onPressed: collectionStore.refreshCollections,
+                                  child: const Text('Retry'),
+                                ),
+                                const Text(
                                   'Pull down to refresh collections',
                                   style: TextStyle(
                                     fontFamily: 'JetBrains Mono Nerd Font',

@@ -20,17 +20,16 @@ Future<void> saveMedia(BuildContext context, String url) async {
     }
     final name = Uri.parse(url).pathSegments.last;
 
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+    if (!kIsWeb &&
+        (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       final dir = await getDownloadsDirectory();
       if (dir == null) throw Exception('No downloads directory');
       final file = File('${dir.path}${Platform.pathSeparator}$name');
       await file.writeAsBytes(response.bodyBytes);
       messenger.showSnackBar(SnackBar(content: Text('Saved to ${file.path}')));
     } else {
-      final result = await ImageGallerySaverPlus.saveImage(
-          response.bodyBytes,
-          quality: 100,
-          name: name);
+      final result = await ImageGallerySaverPlus.saveImage(response.bodyBytes,
+          quality: 100, name: name);
       if (result['isSuccess'] != true) throw Exception('Gallery refused file');
       messenger.showSnackBar(const SnackBar(content: Text('Saved to gallery')));
     }
