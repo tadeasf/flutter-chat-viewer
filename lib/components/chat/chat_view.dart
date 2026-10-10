@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:mobx/mobx.dart' show ReactionDisposer, reaction;
 
 import '../../screens/gallery/photo_gallery.dart';
 import '../../stores/message_store.dart';
@@ -16,6 +17,8 @@ import 'details_dialog.dart';
 import 'jump_to_date_dialog.dart';
 import 'message_bubble.dart';
 import 'message_list.dart';
+import 'stats_dialog.dart';
+import 'timeline_rail.dart';
 
 /// The open conversation: header, find bar and the message list.
 class ChatView extends StatefulWidget {
@@ -52,6 +55,10 @@ class ChatViewState extends State<ChatView> {
   String? _findError;
   Timer? _debounce;
 
+  /// Timestamp of the message at the top of the screen (null: newest).
+  final _position = ValueNotifier<int?>(null);
+  ReactionDisposer? _windowReaction;
+
   MessageStore get _store => StoreProvider.of(context).messageStore;
 
   @override
@@ -61,7 +68,23 @@ class ChatViewState extends State<ChatView> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // After a jump nothing has scrolled yet: take the position from the
+    // new window's anchor.
+    _windowReaction ??= reaction((_) => _store.generation, (_) {
+      final store = _store;
+      _position.value =
+          store.anchoredAtBottom || store.anchor >= store.messages.length
+              ? null
+              : store.messages[store.anchor]['timestamp_ms'] as int?;
+    });
+  }
+
+  @override
   void dispose() {
+    _windowReaction?.call();
+    _position.dispose();
     _debounce?.cancel();
     _findController.dispose();
     _findFocus.dispose();
@@ -101,6 +124,15 @@ class ChatViewState extends State<ChatView> {
     final timestamp = await showDialog<int>(
       context: context,
       builder: (_) => JumpToDateDialog(store: store),
+    );
+    if (timestamp != null) await store.jumpTo(timestamp);
+  }
+
+  Future<void> openStats() async {
+    final store = _store;
+    final timestamp = await showDialog<int>(
+      context: context,
+      builder: (_) => StatsDialog(store: store, title: _title()),
     );
     if (timestamp != null) await store.jumpTo(timestamp);
   }
@@ -258,6 +290,11 @@ class ChatViewState extends State<ChatView> {
               icon: const Icon(Icons.photo_library_outlined),
             ),
             IconButton(
+              tooltip: 'Statistics (Ctrl+I)',
+              onPressed: openStats,
+              icon: const Icon(Icons.insights_outlined),
+            ),
+            IconButton(
               tooltip: 'Bookmarks (Ctrl+B)',
               onPressed: openBookmarks,
               icon: const Icon(Icons.bookmarks_outlined),
@@ -376,9 +413,12 @@ class ChatViewState extends State<ChatView> {
             userData: StoreProvider.of(context).userDataStore,
             avatarUrl: widget.avatarUrl,
             query: _findOpen ? _query : null,
-            onPosition: (ts) => StoreProvider.of(context)
-                .userDataStore
-                .setPosition(widget.collection, ts),
+            onPosition: (ts) {
+              _position.value = ts;
+              StoreProvider.of(context)
+                  .userDataStore
+                  .setPosition(widget.collection, ts);
+            },
           ),
           if (store.isLoading)
             const Positioned(
@@ -391,7 +431,14 @@ class ChatViewState extends State<ChatView> {
       children: [
         header,
         if (_findOpen) findBar,
-        Expanded(child: body),
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(child: body),
+              TimelineRail(store: store, position: _position),
+            ],
+          ),
+        ),
       ],
     );
   }
