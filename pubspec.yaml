@@ -21,10 +21,10 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   intl: ^0.20.1
-  image_picker: ^1.1.2
+  image_picker: ^1.2.4
   shared_preferences: ^2.0.8
   permission_handler: ^11.3.1
-  cached_network_image: ^3.0.0
+  cached_network_image: ^4.0.4
   path_provider: ^2.1.5
   logging: ^1.1.0
   photo_view: ^0.15.0
